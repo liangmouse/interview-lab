@@ -3,7 +3,7 @@ import { AuthArtwork } from "@/components/auth-artwork";
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[1.3fr_1fr]">
+    <div className="h-screen grid grid-cols-1 lg:grid-cols-[1.3fr_1fr]">
       {/* Left Column - Marketing Panel (Hidden on mobile) */}
       <div className="hidden lg:block relative h-full">
         <AuthArtwork />

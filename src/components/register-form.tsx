@@ -141,19 +141,19 @@ export function RegisterForm() {
 
   return (
     <div className="w-full">
-      <div className="p-8 min-h-[640px] flex flex-col justify-center">
-        <div className="mb-8 space-y-2">
+      <div className="flex flex-col justify-center">
+        <div className="mb-6 space-y-2">
           <h1 className="text-3xl font-light text-[#141414] tracking-tight">
             {t("createAccount")}
           </h1>
           <p className="text-base text-[#666666]">{t("createAccountDesc")}</p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div className="space-y-4">
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-50 text-[#141414] font-normal"
+              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-100 hover:text-[#141414] hover:border-gray-300 text-[#141414] font-normal transition-colors"
               onClick={() => handleOAuthLogin("github")}
               loading={isOAuthLoading === "github"}
             >
@@ -164,7 +164,7 @@ export function RegisterForm() {
             </Button>
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-50 text-[#141414] font-normal"
+              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-100 hover:text-[#141414] hover:border-gray-300 text-[#141414] font-normal transition-colors"
               onClick={() => handleOAuthLogin("google")}
               loading={isOAuthLoading === "google"}
             >
@@ -181,7 +181,7 @@ export function RegisterForm() {
               </span>
             </div>
 
-            <form onSubmit={handleRegister} className="space-y-5">
+            <form onSubmit={handleRegister} className="space-y-4">
               {error && (
                 <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
                   {error}

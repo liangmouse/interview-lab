@@ -9,8 +9,8 @@ export default async function DashboardPage() {
   return (
     <DashboardShell>
       <DashboardHeader />
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-[#FDFCF8]">
-        <div className="mx-auto max-w-7xl space-y-8">
+      <main className="flex-1 overflow-y-auto p-6 lg:p-10 relative z-10 scroll-smooth">
+        <div className="mx-auto max-w-7xl space-y-5 pb-10">
           <WelcomeBanner />
           <QuickStartCard />
           <StatsGrid />

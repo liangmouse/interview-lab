@@ -10,7 +10,7 @@ export function AuthArtwork() {
   const features = [t("feature1"), t("feature2"), t("feature3"), t("feature4")];
 
   return (
-    <div className="relative w-full h-full min-h-screen bg-linear-to-br from-[#FDFCF8] to-[#F2F0E8] overflow-hidden">
+    <div className="relative w-full h-full bg-linear-to-br from-[#FDFCF8] to-[#F2F0E8] overflow-hidden">
       {/* Subtle geometric pattern overlay with fade mask */}
       <div
         className="absolute inset-0 opacity-[0.03]"

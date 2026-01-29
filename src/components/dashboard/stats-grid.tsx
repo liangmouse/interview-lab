@@ -8,6 +8,7 @@ import {
   getInterviewStats,
   type InterviewStats,
 } from "@/action/get-interview-stats";
+import { cn } from "@/lib/utils";
 
 /** 格式化时长显示 */
 function formatDuration(totalMinutes: number): { value: string; unit: string } {
@@ -54,7 +55,8 @@ export function StatsGrid() {
       value: stats?.totalInterviews.toString() ?? "0",
       unit: "次",
       icon: FileText,
-      color: "bg-emerald-50 text-emerald-600",
+      gradient: "from-emerald-500/10 to-emerald-500/5",
+      iconColor: "text-emerald-600",
       trend: null,
     },
     {
@@ -62,7 +64,8 @@ export function StatsGrid() {
       value: stats?.avgScore.toString() ?? "0",
       unit: "分",
       icon: TrendingUp,
-      color: "bg-amber-50 text-amber-600",
+      gradient: "from-amber-500/10 to-amber-500/5",
+      iconColor: "text-amber-600",
       trend:
         stats && stats.avgScore >= 80
           ? "优秀"
@@ -75,7 +78,8 @@ export function StatsGrid() {
       value: duration.value,
       unit: duration.unit,
       icon: Clock,
-      color: "bg-sky-50 text-sky-600",
+      gradient: "from-sky-500/10 to-sky-500/5",
+      iconColor: "text-sky-600",
       trend: null,
     },
   ];
@@ -83,18 +87,18 @@ export function StatsGrid() {
   // 加载状态
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-[#E5E5E5] bg-white p-6 shadow-sm"
+            className="rounded-xl border border-border bg-card p-6 shadow-sm"
           >
             <div className="flex items-start justify-between">
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-9 w-24" />
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-32" />
               </div>
-              <Skeleton className="h-10 w-10 rounded-lg" />
+              <Skeleton className="h-12 w-12 rounded-xl" />
             </div>
           </div>
         ))}
@@ -109,35 +113,41 @@ export function StatsGrid() {
         return (
           <div
             key={stat.titleKey}
-            className="group relative rounded-xl border border-[#E5E5E5] bg-white p-6 shadow-sm transition-all duration-200 hover:border-[#0F3E2E]/20 hover:shadow-md"
+            className="group relative overflow-hidden rounded-xl border border-border/50 bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-border/80"
           >
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-[#999999]">
+            <div className="flex items-start justify-between relative z-10">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">
                   {t(stat.titleKey)}
                 </p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-semibold tracking-tight text-[#141414]">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold tracking-tight text-foreground">
                     {stat.value}
                   </span>
                   {stat.unit && (
-                    <span className="text-sm font-medium text-[#666666]">
+                    <span className="text-sm font-medium text-muted-foreground/80">
                       {stat.unit}
                     </span>
                   )}
                 </div>
                 {stat.trend && (
-                  <p className="text-xs font-medium text-emerald-600">
+                  <div className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                     {stat.trend}
-                  </p>
+                  </div>
                 )}
               </div>
               <div
-                className={`flex h-11 w-11 items-center justify-center rounded-lg ${stat.color} transition-transform duration-200 group-hover:scale-110`}
+                className={cn(
+                  "flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3",
+                  stat.gradient,
+                  stat.iconColor,
+                )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-6 w-6" />
               </div>
             </div>
+            {/* Background decoration */}
+            <div className="absolute right-0 top-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-current to-transparent opacity-[0.03] blur-2xl" />
           </div>
         );
       })}

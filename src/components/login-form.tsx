@@ -100,7 +100,7 @@ export function LoginForm() {
 
   return (
     <div className="w-full">
-      <div className="p-8 min-h-[640px] flex flex-col justify-center">
+      <div className="p-8 flex flex-col justify-center">
         <div className="mb-8 space-y-2">
           <h1 className="text-3xl font-light text-[#141414] tracking-tight">
             {t("welcomeBack")}
@@ -112,7 +112,7 @@ export function LoginForm() {
           <div className="space-y-4">
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-50 text-[#141414] font-normal"
+              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-50 text-[#141414] hover:!text-[#141414] font-normal"
               onClick={() => handleOAuthLogin("github")}
               loading={isOAuthLoading === "github"}
               disabled={isBusy || isOAuthLoading !== null}
@@ -124,7 +124,7 @@ export function LoginForm() {
             </Button>
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-50 text-[#141414] font-normal"
+              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-50 text-[#141414] hover:!text-[#141414] font-normal"
               onClick={() => handleOAuthLogin("google")}
               loading={isOAuthLoading === "google"}
               disabled={isBusy || isOAuthLoading !== null}
