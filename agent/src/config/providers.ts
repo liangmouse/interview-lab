@@ -1,10 +1,13 @@
 import * as deepgram from "@livekit/agents-plugin-deepgram";
 import * as openai from "@livekit/agents-plugin-openai";
-import { MiniMaxTTS } from "../plugins/minimax-tts-plugin";
+import { GeminiTTS } from "../plugins/gemini-tts-plugin";
 
-export const MINIMAX_BASE_URL = "https://api.minimax.chat/v1";
-export const DEFAULT_MINIMAX_MODEL = "abab5.5s-chat";
-export const DEFAULT_MINIMAX_TEMPERATURE = 0.4;
+export const GEMINI_BASE_URL =
+  "https://generativelanguage.googleapis.com/v1beta/openai";
+export const GEMINI_NATIVE_BASE_URL =
+  "https://generativelanguage.googleapis.com/v1beta";
+export const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+export const DEFAULT_GEMINI_TEMPERATURE = 0.4;
 
 // 默认使用 Deepgram 的高精度通用模型（多语言）
 export const DEFAULT_DEEPGRAM_MODEL = "nova-3-general";
@@ -12,7 +15,8 @@ export const DEFAULT_DEEPGRAM_LANGUAGE = "zh";
 export const DEFAULT_DEEPGRAM_SMART_FORMAT = true;
 export const DEEPGRAM_KEYTERM_LIMIT = 20;
 
-export const DEFAULT_MINIMAX_VOICE_ID = "male-qn-qingse";
+export const DEFAULT_GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
+export const DEFAULT_GEMINI_TTS_VOICE = "Kore";
 
 function requireEnv(name: string): string {
   const v = process.env[name];
@@ -23,18 +27,18 @@ function requireEnv(name: string): string {
   return resolved;
 }
 
-export function getMiniMaxApiKey(): string {
-  return requireEnv("MINIMAX_API_KEY");
+export function getGeminiApiKey(): string {
+  return requireEnv("GEMINI_API_KEY");
 }
 
 export function getDeepgramApiKey(): string {
   return requireEnv("DEEPGRAM_API_KEY");
 }
 
-export function getMiniMaxModel(): string {
-  const v = process.env.MINIMAX_MODEL;
+export function getGeminiModel(): string {
+  const v = process.env.GEMINI_MODEL;
   const resolved = typeof v === "string" ? v.trim() : "";
-  return resolved || DEFAULT_MINIMAX_MODEL;
+  return resolved || DEFAULT_GEMINI_MODEL;
 }
 
 export function getDeepgramModel(): string {
@@ -84,8 +88,8 @@ export function createDeepgramSTT(keyterm: string[], language?: string) {
   // 因此仅保留 keyterm 作为提示词，keywords 置空。
   const keywords: [string, number][] = [];
 
-  // 实验性：尝试为中文场景也启用 keyterm，测试是否能提升准确率
-  const resolvedKeyterms = cleanedKeyterms;
+  // keyterm 在非英文场景下容易触发 Deepgram 400（尤其包含中文词汇时），仅在英文启用
+  const resolvedKeyterms = isEnglish ? cleanedKeyterms : [];
 
   const sttInstance = new deepgram.STT({
     apiKey: getDeepgramApiKey(),
@@ -100,22 +104,24 @@ export function createDeepgramSTT(keyterm: string[], language?: string) {
   return sttInstance;
 }
 
-export function createMiniMaxLLM() {
+export function createGeminiLLM() {
   return new openai.LLM({
-    apiKey: getMiniMaxApiKey(),
-    model: getMiniMaxModel(),
-    baseURL: MINIMAX_BASE_URL,
-    temperature: DEFAULT_MINIMAX_TEMPERATURE,
+    apiKey: getGeminiApiKey(),
+    model: getGeminiModel(),
+    baseURL: GEMINI_BASE_URL,
+    temperature: DEFAULT_GEMINI_TEMPERATURE,
   });
 }
 
-export function createMiniMaxTTS(language?: string) {
-  // 根据语言选择音色，如果是英文用英文音色，中文用中文音色
+export function createGeminiTTS(language?: string) {
   const isEnglish = language?.toLowerCase().startsWith("en");
-  const voiceId = isEnglish ? "female-en-nina" : DEFAULT_MINIMAX_VOICE_ID;
+  const voice = isEnglish ? "Zephyr" : DEFAULT_GEMINI_TTS_VOICE;
 
-  return new MiniMaxTTS({
-    apiKey: getMiniMaxApiKey(),
-    voiceId: voiceId,
+  return new GeminiTTS({
+    apiKey: getGeminiApiKey(),
+    model: process.env.GEMINI_TTS_MODEL || DEFAULT_GEMINI_TTS_MODEL,
+    voiceName: voice,
+    baseUrl: GEMINI_NATIVE_BASE_URL,
+    sampleRate: 24000,
   });
 }

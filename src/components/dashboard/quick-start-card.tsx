@@ -80,23 +80,23 @@ export function QuickStartCard() {
 
   return (
     <div className="rounded-lg border border-[#E5E5E5] bg-white p-10 shadow-sm lg:p-12">
-      <div className="mx-auto max-w-2xl space-y-8">
-        <div className="space-y-2">
+      <div className="mx-auto w-full max-w-5xl space-y-8">
+        <div className="mx-auto w-full max-w-4xl space-y-2">
           <h2 className="text-2xl font-light text-[#141414] lg:text-3xl">
             {t("title")}
           </h2>
-          <p className="text-[#666666]">{t("description")}</p>
+          <p className="text-[#525252]">{t("description")}</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wide text-[#666666]">
+        <div className="mx-auto grid w-full max-w-4xl gap-4 md:grid-cols-3 md:gap-6">
+          <div className="mx-auto w-full max-w-[220px] space-y-2">
+            <label className="text-xs uppercase tracking-wide text-[#4F4F4F]">
               {t("topic")}
             </label>
             <Select
               value={topic}
               onValueChange={(value) => setTopic(value as InterviewTopic)}
             >
-              <SelectTrigger className="border-[#E5E5E5] bg-white text-[#141414] h-12">
+              <SelectTrigger className="h-12 w-full border-[#E5E5E5] bg-white text-[#141414] data-[placeholder]:text-[#5A6A62]">
                 <SelectValue placeholder={t("selectTopic")} />
               </SelectTrigger>
               <SelectContent>
@@ -109,8 +109,8 @@ export function QuickStartCard() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wide text-[#666666]">
+          <div className="mx-auto w-full max-w-[220px] space-y-2">
+            <label className="text-xs uppercase tracking-wide text-[#4F4F4F]">
               {t("difficulty")}
             </label>
             <Select
@@ -119,7 +119,7 @@ export function QuickStartCard() {
                 setDifficulty(value as InterviewDifficulty)
               }
             >
-              <SelectTrigger className="border-[#E5E5E5] bg-white text-[#141414] h-12">
+              <SelectTrigger className="h-12 w-full border-[#E5E5E5] bg-white text-[#141414] data-[placeholder]:text-[#5A6A62]">
                 <SelectValue placeholder={t("selectDifficulty")} />
               </SelectTrigger>
               <SelectContent>
@@ -138,15 +138,15 @@ export function QuickStartCard() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wide text-[#666666]">
+          <div className="mx-auto w-full max-w-[220px] space-y-2">
+            <label className="text-xs uppercase tracking-wide text-[#4F4F4F]">
               {t("duration")}
             </label>
             <Select
               value={duration?.toString()}
               onValueChange={(value) => setDuration(parseInt(value))}
             >
-              <SelectTrigger className="border-[#E5E5E5] bg-white text-[#141414] h-12">
+              <SelectTrigger className="h-12 w-full border-[#E5E5E5] bg-white text-[#141414] data-[placeholder]:text-[#5A6A62]">
                 <SelectValue placeholder={t("selectDuration")} />
               </SelectTrigger>
               <SelectContent>
@@ -164,7 +164,7 @@ export function QuickStartCard() {
           size="lg"
           onClick={handleStartInterview}
           disabled={isBusy}
-          className="w-full bg-[#0F3E2E] text-base font-normal text-white hover:bg-[#0F3E2E]/90 h-12 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+          className="mx-auto flex h-12 w-full max-w-4xl cursor-pointer bg-[#0F3E2E] text-base font-normal text-white hover:bg-[#0F3E2E]/90 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isBusy ? (
             <>

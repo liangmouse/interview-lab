@@ -19,7 +19,8 @@ import {
 } from "livekit-client";
 // 注意：dedupeSegments 暂时保留，但当前使用更简单的 findLastIndex 策略
 // import { dedupeSegments } from "@livekit/components-core";
-import { getInterviewMessages, type ChatMessage } from "@/action/interview";
+import { getInterviewMessages } from "@/action/interview";
+import { emitUserTranscription } from "./livekit-turn-mode";
 
 export interface LiveKitRoomState {
   /** 房间连接状态 */
@@ -51,6 +52,10 @@ export interface TranscriptItem {
 export interface UseLiveKitRoomOptions {
   /** 面试 ID */
   interviewId: string;
+  /** 用户实时转写回调（用于输入框/转写条填充） */
+  onUserTranscription?: (text: string, isFinal: boolean) => void;
+  /** 接收房间 Data 消息（用于 UI 事件联动） */
+  onDataMessage?: (message: Record<string, unknown>) => void;
   /** 连接成功回调 */
   onConnected?: () => void;
   /** 断开连接回调 */
@@ -60,9 +65,18 @@ export interface UseLiveKitRoomOptions {
 }
 
 export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
-  const { interviewId, onConnected, onDisconnected, onError } = options;
+  const {
+    interviewId,
+    onUserTranscription,
+    onDataMessage,
+    onConnected,
+    onDisconnected,
+    onError,
+  } = options;
 
   const roomRef = useRef<Room | null>(null);
+  const onUserTranscriptionRef = useRef(onUserTranscription);
+  const onDataMessageRef = useRef(onDataMessage);
   // Track the first connected agent to filter duplicates (hot-reload issue)
   const primaryAgentRef = useRef<string | null>(null);
 
@@ -161,6 +175,14 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
 
   const locale = useLocale();
 
+  useEffect(() => {
+    onUserTranscriptionRef.current = onUserTranscription;
+  }, [onUserTranscription]);
+
+  useEffect(() => {
+    onDataMessageRef.current = onDataMessage;
+  }, [onDataMessage]);
+
   /**
    * 获取 LiveKit token
    */
@@ -177,7 +199,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
     }
 
     return response.json();
-  }, [interviewId]);
+  }, [interviewId, locale]);
 
   /**
    * 连接到 LiveKit 房间
@@ -242,6 +264,9 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
       }));
       onError?.(error instanceof Error ? error : new Error(errorMessage));
     }
+    // setupRoomEventListeners is declared later in this hook; referencing it in deps
+    // triggers TDZ at initialization time in browser bundles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchToken, onConnected, onError]);
 
   /**
@@ -614,6 +639,12 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
                   }
                 });
 
+                emitUserTranscription({
+                  onUserTranscriptionRef,
+                  text: combinedText,
+                  isFinal: segment.final,
+                });
+
                 // 5. 更新 UI
                 if (lastUserNonFinalIndex >= 0) {
                   // 更新现有的非 final 用户消息
@@ -733,12 +764,13 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
         RoomEvent.DataReceived,
         (
           payload: Uint8Array,
-          participant?: RemoteParticipant,
-          kind?: DataPacket_Kind,
+          _participant?: RemoteParticipant,
+          _kind?: DataPacket_Kind,
         ) => {
           try {
             const decoder = new TextDecoder();
             const message = JSON.parse(decoder.decode(payload));
+            onDataMessageRef.current?.(message);
 
             // 处理后端 ConversationItemAdded 发送的用户最终消息
             // 这是轮次结束后的完整用户消息，不是实时转录
@@ -827,7 +859,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
                 };
               });
             }
-          } catch (e) {
+          } catch {
             // 忽略非 JSON 消息
           }
         },

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { getOrCreateUserProfile } from "@/action/user-profile";
 import { useTranslations } from "next-intl";
+import { authFormStyles } from "@/components/auth-form-styles";
 
 export function LoginForm() {
   const t = useTranslations("auth");
@@ -100,19 +101,17 @@ export function LoginForm() {
 
   return (
     <div className="w-full">
-      <div className="p-8 flex flex-col justify-center">
-        <div className="mb-8 space-y-2">
-          <h1 className="text-3xl font-light text-[#141414] tracking-tight">
-            {t("welcomeBack")}
-          </h1>
-          <p className="text-base text-[#666666]">{t("welcomeBackDesc")}</p>
+      <div className={authFormStyles.panel}>
+        <div className={authFormStyles.header}>
+          <h1 className={authFormStyles.title}>{t("welcomeBack")}</h1>
+          <p className={authFormStyles.subtitle}>{t("welcomeBackDesc")}</p>
         </div>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
+        <div className={authFormStyles.section}>
+          <div className={authFormStyles.socialGroup}>
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-50 text-[#141414] hover:!text-[#141414] font-normal"
+              className={authFormStyles.socialButton}
               onClick={() => handleOAuthLogin("github")}
               loading={isOAuthLoading === "github"}
               disabled={isBusy || isOAuthLoading !== null}
@@ -124,7 +123,7 @@ export function LoginForm() {
             </Button>
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-50 text-[#141414] hover:!text-[#141414] font-normal"
+              className={authFormStyles.socialButton}
               onClick={() => handleOAuthLogin("google")}
               loading={isOAuthLoading === "google"}
               disabled={isBusy || isOAuthLoading !== null}
@@ -135,34 +134,31 @@ export function LoginForm() {
                 : t("continueWithGoogle")}
             </Button>
 
-            <div className="relative py-2">
+            <div className={authFormStyles.dividerWrap}>
               <Separator className="bg-gray-200" />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-xs text-[#666666]">
+              <span className={authFormStyles.dividerText}>
                 {t("orContinueWith")}
               </span>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-5">
+            <form onSubmit={handleLogin} className={authFormStyles.form}>
               {error && (
                 <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
                   {error}
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="login-email"
-                  className="text-xs uppercase tracking-wide text-[#666666] font-medium"
-                >
+              <div className={authFormStyles.field}>
+                <Label htmlFor="login-email" className={authFormStyles.label}>
                   {t("email")}
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-[#666666]" />
+                  <Mail className={authFormStyles.fieldIcon} />
                   <Input
                     id="login-email"
                     type="email"
                     placeholder={t("emailPlaceholder")}
-                    className="pl-11 h-12 bg-gray-50 border-gray-200 text-[#141414] placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-emerald-600/20 focus-visible:border-emerald-600 focus-visible:bg-white transition-all"
+                    className={authFormStyles.input}
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -174,20 +170,20 @@ export function LoginForm() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className={authFormStyles.field}>
                 <Label
                   htmlFor="login-password"
-                  className="text-xs uppercase tracking-wide text-[#666666] font-medium"
+                  className={authFormStyles.label}
                 >
                   {t("password")}
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-[#666666]" />
+                  <Lock className={authFormStyles.fieldIcon} />
                   <Input
                     id="login-password"
                     type="password"
                     placeholder="••••••••"
-                    className="pl-11 h-12 bg-gray-50 border-gray-200 text-[#141414] placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-emerald-600/20 focus-visible:border-emerald-600 focus-visible:bg-white transition-all"
+                    className={authFormStyles.input}
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -199,10 +195,10 @@ export function LoginForm() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end">
+              <div className={authFormStyles.auxRow}>
                 <Link
                   href="/forgot-password"
-                  className="text-xs text-[#666666] hover:text-[#141414] transition-colors"
+                  className={authFormStyles.forgotPassword}
                 >
                   {t("forgotPassword")}
                 </Link>
@@ -210,7 +206,7 @@ export function LoginForm() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-[#059669] hover:bg-[#059669]/90 text-white font-medium text-base transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className={authFormStyles.submitButton}
                 loading={isBusy}
                 disabled={isOAuthLoading !== null}
               >
@@ -222,11 +218,11 @@ export function LoginForm() {
               </Button>
             </form>
 
-            <p className="text-xs text-center text-[#666666]">
+            <p className={authFormStyles.footer}>
               {t("noAccount")}{" "}
               <Link
-                href="/auth/sign-up"
-                className="text-[#141414] hover:underline font-medium"
+                href="/auth/sign-in?tab=sign-up"
+                className={authFormStyles.footerLink}
               >
                 {t("signUp")}
               </Link>

@@ -38,13 +38,13 @@ export function AudioVisualizer({ isActive }: AudioVisualizerProps) {
       );
       gradient.addColorStop(
         0,
-        isActive ? "rgba(139, 92, 246, 0.6)" : "rgba(16, 185, 129, 0.6)",
+        isActive ? "rgba(16, 185, 129, 0.5)" : "rgba(16, 185, 129, 0.28)",
       );
       gradient.addColorStop(
         0.5,
-        isActive ? "rgba(16, 185, 129, 0.4)" : "rgba(139, 92, 246, 0.4)",
+        isActive ? "rgba(14, 165, 233, 0.24)" : "rgba(16, 185, 129, 0.14)",
       );
-      gradient.addColorStop(1, "rgba(139, 92, 246, 0)");
+      gradient.addColorStop(1, "rgba(14, 165, 233, 0)");
 
       // Draw pulsing circles
       for (let i = 0; i < 3; i++) {
@@ -68,7 +68,7 @@ export function AudioVisualizer({ isActive }: AudioVisualizerProps) {
         40,
       );
       sphereGradient.addColorStop(0, "rgba(16, 185, 129, 0.9)");
-      sphereGradient.addColorStop(1, "rgba(139, 92, 246, 0.9)");
+      sphereGradient.addColorStop(1, "rgba(14, 165, 233, 0.82)");
 
       ctx.beginPath();
       ctx.arc(centerX, centerY, 40 + Math.sin(phase) * 5, 0, Math.PI * 2);
@@ -87,6 +87,6 @@ export function AudioVisualizer({ isActive }: AudioVisualizerProps) {
   }, [isActive]);
 
   return (
-    <canvas ref={canvasRef} width={200} height={200} className="rounded-full" />
+    <canvas ref={canvasRef} width={190} height={190} className="rounded-full" />
   );
 }

@@ -43,12 +43,10 @@ cp .env.example .env.local
 # 4. 设置数据库
 #   - 使用 Supabase
 
-# 5. 启动开发服务器（Next.js）
+# 5. 启动开发环境（Next.js + Agent）
 pnpm dev
-
-# 6. 启动面试官 Agent（独立进程）
-# 需已配置 LiveKit/Deepgram/MiniMax 等环境变量
-pnpm exec livekit-agent start agent/interviewer.ts
+# 如果缺少 LIVEKIT_* 环境变量，会自动降级为仅启动 Next.js
+# Ctrl+C 退出时会自动执行 Agent 清理
 ```
 
 ### 环境要求
@@ -59,9 +57,10 @@ pnpm exec livekit-agent start agent/interviewer.ts
 ### 主要脚本
 
 ```bash
-pnpm dev        # 开发服务器
+pnpm dev        # 同时启动 Next.js + Agent（推荐）
+pnpm dev:web    # 仅启动 Next.js
+pnpm agent:dev  # 仅启动 Agent
 pnpm build      # 构建生产版本
 pnpm lint       # 代码检查
 pnpm format     # 代码格式化
 ```
-

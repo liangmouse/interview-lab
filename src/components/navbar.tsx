@@ -65,7 +65,7 @@ export function Navbar() {
               className="bg-primary text-primary-foreground hover:bg-primary/90"
               asChild
             >
-              <Link href="/auth/sign-up">{t("getStarted")}</Link>
+              <Link href="/auth/sign-in?tab=sign-up">{t("getStarted")}</Link>
             </Button>
           </div>
         </div>

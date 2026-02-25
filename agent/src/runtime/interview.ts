@@ -11,10 +11,11 @@ import { summarizeStage } from "./fsm/summarizer";
 export function createInterviewApplier(args: {
   session: voice.AgentSession;
   userProfile: unknown;
+  onToolEvent?: (payload: Record<string, unknown>) => void;
   hasGreeted?: () => boolean;
   setGreeted?: () => void;
 }) {
-  const { session, userProfile, hasGreeted, setGreeted } = args;
+  const { session, userProfile, onToolEvent, hasGreeted, setGreeted } = args;
 
   let applying: Promise<void> | null = null;
   let queued: InterviewContext | null = null;
@@ -22,7 +23,7 @@ export function createInterviewApplier(args: {
   let stageMonitorTimer: NodeJS.Timeout | null = null;
 
   // 初始化工具
-  const tools = createTools({ userProfile });
+  const tools = createTools({ userProfile, onToolEvent });
 
   const stopStageMonitor = () => {
     if (stageMonitorTimer) {
@@ -56,22 +57,25 @@ export function createInterviewApplier(args: {
     }
 
     const chatCtx = new llm.ChatContext();
-    if (historyMessages.length > 0) {
-      for (const msg of historyMessages) {
-        const role =
-          msg.role === "user"
-            ? "user"
-            : msg.role === "assistant"
-              ? "assistant"
-              : "system";
-        if (role === "system") continue;
+    const visibleHistoryMessages = historyMessages.filter((msg) => {
+      const role = msg?.role;
+      const content = msg?.content;
+      return (
+        (role === "user" || role === "assistant") &&
+        typeof content === "string" &&
+        content.trim().length > 0
+      );
+    });
+
+    if (visibleHistoryMessages.length > 0) {
+      for (const msg of visibleHistoryMessages) {
         chatCtx.addMessage({
-          role: role as any,
+          role: msg.role as any,
           content: msg.content,
         });
       }
       console.log(
-        `[面试] 恢复了 ${historyMessages.length} 条历史消息到上下文。`,
+        `[面试] 恢复了 ${visibleHistoryMessages.length} 条历史消息到上下文。`,
       );
     }
 
@@ -157,7 +161,7 @@ export function createInterviewApplier(args: {
     // FSM 的 updateAgent 调用是立即开始的。
 
     // 构造并发送开场白
-    if (historyMessages.length === 0) {
+    if (visibleHistoryMessages.length === 0) {
       // 检查是否已经在 entry.ts 的超时兜底逻辑中发送过开场白
       if (hasGreeted && hasGreeted()) {
         console.log("[Interview] 检测到已发送过开场白，跳过重复发送。");
@@ -175,12 +179,14 @@ export function createInterviewApplier(args: {
           session.generateReply({
             userInput: "系统：面试开场",
             instructions: `只输出这句固定开场白，不要添加或修改任何内容：${greeting}`,
-            allowInterruptions: true,
+            allowInterruptions: false,
           });
         }, 500);
       }
     } else {
-      console.log("[Interview] 检测到已有历史记录，跳过开场白。");
+      console.log(
+        `[Interview] 检测到已有历史记录(${visibleHistoryMessages.length}条)，跳过开场白。`,
+      );
     }
   };
 

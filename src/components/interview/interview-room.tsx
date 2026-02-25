@@ -1,22 +1,70 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
+import { useLocale } from "next-intl";
 import { AIInterviewerPanel } from "./ai-interviewer-panel";
 import { CodeWorkbench } from "./code-workbench";
 import { InterviewHeader } from "./interview-header";
+import { InterviewResumePanel } from "./interview-resume-panel";
+import { resolveCodeWorkbenchAction } from "./code-workbench-event";
+import { resolveDraftTextFromSources } from "./transcription-source-resolver";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { useLiveKitRoom } from "@/hooks/useLiveKitRoom";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useUserStore } from "@/store/user";
 
 interface InterviewRoomProps {
   interviewId: string;
 }
 
+const TURN_MODE_STORAGE_KEY = "interview-turn-mode";
+
 export function InterviewRoom({ interviewId }: InterviewRoomProps) {
+  const locale = useLocale();
+  const resumeUrl = useUserStore((state) => state.userInfo?.resume_url ?? null);
+  const hasResumeUrl = Boolean(resumeUrl);
   const hasConnectedRef = useRef(false);
+  const hasManuallyToggledResumePanelRef = useRef(false);
+  const [turnMode] = useState<"manual" | "vad">(() => {
+    if (typeof window === "undefined") return "manual";
+    const saved = window.localStorage.getItem(TURN_MODE_STORAGE_KEY);
+    return saved === "vad" ? "vad" : "manual";
+  });
+  const [manualDraftText, setManualDraftText] = useState("");
+  const [livekitDraftText, setLivekitDraftText] = useState("");
+  const [isCodeWorkbenchOpen, setIsCodeWorkbenchOpen] = useState(false);
+  const [isResumePanelOpen, setIsResumePanelOpen] = useState(
+    () => hasResumeUrl,
+  );
+  const [livekitDraftUpdatedAt, setLivekitDraftUpdatedAt] = useState<
+    number | null
+  >(null);
+
+  const {
+    isSupported: isBrowserSpeechSupported,
+    transcript: browserFinalTranscript,
+    interimTranscript: browserInterimTranscript,
+    startListening,
+    stopListening,
+    resetTranscript: resetBrowserTranscript,
+  } = useSpeechRecognition({
+    language: locale.startsWith("zh") ? "zh-CN" : "en-US",
+    continuous: true,
+    interimResults: true,
+    onError: (speechError) => {
+      console.warn(
+        "[InterviewRoom] Browser speech recognition error:",
+        speechError,
+      );
+    },
+  });
+
+  const browserDraftText =
+    `${browserFinalTranscript} ${browserInterimTranscript}`.trim();
 
   const {
     isConnected,
@@ -33,6 +81,19 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     sendTextMessage,
   } = useLiveKitRoom({
     interviewId,
+    onUserTranscription: (text) => {
+      setLivekitDraftText(text);
+      setLivekitDraftUpdatedAt(Date.now());
+    },
+    onDataMessage: (message) => {
+      const nextAction = resolveCodeWorkbenchAction(message);
+      if (nextAction === "open") {
+        setIsCodeWorkbenchOpen(true);
+      }
+      if (nextAction === "close") {
+        setIsCodeWorkbenchOpen(false);
+      }
+    },
     onConnected: () => {
       console.log("[InterviewRoom] Connected to LiveKit room");
     },
@@ -43,6 +104,23 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       console.error("[InterviewRoom] LiveKit error:", err);
     },
   });
+  const shouldUseBrowserFallback = !isAgentSpeaking;
+
+  useEffect(() => {
+    const nextDraftText = resolveDraftTextFromSources({
+      livekitText: livekitDraftText,
+      livekitUpdatedAt: livekitDraftUpdatedAt,
+      browserText: browserDraftText,
+      now: Date.now(),
+      browserFallbackEnabled: shouldUseBrowserFallback,
+    });
+    setManualDraftText(nextDraftText);
+  }, [
+    livekitDraftText,
+    livekitDraftUpdatedAt,
+    browserDraftText,
+    shouldUseBrowserFallback,
+  ]);
 
   // 自动连接到房间
   useEffect(() => {
@@ -56,39 +134,90 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     };
 
     // 只执行一次
-  }, []);
+  }, [connect, disconnect]);
 
   // 连接成功后发送 start_interview RPC
   const handleStartInterview = useCallback(async () => {
     if (!isConnected) return;
 
     try {
-      await sendRpc("start_interview", { interviewId });
+      await sendRpc("start_interview", { interviewId, turnMode });
       console.log("[InterviewRoom] Sent start_interview RPC");
     } catch (err) {
       console.error("[InterviewRoom] Failed to send start_interview:", err);
     }
-  }, [isConnected, interviewId, sendRpc]);
+  }, [isConnected, interviewId, sendRpc, turnMode]);
 
   // 发送文本消息
   const handleSendMessage = useCallback(
     async (text: string) => {
       try {
         await sendTextMessage(text);
+        setManualDraftText("");
+        setLivekitDraftText("");
+        setLivekitDraftUpdatedAt(null);
+        resetBrowserTranscript();
         console.log("[InterviewRoom] Sent text message:", text);
       } catch (err) {
         console.error("[InterviewRoom] Failed to send message:", err);
       }
     },
-    [sendTextMessage],
+    [resetBrowserTranscript, sendTextMessage],
   );
 
-  // 结束面试
-  const handleEndInterview = useCallback(() => {
-    disconnect();
-    // TODO: 导航回 dashboard 或显示面试总结
-    window.location.href = "/dashboard";
-  }, [disconnect]);
+  const handleMicToggle = useCallback(() => {
+    void (async () => {
+      const willEnableMic = !isMicEnabled;
+      await toggleMicrophone();
+
+      if (!isBrowserSpeechSupported) return;
+      if (willEnableMic && !isAgentSpeaking) {
+        startListening();
+      } else {
+        stopListening();
+      }
+    })();
+  }, [
+    isBrowserSpeechSupported,
+    isAgentSpeaking,
+    isMicEnabled,
+    startListening,
+    stopListening,
+    toggleMicrophone,
+  ]);
+
+  useEffect(() => {
+    if (!isConnected || !isMicEnabled || isAgentSpeaking) {
+      stopListening();
+      return;
+    }
+    if (isBrowserSpeechSupported) {
+      startListening();
+    }
+  }, [
+    isBrowserSpeechSupported,
+    isAgentSpeaking,
+    isConnected,
+    isMicEnabled,
+    startListening,
+    stopListening,
+  ]);
+
+  useEffect(() => {
+    if (!isAgentSpeaking) return;
+    resetBrowserTranscript();
+  }, [isAgentSpeaking, resetBrowserTranscript]);
+
+  useEffect(() => {
+    if (hasResumeUrl && !hasManuallyToggledResumePanelRef.current) {
+      setIsResumePanelOpen(true);
+    }
+  }, [hasResumeUrl]);
+
+  const handleToggleResumePanel = useCallback(() => {
+    hasManuallyToggledResumePanelRef.current = true;
+    setIsResumePanelOpen((prev) => !prev);
+  }, []);
 
   // 连接成功后自动开始面试
   useEffect(() => {
@@ -99,44 +228,74 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     }
   }, [isConnected, handleStartInterview]);
 
+  const interviewMainContent = !isCodeWorkbenchOpen ? (
+    <AIInterviewerPanel
+      turnMode={turnMode}
+      isConnected={isConnected}
+      isConnecting={isConnecting}
+      isMicEnabled={isMicEnabled}
+      isAgentSpeaking={isAgentSpeaking}
+      isUserSpeaking={isUserSpeaking}
+      transcript={transcript}
+      onMicToggle={handleMicToggle}
+      manualDraftText={manualDraftText}
+      onSendMessage={handleSendMessage}
+    />
+  ) : (
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+      <ResizablePanel minSize={35} defaultSize={48} className="h-full">
+        <AIInterviewerPanel
+          turnMode={turnMode}
+          isConnected={isConnected}
+          isConnecting={isConnecting}
+          isMicEnabled={isMicEnabled}
+          isAgentSpeaking={isAgentSpeaking}
+          isUserSpeaking={isUserSpeaking}
+          transcript={transcript}
+          onMicToggle={handleMicToggle}
+          manualDraftText={manualDraftText}
+          onSendMessage={handleSendMessage}
+        />
+      </ResizablePanel>
+
+      <ResizableHandle withHandle />
+
+      <ResizablePanel defaultSize={52} minSize={30} className="h-full">
+        <CodeWorkbench />
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  );
+
   return (
     <div className="fixed inset-0 flex flex-col bg-[#FDFCF8]">
       <InterviewHeader
         isConnected={isConnected}
         isConnecting={isConnecting}
         error={error}
+        isResumePanelOpen={isResumePanelOpen}
+        onToggleResumePanel={handleToggleResumePanel}
+        isCodeWorkbenchOpen={isCodeWorkbenchOpen}
+        onToggleCodeWorkbench={() => {
+          setIsCodeWorkbenchOpen((prev) => !prev);
+        }}
       />
 
       <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-          <ResizablePanel minSize={35} defaultSize={40} className="h-full">
-            {/* LEFT PANEL: AI Interviewer */}
-            <AIInterviewerPanel
-              isConnected={isConnected}
-              isConnecting={isConnecting}
-              isMicEnabled={isMicEnabled}
-              isAgentSpeaking={isAgentSpeaking}
-              isUserSpeaking={isUserSpeaking}
-              transcript={transcript}
-              onMicToggle={toggleMicrophone}
-              onSendMessage={handleSendMessage}
-              onEndInterview={handleEndInterview}
-              onStartInterview={handleStartInterview}
-            />
-          </ResizablePanel>
+        {isResumePanelOpen ? (
+          <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+            <ResizablePanel minSize={20} defaultSize={34} maxSize={60}>
+              <InterviewResumePanel resumeUrl={resumeUrl} />
+            </ResizablePanel>
 
-          <ResizableHandle withHandle />
+            <ResizableHandle withHandle />
 
-          <ResizablePanel
-            defaultSize={60}
-            minSize={0}
-            collapsible={true}
-            className="h-full"
-          >
-            {/* RIGHT PANEL: Code Workbench */}
-            <CodeWorkbench />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            <ResizablePanel defaultSize={66} minSize={40} className="h-full">
+              {interviewMainContent}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          interviewMainContent
+        )}
       </div>
     </div>
   );

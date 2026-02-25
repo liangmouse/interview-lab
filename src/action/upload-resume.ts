@@ -149,11 +149,11 @@ async function analyzeResume(
 
     // 使用普通的 ChatOpenAI，不使用 withStructuredOutput
     const model = new ChatOpenAI({
-      model: "deepseek-chat",
+      model: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
       temperature: 0,
-      apiKey: process.env.DEEPSEEK_V3_API,
+      apiKey: process.env.GEMINI_API_KEY,
       configuration: {
-        baseURL: "https://api.deepseek.com/v1",
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
       },
     });
 

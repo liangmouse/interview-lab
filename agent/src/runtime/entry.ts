@@ -21,20 +21,22 @@ import {
 } from "../constants/vocabulary";
 import type { InterviewContext } from "./types";
 import { publishDataToRoom } from "./livekit";
-import { getCandidateName } from "./profile";
 import { createInterviewApplier } from "./interview";
 import { createUserTextResponder } from "./responders";
 import { TurnCoordinator } from "./turn-coordinator";
 import {
   createDeepgramSTT,
-  createMiniMaxLLM,
-  createMiniMaxTTS,
+  createGeminiLLM,
+  createGeminiTTS,
 } from "../config/providers";
 import {
   saveUserMessage,
   saveAiMessage,
 } from "../services/message-persistence";
 import { extractKeywordsFromProfile } from "../services/keyword-extractor";
+import { sendKickoffWithRetry } from "./kickoff";
+
+type TurnMode = "manual" | "vad";
 
 /**
  * Kick all existing agents from a room before connecting.
@@ -43,7 +45,7 @@ import { extractKeywordsFromProfile } from "../services/keyword-extractor";
 async function kickOldAgents(roomName: string): Promise<void> {
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
-  const wsUrl = process.env.LIVEKIT_WS_URL || process.env.LIVEKIT_URL;
+  const wsUrl = process.env.LIVEKIT_URL;
 
   if (!apiKey || !apiSecret || !wsUrl) {
     console.warn("[kickOldAgents] Missing LiveKit credentials, skipping");
@@ -147,8 +149,8 @@ export async function runAgentSession(
   // 定义Agent如何处理音频输入和输出
   const session = new voice.AgentSession({
     stt: createDeepgramSTT(combinedVocabulary, locale),
-    llm: createMiniMaxLLM(),
-    tts: createMiniMaxTTS(locale),
+    llm: createGeminiLLM(),
+    tts: createGeminiTTS(locale),
     vad: vad,
     // 使用 Turn Detector 多语言模型，基于语义理解判断用户是否说完
     // 可以理解"让我想想..."这类语句，不会在用户思考时打断
@@ -169,6 +171,16 @@ export async function runAgentSession(
       _chatCtx: llm.ChatContext,
       newMessage: llm.ChatMessage,
     ) {
+      if (turnMode === "manual") {
+        const messageId = (newMessage as { id?: string })?.id;
+        if (messageId) {
+          session.history.items = session.history.items.filter(
+            (item) => item.id !== messageId,
+          );
+        }
+        throw new voice.StopResponse();
+      }
+
       const text = newMessage?.textContent?.trim();
       if (text) {
         turnCoordinator.handleUserTurnEnd(text);
@@ -193,6 +205,7 @@ export async function runAgentSession(
   });
 
   session.on(voice.AgentSessionEventTypes.UserInputTranscribed, (ev) => {
+    if (turnMode === "manual") return;
     if (ev.transcript?.trim()) {
       turnCoordinator.markVoiceActivity();
     }
@@ -207,6 +220,9 @@ export async function runAgentSession(
     if (!text) return;
 
     if (item.role === "user") {
+      if (turnMode === "manual") {
+        return;
+      }
       // 过滤掉以"系统："开头的内部指令，不发送到前端
       if (text.startsWith("系统：") || text.startsWith("系统:")) {
         return;
@@ -259,12 +275,33 @@ export async function runAgentSession(
   const applyInterview = createInterviewApplier({
     session,
     userProfile,
+    onToolEvent: (payload) => publishDataToRoom(room, payload),
     hasGreeted: () => hasGreeted,
     setGreeted: () => {
       hasGreeted = true;
     },
   });
   const respondToUserText = createUserTextResponder({ session });
+  let turnMode: TurnMode = "manual";
+  const pendingManualTextQueue: string[] = [];
+  let isProcessingManualQueue = false;
+
+  const processManualTextQueue = async () => {
+    if (isProcessingManualQueue) return;
+    if (turnMode !== "manual") return;
+    if (!sessionRunning) return;
+
+    isProcessingManualQueue = true;
+    try {
+      while (pendingManualTextQueue.length > 0) {
+        const nextText = pendingManualTextQueue.shift();
+        if (!nextText) continue;
+        await respondToUserText(nextText);
+      }
+    } finally {
+      isProcessingManualQueue = false;
+    }
+  };
 
   const scheduleApplyLatestInterview = () => {
     if (!sessionRunning) return;
@@ -279,13 +316,19 @@ export async function runAgentSession(
     }, 0);
   };
 
-  const getInterviewId = (m: Record<string, unknown>): string | null => {
+  const getStartInterviewPayload = (
+    m: Record<string, unknown>,
+  ): { interviewId: string; turnMode: TurnMode } | null => {
     if (m.name !== "start_interview") return null;
     const data = m.data;
     if (!data || typeof data !== "object") return null;
     const d = data as Record<string, unknown>;
     const interviewId = d.interviewId;
-    return typeof interviewId === "string" && interviewId ? interviewId : null;
+    const modeRaw = d.turnMode;
+    const nextTurnMode: TurnMode = modeRaw === "vad" ? "vad" : "manual";
+
+    if (typeof interviewId !== "string" || !interviewId) return null;
+    return { interviewId, turnMode: nextTurnMode };
   };
 
   room.on(RoomEvent.DataReceived, async (payload) => {
@@ -295,10 +338,11 @@ export async function runAgentSession(
         unknown
       >;
 
-      const interviewId = getInterviewId(msg);
-      if (interviewId) {
+      const startPayload = getStartInterviewPayload(msg);
+      if (startPayload) {
+        turnMode = startPayload.turnMode;
         const interview = (await loadInterviewContext(
-          interviewId,
+          startPayload.interviewId,
         )) as InterviewContext | null;
         if (interview) {
           latestInterview = interview;
@@ -308,6 +352,20 @@ export async function runAgentSession(
           scheduleApplyLatestInterview();
           return;
         }
+
+        // interview 记录不存在或无权限时，立即走通用开场白兜底
+        console.warn(
+          `[RPC] Interview context not found for ${startPayload.interviewId}, fallback to generic kickoff`,
+        );
+        if (!hasGreeted) {
+          hasGreeted = true;
+          startInterviewHandled = true;
+          await sendKickoffWithRetry({
+            session,
+            userProfile,
+          });
+        }
+        return;
       }
 
       if (msg.type === "user_text" && typeof msg.text === "string") {
@@ -316,7 +374,12 @@ export async function runAgentSession(
           pendingUserTexts.push(msg.text);
           return;
         }
-        await respondToUserText(msg.text);
+        if (turnMode === "manual") {
+          pendingManualTextQueue.push(msg.text);
+          await processManualTextQueue();
+        } else {
+          await respondToUserText(msg.text);
+        }
       }
     } catch (e) {
       console.error("[RPC] Error processing data message:", e);
@@ -330,8 +393,14 @@ export async function runAgentSession(
 
   while (pendingUserTexts.length) {
     const t = pendingUserTexts.shift();
-    if (t) await respondToUserText(t);
+    if (!t) continue;
+    if (turnMode === "manual") {
+      pendingManualTextQueue.push(t);
+    } else {
+      await respondToUserText(t);
+    }
   }
+  await processManualTextQueue();
   if (pendingInterview) {
     latestInterview = pendingInterview;
     pendingInterview = null;
@@ -351,14 +420,10 @@ export async function runAgentSession(
       // 超时兜底：发送通用开场白
       if (!hasGreeted) {
         hasGreeted = true;
-        const candidateName = getCandidateName(userProfile);
-        const greeting = candidateName
-          ? `您好${candidateName},我是今天的面试官,如果你已经准备好,就请做个简单的自我介绍吧`
-          : "您好,我是今天的面试官,如果你已经准备好,就请做个简单的自我介绍吧";
-        await session.generateReply({
-          userInput: "系统：面试开场",
-          instructions: `只输出这句固定开场白，不要添加或修改任何内容：${greeting}`,
-          allowInterruptions: true,
+        startInterviewHandled = true;
+        await sendKickoffWithRetry({
+          session,
+          userProfile,
         });
       }
     }

@@ -36,10 +36,33 @@ export const checkResumeSchema = z.object({
     .describe("搜索类别。"),
 });
 
+/**
+ * 工具：控制代码评估流程（开启 / 运行 / 结束）
+ */
+export const codeAssessmentSchema = z.object({
+  action: z
+    .enum(["start", "run", "end"])
+    .describe("代码评估动作：start=开始，run=执行候选人代码，end=结束。"),
+  language: z
+    .enum(["javascript", "typescript", "python"])
+    .optional()
+    .describe("候选人使用的语言。"),
+  questionTitle: z.string().optional().describe("题目名称。"),
+  code: z.string().optional().describe("候选人提交的代码。"),
+  summary: z.string().optional().describe("本轮代码评估总结。"),
+});
+
 // --- Tool Handlers ---
 
-export function createTools(context: { userProfile: any }) {
-  const { userProfile } = context;
+type ToolEventPayload = Record<string, unknown>;
+
+type ToolsContext = {
+  userProfile: any;
+  onToolEvent?: (payload: ToolEventPayload) => void;
+};
+
+export function createTools(context: ToolsContext) {
+  const { userProfile, onToolEvent } = context;
 
   const recordScore = llm.tool({
     description: "为候选人的技能或特征记录评分 (0-10)。",
@@ -111,8 +134,68 @@ export function createTools(context: { userProfile: any }) {
     },
   });
 
+  const codeAssessment = llm.tool({
+    description: "控制代码评估流程，支持开启、执行与结束。",
+    parameters: codeAssessmentSchema,
+    execute: async (args) => {
+      const { action, language, questionTitle, code, summary } = args;
+
+      if (action === "start") {
+        onToolEvent?.({
+          type: "tool_event",
+          data: {
+            tool: "code_assessment",
+            event: "start",
+            questionTitle: questionTitle || "编程题",
+            language: language || "javascript",
+          },
+        });
+        return `已开启代码评估：${questionTitle || "编程题"}（${language || "javascript"}）。`;
+      }
+
+      if (action === "run") {
+        const codeText = (code || "").trim();
+        if (!codeText) {
+          return "无法执行：缺少候选人代码。";
+        }
+
+        const lineCount = codeText.split("\n").length;
+        const hasFunctionLikePattern = /function\s+\w+|=>|def\s+\w+\s*\(/.test(
+          codeText,
+        );
+        const signal = hasFunctionLikePattern
+          ? "检测到函数定义"
+          : "未检测到函数定义";
+
+        onToolEvent?.({
+          type: "tool_event",
+          data: {
+            tool: "code_assessment",
+            event: "run",
+            language: language || "javascript",
+            lineCount,
+            signal,
+          },
+        });
+
+        return `代码执行完成（${language || "javascript"}），共 ${lineCount} 行，${signal}。`;
+      }
+
+      onToolEvent?.({
+        type: "tool_event",
+        data: {
+          tool: "code_assessment",
+          event: "end",
+          summary: summary || "代码评估已结束",
+        },
+      });
+      return `已结束代码评估。${summary ? `总结：${summary}` : ""}`;
+    },
+  });
+
   return {
     record_score: recordScore,
     check_resume: checkResume,
+    code_assessment: codeAssessment,
   };
 }

@@ -3,11 +3,15 @@
 import { AudioVisualizer } from "./audio-visualizer";
 import { TranscriptStream, type TranscriptItemData } from "./transcript-stream";
 import { ControlDock } from "./control-dock";
+import { resolveInputTextFromTranscription } from "./transcription-input-sync";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface AIInterviewerPanelProps {
+  /** 回合模式 */
+  turnMode: "manual" | "vad";
   /** 是否已连接到 LiveKit 房间 */
   isConnected: boolean;
   /** 是否正在连接 */
@@ -22,15 +26,14 @@ interface AIInterviewerPanelProps {
   transcript: TranscriptItemData[];
   /** 切换麦克风回调 */
   onMicToggle: () => void;
+  /** 最新用户实时转写 */
+  manualDraftText: string;
   /** 发送文本消息回调 */
   onSendMessage?: (text: string) => void;
-  /** 结束面试回调 */
-  onEndInterview?: () => void;
-  /** 开始面试回调 */
-  onStartInterview?: () => void;
 }
 
 export function AIInterviewerPanel({
+  turnMode,
   isConnected,
   isConnecting,
   isMicEnabled,
@@ -38,26 +41,49 @@ export function AIInterviewerPanel({
   isUserSpeaking,
   transcript,
   onMicToggle,
+  manualDraftText,
   onSendMessage,
-  onEndInterview,
-  onStartInterview,
 }: AIInterviewerPanelProps) {
   const t = useTranslations("interview");
-  const [isVoiceMode, setIsVoiceMode] = useState(true);
+  const [inputText, setInputText] = useState("");
+  const [hasEditedCurrentTurn, setHasEditedCurrentTurn] = useState(false);
+
+  useEffect(() => {
+    setInputText((prev) =>
+      resolveInputTextFromTranscription({
+        currentInputText: prev,
+        transcriptionText: manualDraftText,
+        hasEditedCurrentTurn,
+      }),
+    );
+  }, [manualDraftText, hasEditedCurrentTurn]);
+
+  const handleInputTextChange = useCallback((nextText: string) => {
+    setInputText(nextText);
+    setHasEditedCurrentTurn(true);
+  }, []);
+
+  const handleSendMessage = useCallback(() => {
+    const trimmed = inputText.trim();
+    if (!trimmed) return;
+    onSendMessage?.(trimmed);
+    setInputText("");
+    setHasEditedCurrentTurn(false);
+  }, [inputText, onSendMessage]);
 
   // 获取当前状态文本
   const getStatusText = () => {
     if (isConnecting) {
-      return "连接中...";
+      return t("connecting");
     }
     if (!isConnected) {
-      return "未连接";
+      return t("disconnected");
     }
     if (isAgentSpeaking) {
       return t("speaking");
     }
     if (isUserSpeaking) {
-      return "您正在发言";
+      return t("userSpeaking");
     }
     return t("listening");
   };
@@ -66,43 +92,61 @@ export function AIInterviewerPanel({
   const isAudioActive = isAgentSpeaking || isUserSpeaking;
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#FDFCF8]">
-      {/* 状态指示区域 */}
-      <div className="flex flex-col items-center justify-center border-b border-[#E5E5E5] px-8 py-6">
-        {isConnecting ? (
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-12 w-12 animate-spin text-[#10B981]" />
-            <p className="text-sm text-[#666666]">正在连接面试官...</p>
-          </div>
-        ) : (
-          <>
-            <AudioVisualizer isActive={isAudioActive && isConnected} />
-            <p className="mt-3 text-xs uppercase tracking-wide text-[#999999]">
-              {getStatusText()}
+    <div className="flex h-full w-full flex-col bg-[radial-gradient(circle_at_top,_#EFFAF5,_#FDFCF8_58%)]">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1180px] flex-1 flex-col gap-4 px-4 py-4 md:px-6">
+        <section className="grid gap-4 rounded-2xl border border-[#DCE5E0] bg-white/85 p-4 shadow-[0_10px_30px_rgba(15,62,46,0.06)] md:grid-cols-[1fr_auto] md:items-center">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#7A8A83]">
+              {t("interviewPulse")}
             </p>
-          </>
-        )}
+            <p className="text-lg font-semibold text-[#163B2E]">
+              {isConnecting ? t("connectingInterviewer") : t("liveInterview")}
+            </p>
+            <span
+              className={cn(
+                "inline-flex rounded-full border px-2.5 py-1 text-xs font-medium",
+                isConnected
+                  ? "border-[#A7E5CA] bg-[#E8FAF1] text-[#0D8B58]"
+                  : "border-[#E5E7EB] bg-[#F9FAFB] text-[#6B7280]",
+              )}
+            >
+              {getStatusText()}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-center md:justify-end">
+            {isConnecting ? (
+              <div className="flex h-[140px] w-[180px] flex-col items-center justify-center gap-3">
+                <Loader2 className="h-10 w-10 animate-spin text-[#10B981]" />
+              </div>
+            ) : (
+              <AudioVisualizer isActive={isAudioActive && isConnected} />
+            )}
+          </div>
+        </section>
+
+        <section className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#DCE5E0] bg-white/90 shadow-[0_10px_30px_rgba(15,62,46,0.06)]">
+          <TranscriptStream
+            transcript={transcript}
+            isConnected={isConnected}
+            isConnecting={isConnecting}
+          />
+        </section>
       </div>
 
-      {/* 转写流区域 */}
-      <div className="flex-1 overflow-hidden">
-        <TranscriptStream
-          transcript={transcript}
-          isConnected={isConnected}
-          isConnecting={isConnecting}
-        />
+      <div className="px-4 pb-4 md:px-6">
+        <div className="mx-auto w-full max-w-[1180px]">
+          <ControlDock
+            turnMode={turnMode}
+            isMicActive={isMicEnabled && isConnected}
+            onMicToggle={onMicToggle}
+            inputText={inputText}
+            onInputTextChange={handleInputTextChange}
+            onSendMessage={handleSendMessage}
+            disabled={!isConnected}
+          />
+        </div>
       </div>
-
-      {/* 控制面板 */}
-      <ControlDock
-        isMicActive={isMicEnabled && isConnected}
-        isVoiceMode={isVoiceMode}
-        onMicToggle={onMicToggle}
-        onModeToggle={() => setIsVoiceMode(!isVoiceMode)}
-        onSendMessage={onSendMessage}
-        onEndInterview={onEndInterview}
-        disabled={!isConnected}
-      />
     </div>
   );
 }

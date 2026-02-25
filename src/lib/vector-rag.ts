@@ -399,11 +399,11 @@ export async function performIntelligentAnalysis(
     });
 
     const model = new ChatOpenAI({
-      model: "deepseek-chat",
+      model: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
       temperature: 0.7,
-      apiKey: process.env.DEEPSEEK_V3_API,
+      apiKey: process.env.GEMINI_API_KEY,
       configuration: {
-        baseURL: "https://api.deepseek.com/v1",
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
       },
     }).withStructuredOutput(analysisSchema);
 
@@ -427,97 +427,27 @@ export async function performIntelligentAnalysis(
 }
 
 /**
- * 自定义 Minimax Embedding 适配器
- * 用于解决 Minimax API 与 LangChain OpenAIEmbeddings 的兼容性问题
- */
-class MinimaxEmbeddingsAdapter extends Embeddings {
-  private apiKey: string;
-  private model: string;
-  private baseUrl: string;
-
-  constructor(fields: { apiKey: string; model?: string; baseUrl?: string }) {
-    super({}); // LangChain Embeddings base class expects AsyncCallerParams
-    this.apiKey = fields.apiKey;
-    this.model = fields.model || "embo-01";
-    this.baseUrl = fields.baseUrl || "https://api.minimax.chat/v1";
-  }
-
-  async embedDocuments(documents: string[]): Promise<number[][]> {
-    return this.callMinimaxApi(documents, "db");
-  }
-
-  async embedQuery(document: string): Promise<number[]> {
-    const results = await this.callMinimaxApi([document], "query");
-    return results[0];
-  }
-
-  private async callMinimaxApi(
-    texts: string[],
-    type: "db" | "query",
-  ): Promise<number[][]> {
-    try {
-      const response = await fetch(`${this.baseUrl}/embeddings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          texts: texts, // Minimax 使用 texts 参数
-          type: type, // db 或 query
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Minimax API error: ${response.status} ${response.statusText} - ${errorText}`,
-        );
-      }
-
-      const data = await response.json();
-
-      // 处理 Minimax 响应格式
-      // 官方文档: { vectors: [[...]], base_resp: {...} }
-      if (data.vectors && Array.isArray(data.vectors)) {
-        return data.vectors;
-      }
-
-      // 尝试兼容 OpenAI 格式
-      if (data.data && Array.isArray(data.data)) {
-        return data.data.map((item: any) => item.embedding);
-      }
-
-      console.error(
-        "Unexpected Minimax response format:",
-        JSON.stringify(data),
-      );
-      throw new Error("Invalid response format from Minimax API");
-    } catch (error) {
-      console.error("Error calling Minimax Embedding API:", error);
-      throw error;
-    }
-  }
-}
-
-/**
  * 获取Embeddings实例（单例）
  */
 let embeddingsInstance: Embeddings | null = null;
 let hasCheckedApiKey = false;
 
 function getEmbeddings(): Embeddings | null {
-  // 优先使用 Minimax
-  if (process.env.MINIMAX_API_KEY) {
+  // 优先使用 Gemini（OpenAI 兼容接口）
+  if (process.env.GEMINI_API_KEY) {
     if (
       !embeddingsInstance ||
-      !(embeddingsInstance instanceof MinimaxEmbeddingsAdapter)
+      !(embeddingsInstance instanceof OpenAIEmbeddings)
     ) {
-      console.log("🚀 [RAG] 使用 Minimax Embedding (embo-01) via Adapter");
-      embeddingsInstance = new MinimaxEmbeddingsAdapter({
-        apiKey: process.env.MINIMAX_API_KEY,
-        model: "embo-01",
+      console.log(
+        "🚀 [RAG] 使用 Gemini Embedding (text-embedding-004, OpenAI compatible)",
+      );
+      embeddingsInstance = new OpenAIEmbeddings({
+        modelName: process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
+        openAIApiKey: process.env.GEMINI_API_KEY,
+        configuration: {
+          baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+        },
       });
     }
     return embeddingsInstance;
@@ -540,7 +470,7 @@ function getEmbeddings(): Embeddings | null {
 
   if (!hasCheckedApiKey) {
     console.warn(
-      "⚠️ [RAG] 未找到 MINIMAX_API_KEY 或 OPENAI_API_KEY，向量化功能将跳过。",
+      "⚠️ [RAG] 未找到 GEMINI_API_KEY 或 OPENAI_API_KEY，向量化功能将跳过。",
     );
     hasCheckedApiKey = true;
   }

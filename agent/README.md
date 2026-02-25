@@ -23,13 +23,12 @@ pnpm install
 ```bash
 # LiveKit 服务器配置
 LIVEKIT_URL=wss://your-livekit-server.com
-LIVEKIT_WS_URL=wss://your-livekit-server.com  # 可选，用于 WebSocket
 LIVEKIT_API_KEY=your-api-key
 LIVEKIT_API_SECRET=your-api-secret
 
-# MiniMax 配置（用于 LLM 和 TTS）
-MINIMAX_API_KEY=your-minimax-key
-MINIMAX_MODEL=abab5.5s-chat
+# Gemini 配置（用于 LLM 和 TTS）
+GEMINI_API_KEY=your-gemini-key
+GEMINI_MODEL=gemini-3-flash-preview
 
 # Deepgram 配置（用于 STT）
 DEEPGRAM_API_KEY=your-deepgram-key
@@ -79,8 +78,8 @@ Agent 将自动连接到指定房间，等待用户加入。
 │    │                                    │
 │    └─ voice.AgentSession                │
 │        ├─ STT: Deepgram                 │
-│        ├─ LLM: OpenAI (MiniMax)         │
-│        ├─ TTS: MiniMaxTTS               │
+│        ├─ LLM: OpenAI (Gemini)          │
+│        ├─ TTS: OpenAI (Gemini)          │
 │        └─ VAD: Silero                   │
 └─────────────────────────────────────────┘
 ```
@@ -119,8 +118,8 @@ Agent 将自动连接到指定房间，等待用户加入。
 agent/
 ├── main.ts                          # 入口文件
 ├── src/
-│   ├── plugins/
-│   │   └── minimax-tts-plugin.ts    # MiniMax TTS 插件
+│   ├── config/
+│   │   └── providers.ts             # Gemini Provider 配置
 │   ├── services/
 │   │   └── context-loader.ts        # 上下文加载服务
 │   ├── constants/
@@ -159,20 +158,18 @@ const session = new voice.AgentSession({
 
   // LLM 配置
   llm: new openai.LLM({
-    apiKey: process.env.MINIMAX_API_KEY,
-    model: 'abab5.5s-chat',
-    baseURL: 'https://api.minimax.chat/v1',
+    apiKey: process.env.GEMINI_API_KEY,
+    model: 'gemini-3-flash-preview',
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
     temperature: 0.7,
   }),
 
   // TTS 配置
-  tts: new MiniMaxTTS({
-    apiKey: process.env.MINIMAX_API_KEY,
-    voiceId: 'male-qn-qingse',   // 男声：青涩
-    // 其他可选 voiceId:
-    // - 'male-qn-jingying': 男声-精英
-    // - 'female-shaonv': 女声-少女
-    // - 'female-yujie': 女声-御姐
+  tts: new openai.TTS({
+    apiKey: process.env.GEMINI_API_KEY,
+    model: 'gemini-2.5-flash-preview-tts',
+    voice: 'Kore',
+    speed: 1.0,
   }),
 
   // VAD 配置
@@ -291,7 +288,7 @@ session.on(voice.AgentSessionEventTypes.AgentThinking, (ev) => {
 
 #### 3. TTS 延迟高
 
-- 检查 MiniMax API 配额
+- 检查 Gemini API 配额
 - 考虑切换到更快的 voice model
 - 优化网络连接
 

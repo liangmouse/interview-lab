@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getDeepSeekClient,
-  validateDeepSeekConfig,
-} from "@/lib/deepseek-client";
+  getGeminiOpenAICompatConfig,
+  validateGeminiConfig,
+} from "@/lib/gemini-client";
 import { convertToCoreMessages } from "@/lib/chat-utils";
-import { streamText } from "ai";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { ChatOpenAI } from "@langchain/openai";
+import { streamChatModelResponse, toLangChainMessages } from "./chat-llm";
 import { createClient } from "@/lib/supabase/server";
 import {
   extractPersonalizedContext,
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     const {
       messages,
-      model = "deepseek-chat",
+      model = process.env.GEMINI_MODEL || "gemini-3-flash-preview",
       userId,
       enablePersonalization = true,
     } = body;
@@ -60,13 +62,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. 验证 DeepSeek 配置
-    const configValidation = validateDeepSeekConfig();
+    // 2. 验证 Gemini 配置
+    const configValidation = validateGeminiConfig();
     if (!configValidation.isValid) {
-      console.error(
-        `DeepSeek config validation failed:`,
-        configValidation.error,
-      );
+      console.error(`Gemini config validation failed:`, configValidation.error);
       return NextResponse.json(
         { error: configValidation.error || "API key not configured" },
         { status: 500 },
@@ -221,17 +220,35 @@ export async function POST(request: NextRequest) {
     // 5. 转换 UIMessage 格式为 Core Messages 格式
     const coreMessages = convertToCoreMessages(messagesWithSystem);
 
-    // 6. 使用 @ai-sdk/deepseek 调用 DeepSeek API
-    const deepseekClient = getDeepSeekClient();
-    const result = await streamText({
-      model: deepseekClient(model),
-      messages: coreMessages,
+    // 6. 使用 OpenAI 兼容端点调用 Gemini API
+    const geminiConfig = getGeminiOpenAICompatConfig();
+    const llm = new ChatOpenAI({
+      model: model || geminiConfig.model,
       temperature: 0.7,
-      maxOutputTokens: 4000,
+      maxTokens: 4000,
+      apiKey: geminiConfig.apiKey,
+      configuration: {
+        baseURL: geminiConfig.baseURL,
+      },
     });
 
-    // 7. 返回流式响应 - 使用 toUIMessageStreamResponse 以支持 useChat
-    const response = result.toUIMessageStreamResponse({
+    const lcMessages = toLangChainMessages(coreMessages);
+
+    const uiStream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        await streamChatModelResponse({
+          llm,
+          messages: lcMessages,
+          writer,
+        });
+      },
+      onError: (error) =>
+        error instanceof Error ? error.message : "Gemini response error",
+    });
+
+    // 7. 返回流式响应，兼容 useChat 的 UI Message 协议
+    const response = createUIMessageStreamResponse({
+      stream: uiStream,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",

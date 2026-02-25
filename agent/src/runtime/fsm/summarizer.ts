@@ -1,8 +1,8 @@
 import { llm } from "@livekit/agents";
-import { createMiniMaxLLM } from "../../config/providers";
+import { createGeminiLLM } from "../../config/providers";
 import { InterviewStage } from "./types";
 
-const summarizerLLM = createMiniMaxLLM();
+const summarizerLLM = createGeminiLLM();
 
 export async function summarizeStage(
   stage: InterviewStage,

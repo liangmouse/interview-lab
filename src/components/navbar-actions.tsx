@@ -27,7 +27,7 @@ export function NavbarActions() {
     if (userInfo) {
       router.push("/dashboard");
     } else {
-      router.push("/auth/sign-up");
+      router.push("/auth/sign-in?tab=sign-up");
     }
   };
 

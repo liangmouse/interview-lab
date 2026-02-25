@@ -115,7 +115,7 @@ export class TurnCoordinator {
     this.expectMergedUserMessage = true;
     this.session.generateReply({
       userInput: merged,
-      allowInterruptions: true,
+      allowInterruptions: false,
     });
   }
 

@@ -1,21 +1,40 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Maximize2, Wifi, WifiOff, Loader2 } from "lucide-react";
+import {
+  X,
+  Maximize2,
+  Wifi,
+  WifiOff,
+  Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 interface InterviewHeaderProps {
   isConnected?: boolean;
   isConnecting?: boolean;
   error?: string | null;
+  isResumePanelOpen?: boolean;
+  onToggleResumePanel?: () => void;
+  isCodeWorkbenchOpen?: boolean;
+  onToggleCodeWorkbench?: () => void;
 }
 
 export function InterviewHeader({
   isConnected = false,
   isConnecting = false,
   error = null,
+  isResumePanelOpen = false,
+  onToggleResumePanel,
+  isCodeWorkbenchOpen = false,
+  onToggleCodeWorkbench,
 }: InterviewHeaderProps) {
   const t = useTranslations("interview");
   const [elapsed, setElapsed] = useState(0);
@@ -42,7 +61,7 @@ export function InterviewHeader({
       return (
         <div className="flex items-center gap-2 text-sm text-amber-600">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>连接中...</span>
+          <span>{t("connecting")}</span>
         </div>
       );
     }
@@ -51,7 +70,7 @@ export function InterviewHeader({
       return (
         <div className="flex items-center gap-2 text-sm text-red-600">
           <WifiOff className="h-4 w-4" />
-          <span>连接失败</span>
+          <span>{t("connectionFailed")}</span>
         </div>
       );
     }
@@ -60,7 +79,7 @@ export function InterviewHeader({
       return (
         <div className="flex items-center gap-2 text-sm text-green-600">
           <Wifi className="h-4 w-4" />
-          <span>已连接</span>
+          <span>{t("connected")}</span>
         </div>
       );
     }
@@ -68,13 +87,13 @@ export function InterviewHeader({
     return (
       <div className="flex items-center gap-2 text-sm text-gray-400">
         <WifiOff className="h-4 w-4" />
-        <span>未连接</span>
+        <span>{t("disconnected")}</span>
       </div>
     );
   };
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-[#E5E5E5] bg-white px-6">
+    <header className="flex h-14 items-center justify-between border-b border-[#E5E5E5] bg-white px-4 md:px-6">
       <Link
         href="/dashboard"
         className="text-sm text-[#666666] hover:text-[#141414]"
@@ -94,7 +113,42 @@ export function InterviewHeader({
           </span>
         </div>
 
-        <Button variant="ghost" size="sm">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggleResumePanel}
+          className={cn("hidden md:flex")}
+          aria-label={
+            isResumePanelOpen ? t("hideResumePanel") : t("showResumePanel")
+          }
+        >
+          {isResumePanelOpen ? (
+            <PanelLeftClose className="h-4 w-4" />
+          ) : (
+            <PanelLeftOpen className="h-4 w-4" />
+          )}
+          <span className="text-xs">
+            {isResumePanelOpen ? t("hideResumePanel") : t("showResumePanel")}
+          </span>
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggleCodeWorkbench}
+          className={cn(
+            "hidden md:flex",
+            isCodeWorkbenchOpen && "text-[#10B981]",
+          )}
+        >
+          {isCodeWorkbenchOpen ? (
+            <PanelRightClose className="h-4 w-4" />
+          ) : (
+            <PanelRightOpen className="h-4 w-4" />
+          )}
+        </Button>
+
+        <Button variant="ghost" size="sm" className="hidden md:flex">
           <Maximize2 className="h-4 w-4" />
         </Button>
       </div>

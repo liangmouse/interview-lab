@@ -7,6 +7,9 @@
  */
 
 import * as dotenv from "dotenv";
+import "@livekit/agents-plugin-deepgram";
+import "@livekit/agents-plugin-livekit";
+import "@livekit/agents-plugin-silero";
 import { initAgentsLogger } from "./src/bootstrap/logger";
 import { runWorkerMode } from "./src/modes/worker";
 

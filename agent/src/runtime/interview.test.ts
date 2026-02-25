@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../services/context-loader", () => {
   return {
     buildSystemPrompt: vi.fn(() => "PROMPT_FROM_BUILD"),
+    loadInterviewMessages: vi.fn(async () => []),
   };
 });
 
@@ -63,6 +64,7 @@ vi.mock("./fsm/prompt-builder", () => {
 });
 
 import { createInterviewApplier } from "./interview";
+import * as contextLoader from "../services/context-loader";
 
 describe("runtime/interview.createInterviewApplier", () => {
   beforeEach(() => {
@@ -130,5 +132,37 @@ describe("runtime/interview.createInterviewApplier", () => {
     expect(session.generateReply).toHaveBeenCalledTimes(2);
     expect(events.filter((e) => e === "update").length).toBe(2);
     expect(events.filter((e) => e === "reply").length).toBe(2);
+  });
+
+  it("still sends kickoff when history only contains system messages", async () => {
+    vi.useFakeTimers();
+    vi.mocked(contextLoader.loadInterviewMessages).mockResolvedValue([
+      {
+        role: "system",
+        content: "internal setup",
+        created_at: "2026-02-25T00:00:00.000Z",
+      },
+    ] as any);
+
+    const session = {
+      updateAgent: vi.fn((agent: any) => {
+        agent._ready = true;
+      }),
+      generateReply: vi.fn(async () => {}),
+    };
+
+    const apply = createInterviewApplier({
+      session: session as any,
+      userProfile: { nickname: "梁爽" },
+    });
+
+    await apply({
+      id: "interview-id",
+      type: "frontend:beginner",
+      duration: 10,
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(session.generateReply).toHaveBeenCalledTimes(1);
   });
 });

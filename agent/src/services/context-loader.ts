@@ -152,11 +152,11 @@ export async function loadInterviewMessages(interviewId: string) {
     const { supabaseAdmin: supabase } = await import(
       "../../../src/lib/supabase/admin"
     );
-    const { data: messages, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("interview_id", interviewId)
-      .order("created_at", { ascending: true });
+    const { data: interview, error } = await supabase
+      .from("interviews")
+      .select("user_messages, ai_messages")
+      .eq("id", interviewId)
+      .single();
 
     if (error) {
       console.warn(
@@ -165,7 +165,53 @@ export async function loadInterviewMessages(interviewId: string) {
       );
       return [];
     }
-    return messages || [];
+
+    const userMessages = Array.isArray((interview as any)?.user_messages)
+      ? (interview as any).user_messages
+      : [];
+    const aiMessages = Array.isArray((interview as any)?.ai_messages)
+      ? (interview as any).ai_messages
+      : [];
+
+    const normalized = [
+      ...userMessages.map((msg: any) => ({
+        role: "user",
+        content: msg?.content,
+        created_at: msg?.timestamp,
+      })),
+      ...aiMessages.map((msg: any) => ({
+        role: "assistant",
+        content: msg?.content,
+        created_at: msg?.timestamp,
+      })),
+    ]
+      .filter((msg) => typeof msg.content === "string" && msg.content.trim())
+      .sort((a, b) => {
+        const ta = new Date(a.created_at || 0).getTime();
+        const tb = new Date(b.created_at || 0).getTime();
+        return ta - tb;
+      });
+
+    if (normalized.length > 0) {
+      return normalized;
+    }
+
+    // Backward compatibility for legacy sessions persisted in messages table.
+    const { data: legacyMessages, error: legacyError } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("interview_id", interviewId)
+      .order("created_at", { ascending: true });
+
+    if (legacyError) {
+      console.warn(
+        `[ContextLoader] Error loading legacy messages for ${interviewId}:`,
+        legacyError.message,
+      );
+      return [];
+    }
+
+    return legacyMessages || [];
   } catch (e) {
     console.error(`[ContextLoader] Unexpected error loading messages:`, e);
     return [];

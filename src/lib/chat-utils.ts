@@ -14,7 +14,7 @@ export interface ChatMessage {
 import type { MessageRole, SavedMessage } from "@/types/message";
 
 /**
- * 将 UIMessage 格式转换为 Core Messages 格式（用于 @ai-sdk/deepseek）
+ * 将 UIMessage 格式转换为 Core Messages 格式（用于 @ai-sdk/google）
  * 支持多模态内容：文本、图片、工具调用等
  */
 export function convertToCoreMessages(uiMessages: UIMessage[]): CoreMessage[] {

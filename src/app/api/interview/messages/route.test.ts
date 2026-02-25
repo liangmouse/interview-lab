@@ -1,6 +1,6 @@
 // Define mocks before import
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 // Hoist mocks
 const { mockFrom, mockSupabase } = vi.hoisted(() => {
   const mockFrom = vi.fn();
@@ -25,6 +25,8 @@ import { GET, POST } from "./route";
 describe("Messages API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
 
     // Chain mocks
     mockFrom.mockReturnValue({

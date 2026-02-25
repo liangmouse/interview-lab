@@ -1,14 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { getRequiredSupabaseAdminEnv } from "@/lib/supabase/env";
 
-// 尝试使用 Service Role Key，如果不存在则使用 Anon Key
-// 注意：在生产环境中应当严格使用 Service Role Key 并且保护此 API 不被滥用
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+function createSupabaseAdminClient() {
+  const { url, key } = getRequiredSupabaseAdminEnv();
+  return createClient(url, key);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,6 +19,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
       .from("messages")
       .select("*")
@@ -52,6 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    const supabase = createSupabaseAdminClient();
     const { error } = await supabase.from("messages").insert({
       interview_id: interviewId,
       role,

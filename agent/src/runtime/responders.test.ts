@@ -15,7 +15,7 @@ describe("runtime/responders.createUserTextResponder", () => {
     await respond("  你好  ");
     expect(session.generateReply).toHaveBeenCalledWith({
       userInput: "你好",
-      allowInterruptions: true,
+      allowInterruptions: false,
     });
   });
 });

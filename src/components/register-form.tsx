@@ -16,6 +16,7 @@ import { getOrCreateUserProfile } from "@/action/user-profile";
 import { useUserStore } from "@/store/user";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { authFormStyles } from "@/components/auth-form-styles";
 
 const supabase = createClient();
 
@@ -141,21 +142,20 @@ export function RegisterForm() {
 
   return (
     <div className="w-full">
-      <div className="flex flex-col justify-center">
-        <div className="mb-6 space-y-2">
-          <h1 className="text-3xl font-light text-[#141414] tracking-tight">
-            {t("createAccount")}
-          </h1>
-          <p className="text-base text-[#666666]">{t("createAccountDesc")}</p>
+      <div className={authFormStyles.panel}>
+        <div className={authFormStyles.header}>
+          <h1 className={authFormStyles.title}>{t("createAccount")}</h1>
+          <p className={authFormStyles.subtitle}>{t("createAccountDesc")}</p>
         </div>
 
-        <div className="space-y-5">
-          <div className="space-y-4">
+        <div className={authFormStyles.section}>
+          <div className={authFormStyles.socialGroup}>
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-100 hover:text-[#141414] hover:border-gray-300 text-[#141414] font-normal transition-colors"
+              className={authFormStyles.socialButton}
               onClick={() => handleOAuthLogin("github")}
               loading={isOAuthLoading === "github"}
+              disabled={isBusy || isOAuthLoading !== null}
             >
               <Github className="mr-2 h-5 w-5" />
               {isOAuthLoading === "github"
@@ -164,9 +164,10 @@ export function RegisterForm() {
             </Button>
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-200 bg-white hover:bg-gray-100 hover:text-[#141414] hover:border-gray-300 text-[#141414] font-normal transition-colors"
+              className={authFormStyles.socialButton}
               onClick={() => handleOAuthLogin("google")}
               loading={isOAuthLoading === "google"}
+              disabled={isBusy || isOAuthLoading !== null}
             >
               <FcGoogle className="mr-2 h-5 w-5" />
               {isOAuthLoading === "google"
@@ -174,34 +175,34 @@ export function RegisterForm() {
                 : t("continueWithGoogle")}
             </Button>
 
-            <div className="relative py-2">
+            <div className={authFormStyles.dividerWrap}>
               <Separator className="bg-gray-200" />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-xs text-[#666666]">
+              <span className={authFormStyles.dividerText}>
                 {t("orContinueWith")}
               </span>
             </div>
 
-            <form onSubmit={handleRegister} className="space-y-4">
+            <form onSubmit={handleRegister} className={authFormStyles.form}>
               {error && (
                 <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
                   {error}
                 </div>
               )}
 
-              <div className="space-y-2">
+              <div className={authFormStyles.field}>
                 <Label
                   htmlFor="register-email"
-                  className="text-xs uppercase tracking-wide text-[#666666] font-medium"
+                  className={authFormStyles.label}
                 >
                   {t("email")}
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-[#666666]" />
+                  <Mail className={authFormStyles.fieldIcon} />
                   <Input
                     id="register-email"
                     type="email"
                     placeholder={t("emailPlaceholder")}
-                    className="pl-11 h-12 bg-gray-50 border-gray-200 text-[#141414] placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-emerald-600/20 focus-visible:border-emerald-600 focus-visible:bg-white transition-all"
+                    className={authFormStyles.input}
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -213,19 +214,20 @@ export function RegisterForm() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className={authFormStyles.field}>
                 <Label
                   htmlFor="register-password"
-                  className="text-xs uppercase tracking-wide text-[#666666] font-medium"
+                  className={authFormStyles.label}
                 >
                   {t("password")}
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-[#666666]" />
+                  <Lock className={authFormStyles.fieldIcon} />
                   <Input
                     id="register-password"
                     type="password"
-                    className="pl-11 h-12 bg-gray-50 border-gray-200 text-[#141414] placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-emerald-600/20 focus-visible:border-emerald-600 focus-visible:bg-white transition-all"
+                    placeholder="••••••••"
+                    className={authFormStyles.input}
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -237,19 +239,20 @@ export function RegisterForm() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className={authFormStyles.field}>
                 <Label
                   htmlFor="register-confirm-password"
-                  className="text-xs uppercase tracking-wide text-[#666666] font-medium"
+                  className={authFormStyles.label}
                 >
                   {t("confirmPassword")}
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-[#666666]" />
+                  <Lock className={authFormStyles.fieldIcon} />
                   <Input
                     id="register-confirm-password"
                     type="password"
-                    className="pl-11 h-12 bg-gray-50 border-gray-200 text-[#141414] placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-emerald-600/20 focus-visible:border-emerald-600 focus-visible:bg-white transition-all"
+                    placeholder="••••••••"
+                    className={authFormStyles.input}
                     value={confirmPassword}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
@@ -263,7 +266,7 @@ export function RegisterForm() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-[#059669] hover:bg-[#059669]/90 text-white font-medium text-base transition-all shadow-sm hover:shadow-md"
+                className={authFormStyles.submitButton}
                 loading={isBusy}
                 disabled={isOAuthLoading !== null}
               >
@@ -275,11 +278,11 @@ export function RegisterForm() {
               </Button>
             </form>
 
-            <p className="text-xs text-center text-[#666666]">
+            <p className={authFormStyles.footer}>
               {t("hasAccount")}{" "}
               <Link
-                href="/auth/sign-in"
-                className="text-[#141414] hover:underline font-medium"
+                href="/auth/sign-in?tab=sign-in"
+                className={authFormStyles.footerLink}
               >
                 {t("signIn")}
               </Link>

@@ -5,9 +5,9 @@ export function createUserTextResponder(args: { session: voice.AgentSession }) {
   return async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    session.generateReply({
+    await session.generateReply({
       userInput: trimmed,
-      allowInterruptions: true,
+      allowInterruptions: false,
     });
   };
 }
