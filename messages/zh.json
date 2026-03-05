@@ -143,10 +143,37 @@
     "resumeIntelligence": "简历智能",
     "sidebar": {
       "brand": "小面",
-      "dashboard": "控制台",
+      "interviewGroup": "面试单元",
+      "prepGroup": "准备单元",
+      "interview": "模拟面试",
+      "fullInterview": "综合面试",
+      "focusInterview": "专项面试",
+      "interviewArchive": "面试档案",
+      "records": "面试记录",
+      "profileCenter": "个人中心",
+      "resumeReview": "简历点评",
+      "questioningCenter": "押题中心",
+      "accountLabel": "我的账户",
+      "accountPlanHint": "管理账户（免费版）",
+      "sidebarHint": "建议先完成综合面试，再进行专项强化。"
+    },
+    "pages": {
       "profile": "个人资料",
-      "history": "历史记录",
-      "settings": "设置"
+      "interview": "模拟面试",
+      "interviewDesc": "在右侧标签中切换综合面试与专项面试模式，按目标场景进行训练。",
+      "fullInterview": "综合面试",
+      "fullInterviewDesc": "基于你的简历与目标岗位，生成完整流程的模拟面试。",
+      "focusInterview": "专项面试",
+      "focusInterviewDesc": "按能力维度进行专项训练，如 HR 面、技术问答和代码题。",
+      "interviewArchive": "面试档案",
+      "interviewArchiveDesc": "管理你的模拟历史、复盘记录和阶段性结论。",
+      "records": "面试记录",
+      "recordsDesc": "查看历史场次、评分变化和关键表现趋势。",
+      "resumeReview": "简历点评",
+      "resumeReviewDesc": "针对当前简历内容给出结构化修改建议与表达优化。",
+      "questioningCenter": "押题中心",
+      "questioningCenterDesc": "聚合简历押题与 JD 押题，生成优先训练题单。",
+      "backToDashboard": "返回控制台"
     },
     "simulation": {
       "title": "开始面试模拟",
@@ -183,10 +210,195 @@
       "status": "状态",
       "completed": "已完成",
       "pending": "进行中"
+    },
+    "questioning": {
+      "form": {
+        "title": "生成新押题报告",
+        "description": "基于简历和目标岗位配置，生成个性化押题与训练建议。",
+        "resumeLabel": "简历选择（必选）",
+        "resumePlaceholder": "请选择简历",
+        "targetRoleLabel": "目标岗位（必选）",
+        "targetRolePlaceholder": "例如：高级前端工程师",
+        "trackLabel": "岗位类型（必选）",
+        "workExperienceLabel": "工作年限（社招必选）",
+        "workExperiencePlaceholder": "请选择工作年限",
+        "targetCompanyLabel": "目标公司（可选）",
+        "targetCompanyPlaceholder": "例如：字节跳动",
+        "jdLabel": "目标岗位描述 JD（可选）",
+        "jdPlaceholder": "粘贴职位描述，便于生成更贴近岗位的题目",
+        "generate": "生成押题报告",
+        "generating": "正在生成..."
+      },
+      "tracks": {
+        "social": "社招",
+        "campus": "校招（含实习）",
+        "socialDesc": "适合有正式工作经验的候选人，强调项目深挖与业务落地。",
+        "campusDesc": "适合校招或实习候选人，强调基础能力与潜力评估。"
+      },
+      "loading": "AI 正在分析简历、岗位信息并生成题单，请稍候...",
+      "result": {
+        "title": "报告生成完成",
+        "description": "已按 {track} / {role} 生成押题建议，生成时间：{generatedAt}。"
+      },
+      "history": {
+        "title": "历史押题报告",
+        "description": "可折叠查看历史记录，点击进入详情页继续复盘。",
+        "viewDetail": "查看详情",
+        "emptyTitle": "暂无押题报告",
+        "emptyDescription": "你还没有生成过押题报告，先完成上方配置并点击生成。"
+      },
+      "detail": {
+        "targetRole": "目标岗位",
+        "summary": "报告摘要",
+        "focus": "重点考察维度"
+      },
+      "empty": {
+        "resumeLibrary": "暂无可选简历，请先前往个人资料上传并创建简历库。"
+      }
     }
   },
   "profile": {
     "title": "个人资料",
+    "center": {
+      "loadFailed": "加载个人资料数据失败，请稍后重试",
+      "refresh": "刷新数据",
+      "stats": {
+        "resumeCount": "简历数量",
+        "interviewCount": "面试场次",
+        "resumeReports": "简历报告",
+        "questioningReports": "押题报告"
+      },
+      "identity": {
+        "title": "昵称与头像",
+        "unnamed": "未设置昵称",
+        "avatarHint": "点击右下角可更新头像",
+        "nicknameLabel": "昵称",
+        "nicknameRequired": "昵称不能为空",
+        "nicknameUpdated": "昵称已更新",
+        "saveFailed": "保存失败，请稍后重试",
+        "invalidAvatarType": "请上传 JPEG、PNG、WebP 或 GIF 图片",
+        "avatarTooLarge": "头像大小不能超过 5MB",
+        "uploadFailed": "头像上传失败，请稍后重试",
+        "avatarUpdated": "头像已更新"
+      },
+      "resumeLibrary": {
+        "title": "个人简历库",
+        "uploadButton": "上传简历",
+        "uploading": "正在上传并解析简历...",
+        "dropHint": "支持拖拽 PDF 到此区域，自动进入简历库",
+        "savedAt": "存放时间",
+        "open": "查看",
+        "empty": "还没有简历，先上传一份简历吧",
+        "uploadSuccess": "简历已加入简历库",
+        "uploadFailed": "简历上传失败，请重试",
+        "deleteConfirm": "确认删除这份简历吗？删除后不可恢复。",
+        "deleteTitle": "删除简历",
+        "confirmDelete": "确认删除",
+        "cancel": "取消",
+        "deleting": "删除中...",
+        "deleteSuccess": "简历已删除",
+        "deleteFailed": "删除失败，请稍后重试",
+        "fileTooLarge": "简历文件不能超过 10MB",
+        "invalidFileType": "仅支持上传 PDF 格式简历",
+        "nameRequired": "请填写简历名称"
+      },
+      "interviewHistory": {
+        "title": "过往面试记录",
+        "empty": "暂无面试记录，完成一次模拟后会显示在这里",
+        "detail": "查看详情",
+        "showMore": "再显示 {count} 条",
+        "collapse": "收起记录"
+      },
+      "sidebar": {
+        "title": "快捷入口",
+        "questioning": {
+          "label": "押题中心"
+        },
+        "resumeReview": {
+          "label": "简历点评"
+        },
+        "interview": {
+          "label": "开始模拟面试"
+        },
+        "hint": "建议先生成押题报告，再进入模拟面试做针对性训练。"
+      },
+      "subscription": {
+        "cardTitle": "套餐订阅",
+        "cardDesc": "升级后可提升面试场次、报告深度和支持优先级。",
+        "entry": "Upgrade Plan",
+        "modal": {
+          "title": "管理你的订阅计划",
+          "subtitle": "本页仅为前端预览，支付与账单功能即将上线。",
+          "currentLabel": "当前计划:",
+          "renewAt": "续费/生效时间: 2026/03/26",
+          "popular": "Most Popular",
+          "comingSoon": "支付功能即将上线",
+          "currentPlanBtn": "当前计划",
+          "selectPlanBtn": "选择该计划"
+        },
+        "plans": {
+          "free": {
+            "name": "Free",
+            "price": "Free",
+            "desc": "适合刚开始面试准备的同学",
+            "features": [
+              "每月 1 次实时面试（30 分钟）",
+              "每月 2 次模拟面试（15 分钟）",
+              "5 条 STAR 经验故事额度",
+              "5 个面试场景额度",
+              "基础聊天支持"
+            ]
+          },
+          "starter": {
+            "name": "Starter",
+            "price": "$39",
+            "desc": "适合正在密集求职的候选人",
+            "features": [
+              "每月 2 次实时面试",
+              "每月 5 次模拟面试",
+              "包含 STAR 经验故事",
+              "包含面试场景",
+              "基础表现报告 + 邮件支持"
+            ]
+          },
+          "pro": {
+            "name": "Pro",
+            "price": "$69",
+            "desc": "适合冲刺中高级岗位的候选人",
+            "features": [
+              "每月 5 次实时面试",
+              "每月 10 次模拟面试",
+              "包含 STAR 经验故事",
+              "包含面试场景",
+              "详细表现报告 + 邮件支持"
+            ]
+          },
+          "champion": {
+            "name": "Champion",
+            "price": "$129",
+            "desc": "适合高阶岗位和高强度备面",
+            "features": [
+              "每月 10 次实时面试",
+              "每月 25 次模拟面试",
+              "包含 STAR 经验故事",
+              "包含面试场景",
+              "高级分析报告 + 优先支持"
+            ]
+          }
+        }
+      },
+      "questioningReport": {
+        "title": "押题报告",
+        "empty": "暂无押题报告，去押题中心生成你的第一份报告",
+        "cta": "进入押题中心"
+      },
+      "resumeReport": {
+        "title": "简历报告",
+        "pending": "待生成",
+        "empty": "暂无简历报告，上传简历后可前往简历点评生成",
+        "cta": "进入简历点评"
+      }
+    },
     "persona": {
       "nickname": "昵称",
       "level": "等级 {level}：{title}",

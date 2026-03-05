@@ -143,10 +143,37 @@
     "resumeIntelligence": "Resume Intelligence",
     "sidebar": {
       "brand": "Interview Lab",
-      "dashboard": "Dashboard",
+      "interviewGroup": "Interview",
+      "prepGroup": "Preparation",
+      "interview": "Mock Interview",
+      "fullInterview": "Full Interview",
+      "focusInterview": "Focused Interview",
+      "interviewArchive": "Interview Archive",
+      "records": "Interview Records",
+      "profileCenter": "Profile Center",
+      "resumeReview": "Resume Review",
+      "questioningCenter": "Questioning Center",
+      "accountLabel": "My Account",
+      "accountPlanHint": "Manage account (Free plan)",
+      "sidebarHint": "Start with full interview, then continue with focused training."
+    },
+    "pages": {
       "profile": "Profile",
-      "history": "History",
-      "settings": "Settings"
+      "interview": "Mock Interview",
+      "interviewDesc": "Switch between full and focused interview modes in the tabs on the right.",
+      "fullInterview": "Full Interview",
+      "fullInterviewDesc": "Run a complete mock flow generated from your resume and target role.",
+      "focusInterview": "Focused Interview",
+      "focusInterviewDesc": "Train by specific skills such as HR, technical Q&A, and coding rounds.",
+      "interviewArchive": "Interview Archive",
+      "interviewArchiveDesc": "Manage your mock history, review notes, and stage summaries.",
+      "records": "Interview Records",
+      "recordsDesc": "Review sessions, score changes, and key performance trends.",
+      "resumeReview": "Resume Review",
+      "resumeReviewDesc": "Get structured feedback and wording improvements for your resume.",
+      "questioningCenter": "Questioning Center",
+      "questioningCenterDesc": "Combine resume-based and JD-based predicted questions into one plan.",
+      "backToDashboard": "Back to Dashboard"
     },
     "simulation": {
       "title": "Start Interview Simulation",
@@ -181,10 +208,195 @@
       "status": "Status",
       "completed": "completed",
       "pending": "pending"
+    },
+    "questioning": {
+      "form": {
+        "title": "Generate a New Question Forecast Report",
+        "description": "Configure resume and role inputs to generate personalized predicted questions.",
+        "resumeLabel": "Resume (Required)",
+        "resumePlaceholder": "Select a resume",
+        "targetRoleLabel": "Target Role (Required)",
+        "targetRolePlaceholder": "e.g. Senior Frontend Engineer",
+        "trackLabel": "Hiring Track (Required)",
+        "workExperienceLabel": "Years of Experience (Required for Social Hiring)",
+        "workExperiencePlaceholder": "Select years of experience",
+        "targetCompanyLabel": "Target Company (Optional)",
+        "targetCompanyPlaceholder": "e.g. ByteDance",
+        "jdLabel": "Target Job Description (Optional)",
+        "jdPlaceholder": "Paste JD text to make generated questions more role-specific",
+        "generate": "Generate Report",
+        "generating": "Generating..."
+      },
+      "tracks": {
+        "social": "Social Hiring",
+        "campus": "Campus Hiring (Internships Included)",
+        "socialDesc": "For experienced candidates, focused on project deep-dives and business impact.",
+        "campusDesc": "For students and interns, focused on fundamentals and growth potential."
+      },
+      "loading": "AI is analyzing your resume and role information. Please wait...",
+      "result": {
+        "title": "Report Generated",
+        "description": "Your report for {track} / {role} is ready. Generated at: {generatedAt}."
+      },
+      "history": {
+        "title": "Historical Reports",
+        "description": "Expand previous records and open detail pages for review.",
+        "viewDetail": "View details",
+        "emptyTitle": "No reports yet",
+        "emptyDescription": "You have not generated any report yet. Complete the form above and run generation."
+      },
+      "detail": {
+        "targetRole": "Target role",
+        "summary": "Summary",
+        "focus": "Focus areas"
+      },
+      "empty": {
+        "resumeLibrary": "No resume is available. Please upload one from your profile first."
+      }
     }
   },
   "profile": {
     "title": "Profile",
+    "center": {
+      "loadFailed": "Failed to load profile data. Please try again later.",
+      "refresh": "Refresh",
+      "stats": {
+        "resumeCount": "Resumes",
+        "interviewCount": "Interviews",
+        "resumeReports": "Resume Reports",
+        "questioningReports": "Questioning Reports"
+      },
+      "identity": {
+        "title": "Nickname & Avatar",
+        "unnamed": "Unnamed user",
+        "avatarHint": "Click the corner button to update avatar",
+        "nicknameLabel": "Nickname",
+        "nicknameRequired": "Nickname is required",
+        "nicknameUpdated": "Nickname updated",
+        "saveFailed": "Failed to save. Please try again.",
+        "invalidAvatarType": "Please upload JPEG, PNG, WebP or GIF image",
+        "avatarTooLarge": "Avatar size should be less than 5MB",
+        "uploadFailed": "Avatar upload failed. Please retry.",
+        "avatarUpdated": "Avatar updated"
+      },
+      "resumeLibrary": {
+        "title": "Resume Library",
+        "uploadButton": "Upload Resume",
+        "uploading": "Uploading and parsing your resume...",
+        "dropHint": "Drag & drop PDF here to add it to your library",
+        "savedAt": "Stored at",
+        "open": "Open",
+        "empty": "No resume yet. Upload your first one.",
+        "uploadSuccess": "Resume added to library",
+        "uploadFailed": "Resume upload failed. Please retry.",
+        "deleteConfirm": "Delete this resume? This action cannot be undone.",
+        "deleteTitle": "Delete Resume",
+        "confirmDelete": "Delete",
+        "cancel": "Cancel",
+        "deleting": "Deleting...",
+        "deleteSuccess": "Resume deleted",
+        "deleteFailed": "Failed to delete resume. Please retry.",
+        "fileTooLarge": "Resume file size must be within 10MB",
+        "invalidFileType": "Only PDF resumes are supported",
+        "nameRequired": "Please provide a resume name"
+      },
+      "interviewHistory": {
+        "title": "Interview History",
+        "empty": "No interview history yet. Complete one mock interview to see records.",
+        "detail": "View detail",
+        "showMore": "Show {count} more",
+        "collapse": "Collapse list"
+      },
+      "sidebar": {
+        "title": "Quick Access",
+        "questioning": {
+          "label": "Questioning Center"
+        },
+        "resumeReview": {
+          "label": "Resume Review"
+        },
+        "interview": {
+          "label": "Start Mock Interview"
+        },
+        "hint": "Generate a questioning report first, then run a focused mock interview."
+      },
+      "subscription": {
+        "cardTitle": "Subscription",
+        "cardDesc": "Upgrade for more interviews, deeper reports, and priority support.",
+        "entry": "Upgrade Plan",
+        "modal": {
+          "title": "Manage Your Subscription",
+          "subtitle": "Frontend preview only. Billing and payment are coming soon.",
+          "currentLabel": "Current Plan:",
+          "renewAt": "Renews/Starts on: 2026/03/26",
+          "popular": "Most Popular",
+          "comingSoon": "Payment integration coming soon",
+          "currentPlanBtn": "Current Plan",
+          "selectPlanBtn": "Choose Plan"
+        },
+        "plans": {
+          "free": {
+            "name": "Free",
+            "price": "Free",
+            "desc": "Best for students and first-time interviewees",
+            "features": [
+              "1 live interview/month (30 min)",
+              "2 mock interviews/month (15 min)",
+              "Access to 5 STAR stories",
+              "Access to 5 interview scenarios",
+              "Basic chat support"
+            ]
+          },
+          "starter": {
+            "name": "Starter",
+            "price": "$39",
+            "desc": "Perfect for active job seekers preparing for interviews",
+            "features": [
+              "2 live interviews/month",
+              "5 mock interviews/month",
+              "Included: STAR experience stories",
+              "Included: interview scenarios",
+              "Basic performance report + email support"
+            ]
+          },
+          "pro": {
+            "name": "Pro",
+            "price": "$69",
+            "desc": "For mid-career professionals targeting growth roles",
+            "features": [
+              "5 live interviews/month",
+              "10 mock interviews/month",
+              "Included: STAR experience stories",
+              "Included: interview scenarios",
+              "Detailed performance report + email support"
+            ]
+          },
+          "champion": {
+            "name": "Champion",
+            "price": "$129",
+            "desc": "For senior professionals preparing high-stakes interviews",
+            "features": [
+              "10 live interviews/month",
+              "25 mock interviews/month",
+              "Included: STAR experience stories",
+              "Included: interview scenarios",
+              "Advanced analytics report + priority support"
+            ]
+          }
+        }
+      },
+      "questioningReport": {
+        "title": "Question Prediction Reports",
+        "empty": "No reports yet. Generate your first one in Questioning Center.",
+        "cta": "Go to Questioning Center"
+      },
+      "resumeReport": {
+        "title": "Resume Reports",
+        "pending": "Pending",
+        "empty": "No resume report yet. Upload a resume and generate one in Resume Review.",
+        "cta": "Go to Resume Review"
+      }
+    },
     "persona": {
       "nickname": "Nickname",
       "level": "Level {level}: {title}",

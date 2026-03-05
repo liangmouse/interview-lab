@@ -15,7 +15,6 @@ interface BreadcrumbItem {
 
 interface DashboardHeaderProps {
   breadcrumbs?: BreadcrumbItem[];
-  heading?: string;
   children?: React.ReactNode;
 }
 
@@ -28,8 +27,8 @@ export function DashboardHeader({
   const tProfile = useTranslations("profile");
 
   const defaultBreadcrumbs: BreadcrumbItem[] = [
-    { labelKey: "home", href: "/" },
-    { labelKey: "title", href: "/dashboard" },
+    { labelKey: "home", href: "/dashboard" },
+    { labelKey: "title" },
   ];
 
   const items = breadcrumbs || defaultBreadcrumbs;
@@ -38,6 +37,9 @@ export function DashboardHeader({
   const translateLabel = (labelKey: string) => {
     if (labelKey.startsWith("profile.")) {
       return tProfile(labelKey.replace("profile.", ""));
+    }
+    if (labelKey.startsWith("dashboard.")) {
+      return tDashboard(labelKey.replace("dashboard.", ""));
     }
     return tDashboard(labelKey);
   };

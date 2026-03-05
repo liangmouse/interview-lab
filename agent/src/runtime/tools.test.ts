@@ -26,6 +26,7 @@ describe("Tool Functions", () => {
   it("should create tools object", () => {
     const tools = createTools({ userProfile: mockProfile });
     expect(tools).toBeDefined();
+    expect(tools.web_search).toBeDefined();
     expect(tools.record_score).toBeDefined();
     expect(tools.check_resume).toBeDefined();
     expect(tools.code_assessment).toBeDefined();
@@ -77,6 +78,24 @@ describe("Tool Functions", () => {
 
     expect(runResult).toContain("执行");
     expect(runResult).toContain("javascript");
+  });
+
+  it("should gracefully degrade when web search is unavailable", async () => {
+    const originalExaApiKey = process.env.EXA_API_KEY;
+    delete process.env.EXA_API_KEY;
+
+    const tools = createTools({ userProfile: mockProfile });
+    const result = await tools.web_search.execute({
+      query: "latest AI news",
+    });
+
+    expect(result).toContain("未配置 EXA_API_KEY");
+
+    if (originalExaApiKey === undefined) {
+      delete process.env.EXA_API_KEY;
+    } else {
+      process.env.EXA_API_KEY = originalExaApiKey;
+    }
   });
 
   // TODO: Add integration tests if possible, but for now we trust the extensive logic in tools.ts

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { llm } from "@livekit/agents";
+import { createSharedTools } from "../tools";
 
 // --- Tool Definitions ---
 
@@ -63,6 +64,7 @@ type ToolsContext = {
 
 export function createTools(context: ToolsContext) {
   const { userProfile, onToolEvent } = context;
+  const sharedTools = createSharedTools({ onToolEvent });
 
   const recordScore = llm.tool({
     description: "为候选人的技能或特征记录评分 (0-10)。",
@@ -194,6 +196,7 @@ export function createTools(context: ToolsContext) {
   });
 
   return {
+    ...sharedTools,
     record_score: recordScore,
     check_resume: checkResume,
     code_assessment: codeAssessment,
