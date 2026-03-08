@@ -311,7 +311,14 @@ export function ResumeIntelligence() {
     } finally {
       setIsSaving(false);
     }
-  }, [jobIntention, experienceYears, techStack, workExperiences, setUserInfo]);
+  }, [
+    experienceYears,
+    jobIntention,
+    setUserInfo,
+    targetCompany,
+    techStack,
+    workExperiences,
+  ]);
 
   // 添加工作经历
   const handleAddWorkExperience = () => {
