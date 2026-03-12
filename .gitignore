@@ -50,3 +50,4 @@ docs
 my-note
 src/lib/prompt/prompt_to_cursor
 .cursor
+.worktrees

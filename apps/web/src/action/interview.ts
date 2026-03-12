@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { mergeMessagesToConversation } from "@/lib/chat-utils";
+import { generateInterviewReply } from "@/lib/interview-reply";
 
 // 消息类型定义
 export interface ChatMessage {
@@ -157,14 +158,47 @@ export async function processInterviewSpeech({
   interviewId: string;
 }) {
   try {
-    // 保存用户消息
-    await addUserMessage(interviewId, transcript);
+    const trimmedTranscript = transcript.trim();
+    if (!trimmedTranscript) {
+      return {
+        success: false,
+        error: "语音转写内容为空",
+      };
+    }
 
-    // TODO: 这里应该调用实际的 AI 处理逻辑
-    // 目前只是保存用户消息，AI 响应会通过其他渠道处理
+    const saveUserResult = await addUserMessage(interviewId, trimmedTranscript);
+    if (!saveUserResult.success) {
+      return {
+        success: false,
+        error: saveUserResult.error || "保存用户消息失败",
+      };
+    }
+
+    const historyResult = await getInterviewWithMessages(interviewId);
+    const conversation =
+      historyResult.success && historyResult.interview
+        ? mergeMessagesToConversation(
+            historyResult.interview.user_messages,
+            historyResult.interview.ai_messages,
+          ).map((message) => ({
+            role: message.role,
+            content: message.content,
+          }))
+        : [{ role: "user" as const, content: trimmedTranscript }];
+
+    const response = await generateInterviewReply(conversation);
+
+    const saveAiResult = await addAiMessage(interviewId, response);
+    if (!saveAiResult.success) {
+      return {
+        success: false,
+        error: saveAiResult.error || "保存 AI 消息失败",
+      };
+    }
+
     return {
       success: true,
-      response: "消息已保存，等待 AI 响应...",
+      response,
     };
   } catch (error) {
     console.error("处理面试语音失败:", error);
