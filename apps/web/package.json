@@ -1,0 +1,18 @@
+{
+  "name": "@interviewclaw/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "dotenv -e ../../.env.local -- next dev",
+    "build": "dotenv -e ../../.env.local -- next build",
+    "start": "dotenv -e ../../.env.local -- next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@interviewclaw/agent-core": "workspace:*",
+    "@interviewclaw/channel-sdk": "workspace:*",
+    "@interviewclaw/data-access": "workspace:*",
+    "@interviewclaw/domain": "workspace:*",
+    "@interviewclaw/workflows": "workspace:*"
+  }
+}

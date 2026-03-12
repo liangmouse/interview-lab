@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["apps/web/src/*"],
+      "@interviewclaw/domain": ["packages/domain/src/index.ts"],
+      "@interviewclaw/data-access": ["packages/data-access/src/index.ts"],
+      "@interviewclaw/channel-sdk": ["packages/channel-sdk/src/index.ts"],
+      "@interviewclaw/agent-core": ["packages/agent-core/src/index.ts"],
+      "@interviewclaw/workflows": ["packages/workflows/src/index.ts"]
+    }
+  }
+}

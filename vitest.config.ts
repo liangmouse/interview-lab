@@ -11,7 +11,27 @@ export default defineConfig({
     environment: "node",
     include: ["**/*.test.ts"],
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(__dirname, "./apps/web/src"),
+      "@interviewclaw/data-access": path.resolve(
+        __dirname,
+        "./packages/data-access/src/index.ts",
+      ),
+      "@interviewclaw/domain": path.resolve(
+        __dirname,
+        "./packages/domain/src/index.ts",
+      ),
+      "@interviewclaw/channel-sdk": path.resolve(
+        __dirname,
+        "./packages/channel-sdk/src/index.ts",
+      ),
+      "@interviewclaw/agent-core": path.resolve(
+        __dirname,
+        "./packages/agent-core/src/index.ts",
+      ),
+      "@interviewclaw/workflows": path.resolve(
+        __dirname,
+        "./packages/workflows/src/index.ts",
+      ),
     },
   },
 });

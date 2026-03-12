@@ -1,0 +1,13 @@
+{
+  "name": "@interviewclaw/data-access",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.1"
+  }
+}

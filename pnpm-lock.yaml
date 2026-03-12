@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@ai-sdk/deepseek':
-        specifier: ^1.0.18
-        version: 1.0.27(zod@4.1.12)
       '@ai-sdk/react':
         specifier: ^2.0.48
         version: 2.0.87(react@19.2.0)(zod@4.1.12)
@@ -20,9 +17,6 @@ importers:
       '@langchain/core':
         specifier: ^1.0.2
         version: 1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12))
-      '@langchain/deepseek':
-        specifier: ^1.0.0
-        version: 1.0.0(@langchain/core@1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12)))(ws@8.18.3)
       '@langchain/openai':
         specifier: ^1.1.3
         version: 1.1.3(@langchain/core@1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12)))(ws@8.18.3)
@@ -230,12 +224,18 @@ importers:
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      stripe:
+        specifier: ^20.4.1
+        version: 20.4.1(@types/node@20.19.24)
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.3.1
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.1.16)
+      turbo:
+        specifier: ^2.5.8
+        version: 2.8.16
       unpdf:
         specifier: ^1.4.0
         version: 1.4.0
@@ -361,16 +361,81 @@ importers:
         specifier: ^4.0.15
         version: 4.0.15(@opentelemetry/api@1.9.0)(@types/node@20.19.24)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.1)
 
+  apps/gateway:
+    dependencies:
+      '@interviewclaw/channel-sdk':
+        specifier: workspace:*
+        version: link:../../packages/channel-sdk
+      '@interviewclaw/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@interviewclaw/workflows':
+        specifier: workspace:*
+        version: link:../../packages/workflows
+
+  apps/livekit-agent:
+    dependencies:
+      '@interviewclaw/agent-core':
+        specifier: workspace:*
+        version: link:../../packages/agent-core
+      '@interviewclaw/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@interviewclaw/workflows':
+        specifier: workspace:*
+        version: link:../../packages/workflows
+
+  apps/scheduler:
+    dependencies:
+      '@interviewclaw/agent-core':
+        specifier: workspace:*
+        version: link:../../packages/agent-core
+      '@interviewclaw/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@interviewclaw/workflows':
+        specifier: workspace:*
+        version: link:../../packages/workflows
+
+  apps/web:
+    dependencies:
+      '@interviewclaw/agent-core':
+        specifier: workspace:*
+        version: link:../../packages/agent-core
+      '@interviewclaw/channel-sdk':
+        specifier: workspace:*
+        version: link:../../packages/channel-sdk
+      '@interviewclaw/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@interviewclaw/workflows':
+        specifier: workspace:*
+        version: link:../../packages/workflows
+
+  packages/agent-core:
+    dependencies:
+      '@interviewclaw/domain':
+        specifier: workspace:*
+        version: link:../domain
+
+  packages/channel-sdk:
+    dependencies:
+      '@interviewclaw/domain':
+        specifier: workspace:*
+        version: link:../domain
+
+  packages/domain: {}
+
+  packages/workflows:
+    dependencies:
+      '@interviewclaw/domain':
+        specifier: workspace:*
+        version: link:../domain
+
 packages:
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
-
-  '@ai-sdk/deepseek@1.0.27':
-    resolution: {integrity: sha512-ZDT950qNOmhXRSGHfyvmIJ56Dd2cuJ3dN5zp7aw3gV98d5mSjQpIo0B2Fb/EBxOOc1e7xVtKLGZRnomCm35JOw==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/gateway@1.0.23':
     resolution: {integrity: sha512-ynV7WxpRK2zWLGkdOtrU2hW22mBVkEYVS3iMg1+ZGmAYSgzCqzC74bfOJZ2GU1UdcrFWUsFI9qAYjsPkd+AebA==}
@@ -380,12 +445,6 @@ packages:
 
   '@ai-sdk/gateway@2.0.6':
     resolution: {integrity: sha512-FmhR6Tle09I/RUda8WSPpJ57mjPWzhiVVlB50D+k+Qf/PBW0CBtnbAUxlNSR5v+NIZNLTK3C56lhb23ntEdxhQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/openai-compatible@1.0.26':
-    resolution: {integrity: sha512-HwhnTN29fxdrvHaS4fnTUKGayhcInVjB5wcC8HDJjA8X8hFEiXsWydvO6MxFjPsnEMKz/ISg87L12RhdzVpP8Q==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -1719,12 +1778,6 @@ packages:
   '@langchain/core@1.0.2':
     resolution: {integrity: sha512-6mOn4bZyO6XT0GGrEijRtMVrmYJGZ8y1BcwyTPDptFz38lP0CEzrKEYB++h+u3TEcAd3eO25l1aGw/zVlVgw2Q==}
     engines: {node: '>=20'}
-
-  '@langchain/deepseek@1.0.0':
-    resolution: {integrity: sha512-jNMnX4iiqc+/T7kSr8JlDvtneFc1Jxc+I1feoBtGhnoGr8jN4R7t5oFvkuIZBaGNvS/mtJlP6Ujy3Z/X1qqjxg==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@langchain/core': ^1.0.0
 
   '@langchain/langgraph-checkpoint@1.0.0':
     resolution: {integrity: sha512-xrclBGvNCXDmi0Nz28t3vjpxSH6UYx6w5XAXSiiB1WEdc2xD2iY/a913I3x3a31XpInUW/GGfXXfePfaghV54A==}
@@ -4640,6 +4693,7 @@ packages:
   git-raw-commits@4.0.0:
     resolution: {integrity: sha512-ICsMM1Wk8xSGMowkOmPrzo2Fgmfo4bMHLNX6ytHjajRJUqvHOw/TFapQ+QG75c3X/tTDDhOSRPGC52dDbNM8FQ==}
     engines: {node: '>=16'}
+    deprecated: This package is no longer maintained. For the JavaScript API, please use @conventional-changelog/git-client instead.
     hasBin: true
 
   glob-parent@5.1.2:
@@ -4652,7 +4706,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   global-agent@3.0.0:
     resolution: {integrity: sha512-PT6XReJ+D07JvGoxQMkT6qji/jVNfX/h364XHZOWeRzy64sSFr+xJ5OX7LI3b4MPQzdL4H8Y8M0xzPpsVMwA8Q==}
@@ -6511,6 +6565,15 @@ packages:
     resolution: {integrity: sha512-1tB5mhVo7U+ETBKNf92xT4hrQa3pm0MZ0PQvuDnWgAAGHDsfp4lPSpiS6psrSiet87wyGPh9ft6wmhOMQ0hDiw==}
     engines: {node: '>=14.16'}
 
+  stripe@20.4.1:
+    resolution: {integrity: sha512-axCguHItc8Sxt0HC6aSkdVRPffjYPV7EQqZRb2GkIa8FzWDycE7nHJM19C6xAIynH1Qp1/BHiopSi96jGBxT0w==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      '@types/node': '>=16'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
   strtok3@6.3.0:
     resolution: {integrity: sha512-fZtbhtvI9I48xDSywd/somNqgUHl2L2cstmXCCif0itOf96jeW18MBSyrLuNicYQVkvpOxkZtkzujiTJ9LW5Jw==}
     engines: {node: '>=10'}
@@ -6584,6 +6647,7 @@ packages:
   tar@7.5.2:
     resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
     engines: {node: '>=18'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   text-extensions@2.4.0:
     resolution: {integrity: sha512-te/NtwBwfiNRLf9Ijqx3T0nlqZiQ2XrrtBvu+cLL8ZRrGkO0NHTug8MYFKyoSrv/sHTaSKfilUkizV6XhxMJ3g==}
@@ -6673,6 +6737,40 @@ packages:
   tsx@4.21.0:
     resolution: {integrity: sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw==}
     engines: {node: '>=18.0.0'}
+    hasBin: true
+
+  turbo-darwin-64@2.8.16:
+    resolution: {integrity: sha512-KWa4hUMWrpADC6Q/wIHRkBLw6X6MV9nx6X7hSXbTrrMz0KdaKhmfudUZ3sS76bJFmgArBU25cSc0AUyyrswYxg==}
+    cpu: [x64]
+    os: [darwin]
+
+  turbo-darwin-arm64@2.8.16:
+    resolution: {integrity: sha512-NBgaqBDLQSZlJR4D5XCkQq6noaO0RvIgwm5eYFJYL3bH5dNu8o0UBpq7C5DYnQI8+ybyoHFjT5/icN4LeUYLow==}
+    cpu: [arm64]
+    os: [darwin]
+
+  turbo-linux-64@2.8.16:
+    resolution: {integrity: sha512-VYPdcCRevI9kR/hr1H1xwXy7QQt/jNKiim1e1mjANBXD2E9VZWMkIL74J1Huad5MbU3/jw7voHOqDPLJPC2p6w==}
+    cpu: [x64]
+    os: [linux]
+
+  turbo-linux-arm64@2.8.16:
+    resolution: {integrity: sha512-beq8tgUVI3uwkQkXJMiOr/hfxQRw54M3elpBwqgYFfemiK5LhCjjcwO0DkE8GZZfElBIlk+saMAQOZy3885wNQ==}
+    cpu: [arm64]
+    os: [linux]
+
+  turbo-windows-64@2.8.16:
+    resolution: {integrity: sha512-Ig7b46iUgiOIkea/D3Z7H+zNzvzSnIJcLYFpZLA0RxbUTrbLhv9qIPwv3pT9p/abmu0LXVKHxaOo+p26SuDhzw==}
+    cpu: [x64]
+    os: [win32]
+
+  turbo-windows-arm64@2.8.16:
+    resolution: {integrity: sha512-fOWjbEA2PiE2HEnFQrwNZKYEdjewyPc2no9GmrXklZnTCuMsxeCN39aVlKpKpim03Zq/ykIuvApGwq8ZbfS2Yw==}
+    cpu: [arm64]
+    os: [win32]
+
+  turbo@2.8.16:
+    resolution: {integrity: sha512-u6e9e3cTTpE2adQ1DYm3A3r8y3LAONEx1jYvJx6eIgSY4bMLxIxs0riWzI0Z/IK903ikiUzRPZ2c1Ph5lVLkhA==}
     hasBin: true
 
   tw-animate-css@1.4.0:
@@ -7101,13 +7199,6 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ai-sdk/deepseek@1.0.27(zod@4.1.12)':
-    dependencies:
-      '@ai-sdk/openai-compatible': 1.0.26(zod@4.1.12)
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.16(zod@4.1.12)
-      zod: 4.1.12
-
   '@ai-sdk/gateway@1.0.23(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
@@ -7119,12 +7210,6 @@ snapshots:
       '@ai-sdk/provider': 2.0.0
       '@ai-sdk/provider-utils': 3.0.16(zod@4.1.12)
       '@vercel/oidc': 3.0.3
-      zod: 4.1.12
-
-  '@ai-sdk/openai-compatible@1.0.26(zod@4.1.12)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.16(zod@4.1.12)
       zod: 4.1.12
 
   '@ai-sdk/provider-utils@3.0.16(zod@4.1.12)':
@@ -8030,13 +8115,6 @@ snapshots:
       - '@opentelemetry/exporter-trace-otlp-proto'
       - '@opentelemetry/sdk-trace-base'
       - openai
-
-  '@langchain/deepseek@1.0.0(@langchain/core@1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12)))(ws@8.18.3)':
-    dependencies:
-      '@langchain/core': 1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12))
-      '@langchain/openai': 1.1.3(@langchain/core@1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12)))(ws@8.18.3)
-    transitivePeerDependencies:
-      - ws
 
   '@langchain/langgraph-checkpoint@1.0.0(@langchain/core@1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12)))':
     dependencies:
@@ -13309,6 +13387,10 @@ snapshots:
 
   strip-json-comments@5.0.3: {}
 
+  stripe@20.4.1(@types/node@20.19.24):
+    optionalDependencies:
+      '@types/node': 20.19.24
+
   strtok3@6.3.0:
     dependencies:
       '@tokenizer/token': 0.3.0
@@ -13470,6 +13552,33 @@ snapshots:
       get-tsconfig: 4.13.0
     optionalDependencies:
       fsevents: 2.3.3
+
+  turbo-darwin-64@2.8.16:
+    optional: true
+
+  turbo-darwin-arm64@2.8.16:
+    optional: true
+
+  turbo-linux-64@2.8.16:
+    optional: true
+
+  turbo-linux-arm64@2.8.16:
+    optional: true
+
+  turbo-windows-64@2.8.16:
+    optional: true
+
+  turbo-windows-arm64@2.8.16:
+    optional: true
+
+  turbo@2.8.16:
+    optionalDependencies:
+      turbo-darwin-64: 2.8.16
+      turbo-darwin-arm64: 2.8.16
+      turbo-linux-64: 2.8.16
+      turbo-linux-arm64: 2.8.16
+      turbo-windows-64: 2.8.16
+      turbo-windows-arm64: 2.8.16
 
   tw-animate-css@1.4.0: {}
 

@@ -1,0 +1,14 @@
+{
+  "name": "@interviewclaw/scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "dotenv -e ../../.env.local -- tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@interviewclaw/agent-core": "workspace:*",
+    "@interviewclaw/domain": "workspace:*",
+    "@interviewclaw/workflows": "workspace:*"
+  }
+}
