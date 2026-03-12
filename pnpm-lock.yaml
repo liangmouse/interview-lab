@@ -378,6 +378,9 @@ importers:
       '@interviewclaw/agent-core':
         specifier: workspace:*
         version: link:../../packages/agent-core
+      '@interviewclaw/data-access':
+        specifier: workspace:*
+        version: link:../../packages/data-access
       '@interviewclaw/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -405,6 +408,9 @@ importers:
       '@interviewclaw/channel-sdk':
         specifier: workspace:*
         version: link:../../packages/channel-sdk
+      '@interviewclaw/data-access':
+        specifier: workspace:*
+        version: link:../../packages/data-access
       '@interviewclaw/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -423,6 +429,12 @@ importers:
       '@interviewclaw/domain':
         specifier: workspace:*
         version: link:../domain
+
+  packages/data-access:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.48.1
+        version: 2.79.0
 
   packages/domain: {}
 

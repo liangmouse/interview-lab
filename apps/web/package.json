@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../../.env.local -- next dev",
-    "build": "dotenv -e ../../.env.local -- next build",
-    "start": "dotenv -e ../../.env.local -- next start",
+    "build": "NODE_ENV=production dotenv -e ../../.env.local -- next build",
+    "start": "NODE_ENV=production dotenv -e ../../.env.local -- next start",
     "lint": "next lint"
   },
   "dependencies": {
