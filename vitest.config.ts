@@ -10,6 +10,12 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.next/**",
+      "**/.worktrees/**",
+    ],
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
