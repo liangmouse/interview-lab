@@ -11,7 +11,7 @@ export interface ChatMessage {
 }
 
 // 导入公共类型
-import type { MessageRole, SavedMessage } from "@/types/message";
+import type { MessageRole } from "@/types/message";
 
 /**
  * 将 UIMessage 格式转换为 Core Messages 格式（用于 @ai-sdk/google）
@@ -98,105 +98,6 @@ export function convertToCoreMessages(uiMessages: UIMessage[]): CoreMessage[] {
       const hasTools = (message as any).toolInvocations?.length > 0;
       return hasContent || hasTools;
     });
-}
-
-/**
- * 将 Core Messages 格式转换为 UIMessage 格式（用于前端显示）
- * 支持多模态内容的反向转换
- */
-export function convertToUIMessages(coreMessages: CoreMessage[]): UIMessage[] {
-  return coreMessages
-    .filter((message) => message.role !== "tool") // 过滤掉 tool 类型的消息
-    .map((message, index) => {
-      const parts: any[] = [];
-
-      // 处理 content 内容
-      if (typeof message.content === "string") {
-        // 字符串内容：添加文本 part
-        if (message.content.trim()) {
-          parts.push({
-            type: "text" as const,
-            text: message.content,
-          });
-        }
-      } else if (Array.isArray(message.content)) {
-        // 数组内容：可能包含文件/URL 等多模态内容
-        message.content.forEach((item: any) => {
-          if (item.type === "text") {
-            parts.push({
-              type: "text" as const,
-              text: item.text || String(item),
-            });
-          } else if (item.type === "file" || item.type === "source-url") {
-            // 文件或 URL 资源
-            parts.push({
-              type: item.type as "file" | "source-url",
-              url: item.url,
-              mimeType: item.mimeType,
-            });
-          }
-        });
-      }
-
-      // 处理 toolInvocations（如果存在）
-      const toolInvocations = (message as any).toolInvocations;
-      if (toolInvocations && Array.isArray(toolInvocations)) {
-        toolInvocations.forEach((tool: any) => {
-          parts.push({
-            type: `tool-${tool.toolName}` as const,
-            toolCallId: tool.toolCallId,
-            toolName: tool.toolName,
-            args: tool.args,
-          });
-        });
-      }
-
-      // 如果 parts 为空，添加一个空文本 part 作为兜底
-      if (parts.length === 0) {
-        parts.push({
-          type: "text" as const,
-          text: "",
-        });
-      }
-
-      return {
-        id: `msg-${Date.now()}-${index}`,
-        role: message.role as "system" | "user" | "assistant",
-        parts,
-      };
-    });
-}
-
-/**
- * 从 UIMessage 提取纯文本内容，转换为简单的 SavedMessage 格式
- * 适用于只需要显示文本的 UI 场景（如语音客户端）
- */
-export function extractTextFromUIMessage(message: UIMessage): SavedMessage {
-  let textContent = "";
-
-  // 遍历 parts 提取文本
-  if (message.parts && Array.isArray(message.parts)) {
-    for (const part of message.parts) {
-      if (part.type === "text") {
-        textContent += (part as any).text || "";
-      }
-    }
-  }
-
-  return {
-    id: message.id,
-    role: message.role,
-    content: textContent,
-  };
-}
-
-/**
- * 批量转换 UIMessage 数组为 SavedMessage 数组
- */
-export function convertUIMessagesToSaved(
-  messages: UIMessage[],
-): SavedMessage[] {
-  return messages.map(extractTextFromUIMessage);
 }
 
 /**

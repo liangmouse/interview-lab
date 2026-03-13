@@ -26,7 +26,7 @@ import { createUserTextResponder } from "./responders";
 import { TurnCoordinator } from "./turn-coordinator";
 import {
   createDeepgramSTT,
-  createGeminiLLM,
+  createConfiguredLLM,
   createGeminiTTS,
 } from "../config/providers";
 import {
@@ -149,7 +149,7 @@ export async function runAgentSession(
   // 定义Agent如何处理音频输入和输出
   const session = new voice.AgentSession({
     stt: createDeepgramSTT(combinedVocabulary, locale),
-    llm: createGeminiLLM(),
+    llm: await createConfiguredLLM(participant.identity),
     tts: createGeminiTTS(locale),
     vad: vad,
     // 使用 Turn Detector 多语言模型，基于语义理解判断用户是否说完
@@ -274,6 +274,7 @@ export async function runAgentSession(
 
   const applyInterview = createInterviewApplier({
     session,
+    userId: participant.identity,
     userProfile,
     onToolEvent: (payload) => publishDataToRoom(room, payload),
     hasGreeted: () => hasGreeted,

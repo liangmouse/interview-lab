@@ -10,12 +10,14 @@ import { summarizeStage } from "./fsm/summarizer";
 
 export function createInterviewApplier(args: {
   session: voice.AgentSession;
+  userId: string;
   userProfile: unknown;
   onToolEvent?: (payload: Record<string, unknown>) => void;
   hasGreeted?: () => boolean;
   setGreeted?: () => void;
 }) {
-  const { session, userProfile, onToolEvent, hasGreeted, setGreeted } = args;
+  const { session, userId, userProfile, onToolEvent, hasGreeted, setGreeted } =
+    args;
 
   let applying: Promise<void> | null = null;
   let queued: InterviewContext | null = null;
@@ -127,7 +129,11 @@ export function createInterviewApplier(args: {
             console.log(
               `[面试] 正在总结阶段 ${prevStage} (${stageMessages.length} 条消息)...`,
             );
-            const summary = await summarizeStage(prevStage, stageMessages);
+            const summary = await summarizeStage(
+              prevStage,
+              stageMessages,
+              userId,
+            );
             if (currentStageManager) {
               currentStageManager.addStageSummary(prevStage, summary);
               // 重新更新 Agent 以在 Prompt 中包含新的总结

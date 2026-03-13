@@ -82,6 +82,7 @@ describe("runtime/interview.createInterviewApplier", () => {
 
     const apply = createInterviewApplier({
       session: session as any,
+      userId: "user-1",
       userProfile: { nickname: "梁爽" },
     });
 
@@ -117,6 +118,7 @@ describe("runtime/interview.createInterviewApplier", () => {
 
     const apply = createInterviewApplier({
       session: session as any,
+      userId: "user-1",
       userProfile: { nickname: "梁爽" },
     });
 
@@ -153,6 +155,7 @@ describe("runtime/interview.createInterviewApplier", () => {
 
     const apply = createInterviewApplier({
       session: session as any,
+      userId: "user-1",
       userProfile: { nickname: "梁爽" },
     });
 

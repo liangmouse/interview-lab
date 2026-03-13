@@ -1,12 +1,11 @@
 import { llm } from "@livekit/agents";
-import { createGeminiLLM } from "../../config/providers";
+import { createConfiguredLLM } from "../../config/providers";
 import { InterviewStage } from "./types";
-
-const summarizerLLM = createGeminiLLM();
 
 export async function summarizeStage(
   stage: InterviewStage,
   messages: llm.ChatMessage[],
+  userId: string,
 ): Promise<string> {
   if (messages.length === 0) return "";
 
@@ -23,9 +22,10 @@ Focus on:
 Keep the summary concise (under 200 words).
 Transcript:
 ${transcript}
-`;
+  `;
 
   try {
+    const summarizerLLM = await createConfiguredLLM(userId);
     // OpenAI LLM 实现特定
     // 我们为总结任务创建一个临时的聊天上下文
     const chatCtx = new llm.ChatContext();

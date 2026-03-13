@@ -1,5 +1,18 @@
 import * as deepgram from "@livekit/agents-plugin-deepgram";
 import * as openai from "@livekit/agents-plugin-openai";
+import {
+  type AuthProfileStore,
+  buildProviderRegistry,
+  createAuthProfileStore,
+  createOpenAICodexRegistryEntry,
+  createOpenAICodexAuthProvider,
+  createOpenAIRegistryEntry,
+  resolveModelRoute,
+} from "@interviewclaw/ai-runtime";
+import {
+  createUserScopedSupabaseAuthProfileStore,
+  getSupabaseAdminClient,
+} from "@interviewclaw/data-access";
 import { GeminiTTS } from "../plugins/gemini-tts-plugin";
 
 export const GEMINI_BASE_URL =
@@ -17,6 +30,16 @@ export const DEEPGRAM_KEYTERM_LIMIT = 20;
 
 export const DEFAULT_GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
 export const DEFAULT_GEMINI_TTS_VOICE = "Kore";
+export const ROUTED_OPENAI_RUNTIME_TOKEN = "openai-codex-runtime-token";
+
+type AgentRuntimeProviderConfig = {
+  providerId: string;
+  requiresUserId?: boolean;
+  useUserScopedProfileStore?: boolean;
+  createRegistryEntry: (input: {
+    profileStore: AuthProfileStore;
+  }) => ReturnType<typeof createOpenAIRegistryEntry>;
+};
 
 function requireEnv(name: string): string {
   const v = process.env[name];
@@ -110,6 +133,82 @@ export function createGeminiLLM() {
     model: getGeminiModel(),
     baseURL: GEMINI_BASE_URL,
     temperature: DEFAULT_GEMINI_TEMPERATURE,
+  });
+}
+
+function getAgentLlmModel(): string | null {
+  const value = process.env.AGENT_LLM_MODEL?.trim();
+  return value || null;
+}
+
+function getAgentRuntimeProviderConfigs(): AgentRuntimeProviderConfig[] {
+  return [
+    {
+      providerId: "openai",
+      createRegistryEntry: () => createOpenAIRegistryEntry(),
+    },
+    {
+      providerId: "openai-codex",
+      requiresUserId: true,
+      useUserScopedProfileStore: true,
+      createRegistryEntry: ({ profileStore }) =>
+        createOpenAICodexRegistryEntry({
+          profileStore,
+          authProvider: createOpenAICodexAuthProvider({
+            env: process.env,
+            profileStore,
+          }),
+        }),
+    },
+  ];
+}
+
+export async function createConfiguredLLM(userId?: string) {
+  const configuredModel = getAgentLlmModel();
+  if (!configuredModel) {
+    return createGeminiLLM();
+  }
+
+  const providerId = configuredModel.split("/", 1)[0];
+  const providerConfigs = getAgentRuntimeProviderConfigs();
+  const providerConfig = providerConfigs.find(
+    (item) => item.providerId === providerId,
+  );
+
+  if (!providerConfig) {
+    throw new Error(`Unsupported AGENT_LLM_MODEL provider: ${providerId}`);
+  }
+
+  if (providerConfig.requiresUserId && !userId) {
+    throw new Error(`${providerId} models require a userId`);
+  }
+
+  const profileStore = providerConfig.useUserScopedProfileStore
+    ? createUserScopedSupabaseAuthProfileStore({
+        userId: userId as string,
+        supabase: getSupabaseAdminClient() as any,
+      })
+    : createAuthProfileStore();
+  const registry = await buildProviderRegistry({
+    env: process.env,
+    entries: providerConfigs.map((item) =>
+      item.createRegistryEntry({
+        profileStore,
+      }),
+    ),
+  });
+  const route = await resolveModelRoute(configuredModel, registry);
+
+  return new openai.LLM({
+    apiKey: ROUTED_OPENAI_RUNTIME_TOKEN,
+    baseURL: route.provider.baseURL,
+    model: route.model,
+    temperature: DEFAULT_GEMINI_TEMPERATURE,
+    // The LiveKit OpenAI plugin pins its own OpenAI client version, so we keep
+    // the shared runtime client behind a narrow compatibility cast here.
+    client: route.provider.createOpenAIClient(
+      ROUTED_OPENAI_RUNTIME_TOKEN,
+    ) as any,
   });
 }
 

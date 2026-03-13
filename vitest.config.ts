@@ -30,6 +30,10 @@ export default defineConfig({
         __dirname,
         "./packages/channel-sdk/src/index.ts",
       ),
+      "@interviewclaw/ai-runtime": path.resolve(
+        __dirname,
+        "./packages/ai-runtime/src/index.ts",
+      ),
       "@interviewclaw/agent-core": path.resolve(
         __dirname,
         "./packages/agent-core/src/index.ts",

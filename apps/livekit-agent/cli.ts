@@ -11,6 +11,7 @@ import "@livekit/agents-plugin-deepgram";
 import "@livekit/agents-plugin-livekit";
 import "@livekit/agents-plugin-silero";
 import { initAgentsLogger } from "./src/bootstrap/logger";
+import { runCliCommand } from "./src/cli/dispatch";
 import { runWorkerMode } from "./src/modes/worker";
 
 // Load environment variables for CLI mode
@@ -53,8 +54,21 @@ if (isFixedRoomMode && devRoomName) {
 
 const agentModuleUrl = new URL("./main.ts", import.meta.url).toString();
 
-// 始终使用 runWorkerMode，它在内部调用 cli.runApp()
-// 在固定房间模式下，我们将 numIdleProcesses 设置为 0，以避免孤儿进程和冲突
-runWorkerMode(agentModuleUrl, {
-  numIdleProcesses: isFixedRoomMode ? 0 : 3,
-});
+async function main() {
+  const handled = await runCliCommand(args, {
+    agentModuleUrl,
+    runWorkerMode,
+  });
+
+  if (handled) {
+    return;
+  }
+
+  // 始终使用 runWorkerMode，它在内部调用 cli.runApp()
+  // 在固定房间模式下，我们将 numIdleProcesses 设置为 0，以避免孤儿进程和冲突
+  runWorkerMode(agentModuleUrl, {
+    numIdleProcesses: isFixedRoomMode ? 0 : 3,
+  });
+}
+
+void main();

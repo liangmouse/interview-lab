@@ -9,9 +9,7 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@interviewclaw/agent-core": "workspace:*",
-    "@interviewclaw/data-access": "workspace:*",
-    "@interviewclaw/domain": "workspace:*",
-    "@interviewclaw/workflows": "workspace:*"
+    "@interviewclaw/ai-runtime": "workspace:*",
+    "@interviewclaw/data-access": "workspace:*"
   }
 }

@@ -9,10 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@interviewclaw/agent-core": "workspace:*",
-    "@interviewclaw/channel-sdk": "workspace:*",
-    "@interviewclaw/data-access": "workspace:*",
-    "@interviewclaw/domain": "workspace:*",
-    "@interviewclaw/workflows": "workspace:*"
+    "@interviewclaw/ai-runtime": "workspace:*",
+    "@interviewclaw/data-access": "workspace:*"
   }
 }
