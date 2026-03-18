@@ -63,6 +63,23 @@ vi.mock("./fsm/prompt-builder", () => {
   };
 });
 
+// Mock orchestrator so runtime tests stay isolated from Supabase-backed planning
+vi.mock("./interview-orchestrator", () => {
+  class InterviewOrchestrator {
+    async ensureReady() {
+      return { questions: [] };
+    }
+
+    async getPromptContext() {
+      return "MOCKED_PLANNING_CONTEXT";
+    }
+  }
+
+  return {
+    InterviewOrchestrator,
+  };
+});
+
 import { createInterviewApplier } from "./interview";
 import * as contextLoader from "../services/context-loader";
 

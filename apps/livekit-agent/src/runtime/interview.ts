@@ -7,6 +7,7 @@ import { buildStagePrompt } from "./fsm/prompt-builder";
 import { InterviewStage } from "./fsm/types";
 import { createTools } from "./tools";
 import { summarizeStage } from "./fsm/summarizer";
+import { InterviewOrchestrator } from "./interview-orchestrator";
 
 export function createInterviewApplier(args: {
   session: voice.AgentSession;
@@ -23,9 +24,6 @@ export function createInterviewApplier(args: {
   let queued: InterviewContext | null = null;
   let currentStageManager: StageManager | null = null;
   let stageMonitorTimer: NodeJS.Timeout | null = null;
-
-  // 初始化工具
-  const tools = createTools({ userProfile, onToolEvent });
 
   const stopStageMonitor = () => {
     if (stageMonitorTimer) {
@@ -44,16 +42,27 @@ export function createInterviewApplier(args: {
         ? interview.duration
         : 30;
     const totalDurationSeconds = safeDurationMinutes * 60;
+    const interviewId =
+      typeof interview.id === "string"
+        ? interview.id
+        : String(interview.id || "");
+    const orchestrator = new InterviewOrchestrator({
+      interviewId,
+      userProfile,
+    });
+    await orchestrator.ensureReady();
+    const planningContext = await orchestrator.getPromptContext();
+    const tools = createTools({
+      userProfile,
+      onToolEvent,
+      interviewOrchestrator: orchestrator,
+    });
 
     currentStageManager = new StageManager(totalDurationSeconds);
     let currentStageStartMessageIndex = 0; // 记录当前阶段在历史消息中的开始位置
 
     // 2. 加载历史面试记录 (上下文恢复)
     let historyMessages: any[] = [];
-    const interviewId =
-      typeof interview.id === "string"
-        ? interview.id
-        : String(interview.id || "");
     if (interviewId) {
       historyMessages = await loadInterviewMessages(interviewId);
     }
@@ -89,6 +98,7 @@ export function createInterviewApplier(args: {
         userProfile,
         interview,
         summaries,
+        planningContext,
       );
       console.log(`[面试] 更新 Agent 阶段: ${stage}`);
 

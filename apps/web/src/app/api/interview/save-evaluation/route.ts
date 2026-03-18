@@ -11,6 +11,14 @@ interface SaveEvaluationBody {
   overallScore?: number;
   dimensionScores?: Record<string, number>;
   comment?: string;
+  questionAssetId?: string;
+  expectedSignals?: string[];
+  detectedSignals?: string[];
+  missingSignals?: string[];
+  riskFlags?: string[];
+  answerSpanRefs?: string[];
+  confidence?: number;
+  followUpReason?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -24,6 +32,14 @@ export async function POST(request: NextRequest) {
       overallScore,
       dimensionScores,
       comment,
+      questionAssetId,
+      expectedSignals,
+      detectedSignals,
+      missingSignals,
+      riskFlags,
+      answerSpanRefs,
+      confidence,
+      followUpReason,
     } = body;
 
     if (
@@ -66,11 +82,19 @@ export async function POST(request: NextRequest) {
       .insert({
         interview_id: interviewId,
         question_id: questionId,
+        question_asset_id: questionAssetId ?? null,
         question_text: questionText,
         answer_text: answerText,
         overall_score: overallScore,
         dimension_scores: dimensionScores ?? {},
         comment,
+        expected_signals: expectedSignals ?? [],
+        detected_signals: detectedSignals ?? [],
+        missing_signals: missingSignals ?? [],
+        risk_flags: riskFlags ?? [],
+        answer_span_refs: answerSpanRefs ?? [],
+        confidence: confidence ?? null,
+        follow_up_reason: followUpReason ?? null,
       });
 
     if (insertError) {

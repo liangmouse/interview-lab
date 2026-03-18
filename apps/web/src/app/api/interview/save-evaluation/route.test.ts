@@ -165,11 +165,19 @@ describe("Save Evaluation API", () => {
     expect(mockInsert).toHaveBeenCalledWith({
       interview_id: "123",
       question_id: "q1",
+      question_asset_id: null,
       question_text: "t",
       answer_text: "a",
       overall_score: 5,
       dimension_scores: { a: 1 },
       comment: "c",
+      expected_signals: [],
+      detected_signals: [],
+      missing_signals: [],
+      risk_flags: [],
+      answer_span_refs: [],
+      confidence: null,
+      follow_up_reason: null,
     });
   });
 });

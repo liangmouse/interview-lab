@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@interviewclaw/ai-runtime": "workspace:*",
+    "@interviewclaw/domain": "workspace:*",
     "@supabase/supabase-js": "^2.48.1"
   }
 }

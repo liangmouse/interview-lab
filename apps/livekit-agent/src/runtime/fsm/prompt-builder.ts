@@ -42,6 +42,7 @@ export function buildStagePrompt(
   profile: any,
   interview: any,
   stageSummaries?: Partial<Record<InterviewStage, string>>,
+  planningContext?: string,
 ): string {
   const baseInstruction = STAGE_INSTRUCTIONS[stage];
 
@@ -66,6 +67,25 @@ ${Object.entries(stageSummaries)
 `.trim();
   }
 
+  const planningInstruction =
+    stage === InterviewStage.MAIN_TECHNICAL ||
+    stage === InterviewStage.SOFT_SKILLS
+      ? `
+# Planning Tool
+- Before asking the next technical or behavioral question, call \`interview_turn_planner\`.
+- Use the returned \`question_text\` as the exact question intent.
+- If action=start, ask the main question.
+- If action=continue, ask the returned follow-up or next main question.
+`.trim()
+      : "";
+
+  const planningMemory = planningContext
+    ? `
+# Interview Plan Context
+${planningContext}
+`.trim()
+    : "";
+
   return `
 # Role
 You are an AI Interviewer.
@@ -75,11 +95,15 @@ ${baseInstruction}
 
 ${memoryContext}
 
+${planningMemory}
+
 # Candidate Profile
 ${candidateContext}
 
 # Interview Info
 ${interviewContext}
+
+${planningInstruction}
 
 # Instructions
 - Ask ONE question at a time.

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("interview_evaluations")
       .select(
-        "question_id, question_text, answer_text, overall_score, dimension_scores, comment",
+        "question_id, question_asset_id, question_text, answer_text, overall_score, dimension_scores, comment, expected_signals, detected_signals, missing_signals, risk_flags, answer_span_refs, confidence, follow_up_reason",
       )
       .eq("interview_id", interviewId)
       .order("created_at", { ascending: true });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { llm } from "@livekit/agents";
 import { createSharedTools } from "../tools";
+import { InterviewOrchestrator } from "./interview-orchestrator";
 
 // --- Tool Definitions ---
 
@@ -60,10 +61,21 @@ type ToolEventPayload = Record<string, unknown>;
 type ToolsContext = {
   userProfile: any;
   onToolEvent?: (payload: ToolEventPayload) => void;
+  interviewOrchestrator?: InterviewOrchestrator;
 };
 
+const interviewTurnPlannerSchema = z.object({
+  action: z
+    .enum(["start", "continue"])
+    .describe("start=获取当前主问题，continue=根据候选人回答决定下一问。"),
+  answer: z
+    .string()
+    .optional()
+    .describe("候选人上一轮回答内容。action=continue 时必填。"),
+});
+
 export function createTools(context: ToolsContext) {
-  const { userProfile, onToolEvent } = context;
+  const { userProfile, onToolEvent, interviewOrchestrator } = context;
   const sharedTools = createSharedTools({ onToolEvent });
 
   const recordScore = llm.tool({
@@ -195,8 +207,35 @@ export function createTools(context: ToolsContext) {
     },
   });
 
+  const interviewTurnPlanner = llm.tool({
+    description:
+      "根据面试计划和候选人上一轮回答，返回当前应该问的下一题或追问。你必须优先使用返回的 question_text，不要自行改写问题目标。",
+    parameters: interviewTurnPlannerSchema,
+    execute: async (args) => {
+      if (!interviewOrchestrator) {
+        return "面试计划工具当前不可用。";
+      }
+
+      const result =
+        args.action === "start"
+          ? await interviewOrchestrator.start()
+          : await interviewOrchestrator.continue(args.answer || "");
+
+      return [
+        `question_id: ${result.question.questionId}`,
+        `decision_action: ${result.decision.action}`,
+        `decision_reason: ${result.decision.reason}`,
+        `question_text: ${result.decision.questionText}`,
+        result.analysis
+          ? `mastery_estimate: ${result.analysis.masteryEstimate}`
+          : "mastery_estimate: unknown",
+      ].join("\n");
+    },
+  });
+
   return {
     ...sharedTools,
+    interview_turn_planner: interviewTurnPlanner,
     record_score: recordScore,
     check_resume: checkResume,
     code_assessment: codeAssessment,

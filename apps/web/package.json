@@ -9,7 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@interviewclaw/agent-core": "workspace:*",
     "@interviewclaw/ai-runtime": "workspace:*",
-    "@interviewclaw/data-access": "workspace:*"
+    "@interviewclaw/data-access": "workspace:*",
+    "@livekit/components-react": "^2.9.20",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "livekit-client": "^2.16.0",
+    "next-themes": "^0.4.6",
+    "tailwind-merge": "^3.3.1"
   }
 }

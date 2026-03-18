@@ -1,6 +1,5 @@
 "use client";
 
-import { AudioVisualizer } from "./audio-visualizer";
 import { TranscriptStream, type TranscriptItemData } from "./transcript-stream";
 import { ControlDock } from "./control-dock";
 import { resolveInputTextFromTranscription } from "./transcription-input-sync";
@@ -8,6 +7,9 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
+import { useAgent } from "@livekit/components-react";
+import { AgentAudioVisualizerAura } from "@/components/agents-ui/agent-audio-visualizer-aura";
 
 interface AIInterviewerPanelProps {
   /** 回合模式 */
@@ -45,6 +47,8 @@ export function AIInterviewerPanel({
   onSendMessage,
 }: AIInterviewerPanelProps) {
   const t = useTranslations("interview");
+  const { state: agentState } = useAgent();
+  const { resolvedTheme } = useTheme();
   const [inputText, setInputText] = useState("");
   const [hasEditedCurrentTurn, setHasEditedCurrentTurn] = useState(false);
 
@@ -88,9 +92,6 @@ export function AIInterviewerPanel({
     return t("listening");
   };
 
-  // 音频可视化是否活跃（Agent 说话或用户说话）
-  const isAudioActive = isAgentSpeaking || isUserSpeaking;
-
   return (
     <div className="flex h-full w-full flex-col bg-[radial-gradient(circle_at_top,_#EFFAF5,_#FDFCF8_58%)]">
       <div className="mx-auto flex min-h-0 w-full max-w-[1180px] flex-1 flex-col gap-4 px-4 py-4 md:px-6">
@@ -120,7 +121,14 @@ export function AIInterviewerPanel({
                 <Loader2 className="h-10 w-10 animate-spin text-[#10B981]" />
               </div>
             ) : (
-              <AudioVisualizer isActive={isAudioActive && isConnected} />
+              <AgentAudioVisualizerAura
+                size="xl"
+                color="#c8ff00"
+                colorShift={0.3}
+                state={agentState}
+                themeMode={resolvedTheme as "dark" | "light" | undefined}
+                className="aspect-square size-auto w-[140px]"
+              />
             )}
           </div>
         </section>
