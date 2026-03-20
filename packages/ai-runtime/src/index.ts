@@ -6,3 +6,5 @@ export * from "./auth/openai-codex/web-oauth";
 export * from "./storage/auth-profiles";
 export * from "./runtime/provider-registry";
 export * from "./runtime/model-routing";
+export * from "./runtime/openai-compatible-config";
+export * from "./runtime/langchain-factories";
