@@ -1,31 +1,23 @@
 /**
- * 验证 Gemini API 配置
+ * Backward-compatible shim — delegates to the unified ai-runtime entry.
+ * New code should import from @interviewclaw/ai-runtime directly.
  */
-export function validateGeminiConfig(): { isValid: boolean; error?: string } {
-  if (!process.env.GEMINI_API_KEY) {
-    return {
-      isValid: false,
-      error: "GEMINI_API_KEY environment variable is not set",
-    };
-  }
+import {
+  resolveOpenAICompatibleConfig,
+  validateLlmConfig,
+} from "@interviewclaw/ai-runtime";
 
-  if (process.env.GEMINI_API_KEY.length < 10) {
-    return {
-      isValid: false,
-      error: "GEMINI_API_KEY appears to be invalid (too short)",
-    };
-  }
+export { validateLlmConfig as validateGeminiConfig };
 
-  return { isValid: true };
-}
-
-/**
- * 获取 Gemini 调用配置（OpenAI 兼容端点）
- */
 export function getGeminiOpenAICompatConfig() {
+  const config = resolveOpenAICompatibleConfig({
+    defaultModel: "gemini-3-flash-preview",
+  });
   return {
-    apiKey: process.env.GEMINI_API_KEY ?? "",
-    model: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+    apiKey: config.apiKey,
+    model: config.model,
+    baseURL:
+      config.baseURL ??
+      "https://generativelanguage.googleapis.com/v1beta/openai",
   };
 }

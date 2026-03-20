@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getGeminiOpenAICompatConfig,
-  validateGeminiConfig,
-} from "@/lib/gemini-client";
+  createLangChainChatModel,
+  validateLlmConfig,
+} from "@interviewclaw/ai-runtime";
 import { convertToCoreMessages } from "@/lib/chat-utils";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
-import { ChatOpenAI } from "@langchain/openai";
 import { streamChatModelResponse, toLangChainMessages } from "./chat-llm";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -47,12 +46,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const {
-      messages,
-      model = process.env.GEMINI_MODEL || "gemini-3-flash-preview",
-      userId,
-      enablePersonalization = true,
-    } = body;
+    const { messages, model, userId, enablePersonalization = true } = body;
 
     if (!messages || !Array.isArray(messages)) {
       console.error(`Invalid messages array:`, messages);
@@ -62,12 +56,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. 验证 Gemini 配置
-    const configValidation = validateGeminiConfig();
+    // 2. 验证 LLM 配置
+    const configValidation = validateLlmConfig();
     if (!configValidation.isValid) {
-      console.error(`Gemini config validation failed:`, configValidation.error);
+      console.error(
+        `LLM provider config validation failed:`,
+        configValidation.error,
+      );
       return NextResponse.json(
-        { error: configValidation.error || "API key not configured" },
+        { error: configValidation.error || "LLM provider not configured" },
         { status: 500 },
       );
     }
@@ -220,16 +217,11 @@ export async function POST(request: NextRequest) {
     // 5. 转换 UIMessage 格式为 Core Messages 格式
     const coreMessages = convertToCoreMessages(messagesWithSystem);
 
-    // 6. 使用 OpenAI 兼容端点调用 Gemini API
-    const geminiConfig = getGeminiOpenAICompatConfig();
-    const llm = new ChatOpenAI({
-      model: model || geminiConfig.model,
+    // 6. 通过统一工厂初始化 LLM
+    const llm = createLangChainChatModel({
+      ...(model ? { model } : {}),
       temperature: 0.7,
       maxTokens: 4000,
-      apiKey: geminiConfig.apiKey,
-      configuration: {
-        baseURL: geminiConfig.baseURL,
-      },
     });
 
     const lcMessages = toLangChainMessages(coreMessages);
@@ -243,7 +235,7 @@ export async function POST(request: NextRequest) {
         });
       },
       onError: (error) =>
-        error instanceof Error ? error.message : "Gemini response error",
+        error instanceof Error ? error.message : "LLM provider response error",
     });
 
     // 7. 返回流式响应，兼容 useChat 的 UI Message 协议

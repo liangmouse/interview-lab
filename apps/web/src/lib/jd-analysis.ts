@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ChatOpenAI } from "@langchain/openai";
+import { createLangChainChatModel } from "@interviewclaw/ai-runtime";
 import { extractText } from "unpdf";
 import type { JobDescriptionAnalysis } from "@/types/job-description";
 
@@ -70,14 +70,7 @@ export async function analyzeJobDescription(
   | { success: false; error: string }
 > {
   try {
-    const model = new ChatOpenAI({
-      model: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
-      temperature: 0,
-      apiKey: process.env.GEMINI_API_KEY,
-      configuration: {
-        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
-      },
-    });
+    const model = createLangChainChatModel({ temperature: 0 });
 
     const prompt = `你是招聘JD分析助手。请从下面的岗位描述中抽取关键信息，并只返回 JSON：
 
