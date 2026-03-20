@@ -122,4 +122,63 @@ describe("Tool Functions", () => {
 
   // TODO: Add integration tests if possible, but for now we trust the extensive logic in tools.ts
   // The manual verification step in the plan covers dynamic invocation.
+
+  describe("check_resume", () => {
+    it("finds matching skills", async () => {
+      const tools = createTools({ userProfile: mockProfile });
+      const result = await tools.check_resume.execute(
+        { query: "TypeScript", category: "skills" },
+        {} as never,
+      );
+      expect(result).toContain("TypeScript");
+    });
+
+    it("finds matching work experience", async () => {
+      const tools = createTools({ userProfile: mockProfile });
+      const result = await tools.check_resume.execute(
+        { query: "ByteDance", category: "work" },
+        {} as never,
+      );
+      expect(result).toContain("ByteDance");
+    });
+
+    it("finds matching project by tech stack", async () => {
+      const tools = createTools({ userProfile: mockProfile });
+      const result = await tools.check_resume.execute(
+        { query: "LangChain", category: "project" },
+        {} as never,
+      );
+      expect(result).toContain("AI Agent");
+    });
+
+    it("returns not-found message for unknown query", async () => {
+      const tools = createTools({ userProfile: mockProfile });
+      const result = await tools.check_resume.execute(
+        { query: "Kubernetes", category: "skills" },
+        {} as never,
+      );
+      expect(result).toContain("未找到");
+    });
+
+    it("returns fallback when no userProfile provided", async () => {
+      const tools = createTools({ userProfile: null });
+      const result = await tools.check_resume.execute(
+        { query: "React", category: "general" },
+        {} as never,
+      );
+      expect(result).toContain("未找到简历信息");
+    });
+  });
+
+  describe("record_score", () => {
+    it("records score and returns confirmation", async () => {
+      const tools = createTools({ userProfile: mockProfile });
+      const result = await tools.record_score.execute(
+        { criteria: "React Hooks", score: 8, reasoning: "清晰讲解了闭包问题" },
+        {} as never,
+      );
+      expect(result).toContain("React Hooks");
+      expect(result).toContain("8");
+    });
+  });
 });
