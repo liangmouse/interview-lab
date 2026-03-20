@@ -6,7 +6,8 @@ import { AIInterviewerPanel } from "./ai-interviewer-panel";
 import { CodeWorkbench } from "./code-workbench";
 import { InterviewHeader } from "./interview-header";
 import { InterviewResumePanel } from "./interview-resume-panel";
-import { resolveCodeWorkbenchAction } from "./code-workbench-event";
+import { resolveCodeWorkbenchEvent } from "./code-workbench-event";
+import type { CodeProblem } from "./code-editor-utils";
 import { resolveDraftTextFromSources } from "./transcription-source-resolver";
 import {
   ResizableHandle,
@@ -37,6 +38,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
   const [manualDraftText, setManualDraftText] = useState("");
   const [livekitDraftText, setLivekitDraftText] = useState("");
   const [isCodeWorkbenchOpen, setIsCodeWorkbenchOpen] = useState(false);
+  const [codeProblem, setCodeProblem] = useState<CodeProblem | null>(null);
   const [isResumePanelOpen, setIsResumePanelOpen] = useState(
     () => hasResumeUrl,
   );
@@ -86,11 +88,12 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       setLivekitDraftUpdatedAt(Date.now());
     },
     onDataMessage: (message) => {
-      const nextAction = resolveCodeWorkbenchAction(message);
-      if (nextAction === "open") {
+      const event = resolveCodeWorkbenchEvent(message);
+      if (event?.action === "open") {
+        setCodeProblem(event.problem);
         setIsCodeWorkbenchOpen(true);
       }
-      if (nextAction === "close") {
+      if (event?.action === "close") {
         setIsCodeWorkbenchOpen(false);
       }
     },
@@ -261,7 +264,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       <ResizableHandle withHandle />
 
       <ResizablePanel defaultSize={52} minSize={30} className="h-full">
-        <CodeWorkbench />
+        <CodeWorkbench problem={codeProblem ?? undefined} />
       </ResizablePanel>
     </ResizablePanelGroup>
   );

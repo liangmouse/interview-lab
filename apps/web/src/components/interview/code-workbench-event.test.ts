@@ -1,38 +1,57 @@
 import { describe, expect, it } from "vitest";
-import { resolveCodeWorkbenchAction } from "./code-workbench-event";
+import { resolveCodeWorkbenchEvent } from "./code-workbench-event";
 
-describe("resolveCodeWorkbenchAction", () => {
-  it("opens workbench for code assessment start messages", () => {
-    expect(resolveCodeWorkbenchAction({ type: "code_assessment_start" })).toBe(
-      "open",
-    );
-    expect(resolveCodeWorkbenchAction({ name: "start_code_assessment" })).toBe(
-      "open",
-    );
+const fullProblemPayload = {
+  tool: "code_assessment",
+  event: "start",
+  questionTitle: "Reverse Linked List",
+  description: "Given the head of a singly linked list, reverse it.",
+  difficulty: "easy",
+  language: "javascript",
+  solutionTemplate: "function reverseList(head) {}",
+  testTemplate: "// tests",
+};
+
+describe("resolveCodeWorkbenchEvent", () => {
+  it("opens workbench when tool_event has all problem fields", () => {
+    const result = resolveCodeWorkbenchEvent({
+      type: "tool_event",
+      data: fullProblemPayload,
+    });
+    expect(result).not.toBeNull();
+    expect(result?.action).toBe("open");
+    if (result?.action === "open") {
+      expect(result.problem.title).toBe("Reverse Linked List");
+      expect(result.problem.difficulty).toBe("easy");
+      expect(result.problem.language).toBe("javascript");
+    }
+  });
+
+  it("returns null when tool_event start is missing problem fields", () => {
     expect(
-      resolveCodeWorkbenchAction({
+      resolveCodeWorkbenchEvent({
         type: "tool_event",
         data: { tool: "code_assessment", event: "start" },
       }),
-    ).toBe("open");
+    ).toBeNull();
   });
 
   it("closes workbench for code assessment end messages", () => {
-    expect(resolveCodeWorkbenchAction({ type: "code_assessment_end" })).toBe(
-      "close",
-    );
-    expect(resolveCodeWorkbenchAction({ name: "end_code_assessment" })).toBe(
-      "close",
-    );
+    expect(resolveCodeWorkbenchEvent({ type: "code_assessment_end" })).toEqual({
+      action: "close",
+    });
+    expect(resolveCodeWorkbenchEvent({ name: "end_code_assessment" })).toEqual({
+      action: "close",
+    });
     expect(
-      resolveCodeWorkbenchAction({
+      resolveCodeWorkbenchEvent({
         type: "tool_event",
         data: { tool: "code_assessment", event: "end" },
       }),
-    ).toBe("close");
+    ).toEqual({ action: "close" });
   });
 
   it("returns null for unrelated messages", () => {
-    expect(resolveCodeWorkbenchAction({ type: "agent_speech" })).toBeNull();
+    expect(resolveCodeWorkbenchEvent({ type: "agent_speech" })).toBeNull();
   });
 });

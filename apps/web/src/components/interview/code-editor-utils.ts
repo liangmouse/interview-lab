@@ -1,5 +1,14 @@
 export type CodeTabId = "solution" | "test";
 
+export interface CodeProblem {
+  title: string;
+  description: string;
+  difficulty: "easy" | "medium" | "hard";
+  language: "javascript" | "typescript" | "python";
+  solutionTemplate: string;
+  testTemplate: string;
+}
+
 export const MIN_EDITOR_LINES = 14;
 
 export const CODE_TABS: Array<{ id: CodeTabId; label: string }> = [
@@ -65,6 +74,16 @@ assertEqual(listToArray(reverseList(arrayToList([1]))),             [1],        
 assertEqual(listToArray(reverseList(null)),                         [],               "empty list");
 `,
 };
+
+export function buildEditorFiles(
+  problem?: CodeProblem,
+): Record<CodeTabId, string> {
+  if (!problem) return DEFAULT_EDITOR_FILES;
+  return {
+    solution: problem.solutionTemplate,
+    test: problem.testTemplate,
+  };
+}
 
 export function getEditorLineNumbers(
   code: string,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -14,7 +14,11 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 import { CodeEditor } from "./code-editor";
 import { useCodeRunner, type OutputLine } from "./use-code-runner";
-import { DEFAULT_EDITOR_FILES, type CodeTabId } from "./code-editor-utils";
+import {
+  buildEditorFiles,
+  type CodeProblem,
+  type CodeTabId,
+} from "./code-editor-utils";
 
 function OutputLineView({ line }: { line: OutputLine }) {
   const isPass = line.type === "log" && line.text.startsWith("✓");
@@ -37,13 +41,17 @@ function OutputLineView({ line }: { line: OutputLine }) {
   );
 }
 
-export function CodeWorkbench() {
+export function CodeWorkbench({ problem }: { problem?: CodeProblem }) {
   const t = useTranslations("interview");
 
   const [isQuestionExpanded, setIsQuestionExpanded] = useState(false);
   const [isConsoleExpanded, setIsConsoleExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<CodeTabId>("solution");
-  const [files, setFiles] = useState(DEFAULT_EDITOR_FILES);
+  const [files, setFiles] = useState(() => buildEditorFiles(problem));
+
+  useEffect(() => {
+    setFiles(buildEditorFiles(problem));
+  }, [problem]);
 
   const { result, isRunning, run } = useCodeRunner();
 
@@ -65,11 +73,23 @@ export function CodeWorkbench() {
           onClick={() => setIsQuestionExpanded(!isQuestionExpanded)}
         >
           <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-[#888888]">
-              {t("problem", { number: 3 })}
-            </span>
+            {problem?.difficulty && (
+              <span
+                className={cn(
+                  "text-xs font-medium px-1.5 py-0.5 rounded",
+                  problem.difficulty === "easy" &&
+                    "bg-[#10B981]/20 text-[#10B981]",
+                  problem.difficulty === "medium" &&
+                    "bg-[#FBBF24]/20 text-[#FBBF24]",
+                  problem.difficulty === "hard" &&
+                    "bg-[#F87171]/20 text-[#F87171]",
+                )}
+              >
+                {problem.difficulty}
+              </span>
+            )}
             <h3 className="text-base font-semibold text-[#E5E5E5]">
-              Reverse Linked List
+              {problem?.title ?? "Reverse Linked List"}
             </h3>
           </div>
           <div
@@ -106,19 +126,10 @@ export function CodeWorkbench() {
 
         {isQuestionExpanded && (
           <div className="border-t border-[#333333] p-4 space-y-3">
-            <p className="text-sm leading-relaxed text-[#AAAAAA]">
-              Given the head of a singly linked list, reverse the list, and
-              return the reversed list.
+            <p className="text-sm leading-relaxed text-[#AAAAAA] whitespace-pre-wrap">
+              {problem?.description ??
+                "Given the head of a singly linked list, reverse the list, and return the reversed list."}
             </p>
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-[#E5E5E5]">
-                {t("example")}:
-              </p>
-              <pre className="rounded bg-[#1E1E20] p-3 text-xs text-[#AAAAAA]">
-                Input: head = [1,2,3,4,5]{"\n"}
-                Output: [5,4,3,2,1]
-              </pre>
-            </div>
             <Button
               variant="ghost"
               size="sm"
