@@ -31,6 +31,17 @@ vi.mock("@interviewclaw/ai-runtime", () => {
     createOpenAICodexAuthProvider,
     createOpenAIRegistryEntry,
     createOpenAICodexRegistryEntry,
+    resolveOpenAICompatibleConfig: vi.fn(
+      (opts?: { defaultModel?: string }) => ({
+        providerId: "gemini",
+        apiKey: process.env.GEMINI_API_KEY?.trim() ?? "",
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+        model:
+          process.env.GEMINI_MODEL?.trim() ||
+          opts?.defaultModel ||
+          "gemini-3-flash-preview",
+      }),
+    ),
   };
 });
 
