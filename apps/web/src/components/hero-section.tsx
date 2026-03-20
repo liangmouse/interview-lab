@@ -22,8 +22,7 @@ export function HeroSection() {
   };
 
   const handleWatchDemo = () => {
-    // TODO: Add demo video modal or navigation
-    console.log("Watch demo clicked");
+    router.push("/auth/sign-up");
   };
 
   return (

@@ -29,11 +29,40 @@ function reverseList(head) {
   return prev;
 }
 `,
-  test: `const input = [1, 2, 3, 4, 5];
-const output = [5, 4, 3, 2, 1];
+  test: `// --- Linked-list helpers ---
+function ListNode(val, next) {
+  this.val = (val === undefined ? 0 : val);
+  this.next = (next === undefined ? null : next);
+}
 
-// TODO: implement linked-list helper and assertions
-console.log({ input, output });
+function arrayToList(arr) {
+  if (!arr.length) return null;
+  let head = new ListNode(arr[0]);
+  let cur = head;
+  for (let i = 1; i < arr.length; i++) {
+    cur.next = new ListNode(arr[i]);
+    cur = cur.next;
+  }
+  return head;
+}
+
+function listToArray(head) {
+  const result = [];
+  while (head) { result.push(head.val); head = head.next; }
+  return result;
+}
+
+function assertEqual(actual, expected, label) {
+  const pass = JSON.stringify(actual) === JSON.stringify(expected);
+  console.log((pass ? "✓" : "✗") + " " + label);
+  if (!pass) console.error("  expected:", expected, "got:", actual);
+}
+
+// --- Test cases ---
+assertEqual(listToArray(reverseList(arrayToList([1, 2, 3, 4, 5]))), [5, 4, 3, 2, 1], "basic case");
+assertEqual(listToArray(reverseList(arrayToList([1, 2]))),          [2, 1],           "two nodes");
+assertEqual(listToArray(reverseList(arrayToList([1]))),             [1],              "single node");
+assertEqual(listToArray(reverseList(null)),                         [],               "empty list");
 `,
 };
 
