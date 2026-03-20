@@ -14,6 +14,14 @@ const createUserScopedSupabaseAuthProfileStore = vi.fn(() => ({
 }));
 const getSupabaseAdminClient = vi.fn(() => ({ kind: "supabase-admin" }));
 
+vi.mock("@livekit/agents-plugin-deepgram", () => ({
+  STT: vi.fn(() => ({ kind: "deepgram-stt" })),
+}));
+
+vi.mock("../plugins/gemini-tts-plugin", () => ({
+  GeminiTTS: vi.fn(() => ({ kind: "gemini-tts" })),
+}));
+
 vi.mock("@livekit/agents-plugin-openai", () => {
   return {
     LLM: vi.fn(function MockLLM(this: unknown, opts: unknown) {

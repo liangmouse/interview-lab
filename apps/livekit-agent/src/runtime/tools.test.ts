@@ -41,19 +41,29 @@ describe("Tool Functions", () => {
         action: "start",
         questionTitle: "Reverse Linked List",
         language: "javascript",
+        description: "Given the head of a singly linked list, reverse it.",
+        difficulty: "easy",
+        solutionTemplate: "function reverseList(head) {}",
+        testTemplate: "// tests",
       },
       {} as never,
     );
     expect(startResult).toContain("开启");
-    expect(onToolEvent).toHaveBeenCalledWith({
-      type: "tool_event",
-      data: {
-        tool: "code_assessment",
-        event: "start",
-        questionTitle: "Reverse Linked List",
-        language: "javascript",
-      },
-    });
+    expect(onToolEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "tool_event",
+        data: expect.objectContaining({
+          tool: "code_assessment",
+          event: "start",
+          questionTitle: "Reverse Linked List",
+          language: "javascript",
+          description: "Given the head of a singly linked list, reverse it.",
+          difficulty: "easy",
+          solutionTemplate: "function reverseList(head) {}",
+          testTemplate: "// tests",
+        }),
+      }),
+    );
 
     const endResult = await tools.code_assessment.execute(
       {

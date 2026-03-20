@@ -40,18 +40,48 @@ export const checkResumeSchema = z.object({
 
 /**
  * 工具：控制代码评估流程（开启 / 运行 / 结束）
+ *
+ * action=start 时必须填写题目相关字段（questionTitle / description /
+ * difficulty / language / solutionTemplate / testTemplate），前端依赖
+ * 这些字段渲染题目内容和初始化代码编辑器。
  */
 export const codeAssessmentSchema = z.object({
   action: z
     .enum(["start", "run", "end"])
-    .describe("代码评估动作：start=开始，run=执行候选人代码，end=结束。"),
+    .describe(
+      "代码评估动作：start=开始并展示题目，run=执行候选人代码，end=结束。",
+    ),
+  // ── start 专用字段（action=start 时必填） ──────────────────────────────
+  questionTitle: z
+    .string()
+    .optional()
+    .describe("[action=start 必填] 题目名称，例如「反转链表」。"),
+  description: z
+    .string()
+    .optional()
+    .describe("[action=start 必填] 题目描述，说明输入输出格式与约束条件。"),
+  difficulty: z
+    .enum(["easy", "medium", "hard"])
+    .optional()
+    .describe("[action=start 必填] 题目难度：easy / medium / hard。"),
   language: z
     .enum(["javascript", "typescript", "python"])
     .optional()
-    .describe("候选人使用的语言。"),
-  questionTitle: z.string().optional().describe("题目名称。"),
-  code: z.string().optional().describe("候选人提交的代码。"),
-  summary: z.string().optional().describe("本轮代码评估总结。"),
+    .describe("[action=start 必填] 题目使用的编程语言。"),
+  solutionTemplate: z
+    .string()
+    .optional()
+    .describe("[action=start 必填] 解题代码起始模板（含函数签名和必要注释）。"),
+  testTemplate: z
+    .string()
+    .optional()
+    .describe(
+      "[action=start 必填] 测试代码模板（含若干断言用例，与 solutionTemplate 同语言）。",
+    ),
+  // ── run 专用字段 ──────────────────────────────────────────────────────
+  code: z.string().optional().describe("[action=run] 候选人提交的代码。"),
+  // ── end 专用字段 ──────────────────────────────────────────────────────
+  summary: z.string().optional().describe("[action=end] 本轮代码评估总结。"),
 });
 
 // --- Tool Handlers ---
@@ -152,22 +182,33 @@ export function createTools(context: ToolsContext) {
     description: "控制代码评估流程，支持开启、执行与结束。",
     parameters: codeAssessmentSchema,
     execute: async (args) => {
-      const { action, language, questionTitle, code, summary } = args;
-
-      if (action === "start") {
+      if (args.action === "start") {
+        const {
+          language,
+          questionTitle,
+          description,
+          difficulty,
+          solutionTemplate,
+          testTemplate,
+        } = args;
         onToolEvent?.({
           type: "tool_event",
           data: {
             tool: "code_assessment",
             event: "start",
-            questionTitle: questionTitle || "编程题",
-            language: language || "javascript",
+            questionTitle,
+            language,
+            description,
+            difficulty,
+            solutionTemplate,
+            testTemplate,
           },
         });
-        return `已开启代码评估：${questionTitle || "编程题"}（${language || "javascript"}）。`;
+        return `已开启代码评估：${questionTitle}（${language}）。`;
       }
 
-      if (action === "run") {
+      if (args.action === "run") {
+        const { language, code } = args;
         const codeText = (code || "").trim();
         if (!codeText) {
           return "无法执行：缺少候选人代码。";
@@ -195,6 +236,8 @@ export function createTools(context: ToolsContext) {
         return `代码执行完成（${language || "javascript"}），共 ${lineCount} 行，${signal}。`;
       }
 
+      // action === "end"
+      const { summary } = args;
       onToolEvent?.({
         type: "tool_event",
         data: {

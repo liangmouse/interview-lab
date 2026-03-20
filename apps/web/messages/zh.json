@@ -499,7 +499,9 @@
     "connecting": "连接中...",
     "connected": "已连接",
     "disconnected": "未连接",
-    "connectionFailed": "连接失败"
+    "connectionFailed": "连接失败",
+    "run": "运行",
+    "running": "运行中..."
   },
   "language": {
     "switch": "语言",
