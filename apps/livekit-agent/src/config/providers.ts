@@ -8,6 +8,7 @@ import {
   createOpenAICodexAuthProvider,
   createOpenAIRegistryEntry,
   resolveModelRoute,
+  resolveOpenAICompatibleConfig,
 } from "@interviewclaw/ai-runtime";
 import {
   createUserScopedSupabaseAuthProfileStore,
@@ -128,10 +129,13 @@ export function createDeepgramSTT(keyterm: string[], language?: string) {
 }
 
 export function createGeminiLLM() {
+  const config = resolveOpenAICompatibleConfig({
+    defaultModel: DEFAULT_GEMINI_MODEL,
+  });
   return new openai.LLM({
-    apiKey: getGeminiApiKey(),
-    model: getGeminiModel(),
-    baseURL: GEMINI_BASE_URL,
+    apiKey: config.apiKey,
+    model: config.model,
+    baseURL: config.baseURL ?? GEMINI_BASE_URL,
     temperature: DEFAULT_GEMINI_TEMPERATURE,
   });
 }

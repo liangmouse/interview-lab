@@ -35,11 +35,10 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: mockCreateClient,
 }));
 
-vi.mock("@langchain/openai", () => ({
-  ChatOpenAI: vi.fn(function MockChatOpenAI() {
-    return {
-      invoke: mockInvoke,
-    };
+vi.mock("@interviewclaw/ai-runtime", () => ({
+  validateLlmConfig: vi.fn(() => ({ isValid: true })),
+  createLangChainChatModel: vi.fn(function MockCreateLangChainChatModel() {
+    return { invoke: mockInvoke };
   }),
 }));
 

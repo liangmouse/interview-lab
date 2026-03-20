@@ -1,6 +1,9 @@
 import type { UserProfile } from "@/types/profile";
 import { createClient } from "@/lib/supabase/server";
-import { OpenAIEmbeddings } from "@langchain/openai";
+import {
+  createLangChainChatModel,
+  createLangChainEmbeddings,
+} from "@interviewclaw/ai-runtime";
 import { Embeddings } from "@langchain/core/embeddings";
 import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
 import { Document } from "@langchain/core/documents";
@@ -386,8 +389,6 @@ export async function performIntelligentAnalysis(
   const analysisPrompt = generateIntelligentAnalysisPrompt(context);
 
   try {
-    // 直接使用 LangChain 调用 AI，而不是通过额外的 API 层
-    const { ChatOpenAI } = await import("@langchain/openai");
     const { z } = await import("zod");
 
     const analysisSchema = z.object({
@@ -398,13 +399,8 @@ export async function performIntelligentAnalysis(
       questionRationale: z.string().describe("为什么选择这个问题的理由"),
     });
 
-    const model = new ChatOpenAI({
-      model: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
+    const model = createLangChainChatModel({
       temperature: 0.7,
-      apiKey: process.env.GEMINI_API_KEY,
-      configuration: {
-        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
-      },
     }).withStructuredOutput(analysisSchema);
 
     const result = await model.invoke([
@@ -427,66 +423,43 @@ export async function performIntelligentAnalysis(
 }
 
 /**
- * 获取Embeddings实例（单例）
+ * 获取Embeddings实例（单例，按 providerId:model 缓存）
  */
 let embeddingsInstance: Embeddings | null = null;
-let hasCheckedApiKey = false;
-let hasWarnedInvalidGeminiEmbeddingModel = false;
+let embeddingsCacheKey: string | null = null;
 
 function getEmbeddings(): Embeddings | null {
-  // 优先使用 Gemini（OpenAI 兼容接口）
-  if (process.env.GEMINI_API_KEY) {
-    const modelName =
-      process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001";
+  const hasOpenAI = !!process.env.OPENAI_API_KEY?.trim();
+  const hasGemini = !!process.env.GEMINI_API_KEY?.trim();
 
-    if (
-      !embeddingsInstance ||
-      !(embeddingsInstance instanceof OpenAIEmbeddings)
-    ) {
-      console.log("🚀 [RAG] 使用 Gemini Embedding", { modelName });
-      embeddingsInstance = new OpenAIEmbeddings({
-        modelName,
-        openAIApiKey: process.env.GEMINI_API_KEY,
-        configuration: {
-          baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
-        },
-      });
-    }
-
-    if (
-      modelName === "text-embedding-004" &&
-      !hasWarnedInvalidGeminiEmbeddingModel
-    ) {
-      console.warn(
-        "⚠️ [RAG] 检测到旧的 Gemini Embedding 模型 text-embedding-004，已默认切换到 gemini-embedding-001。",
-      );
-      hasWarnedInvalidGeminiEmbeddingModel = true;
-    }
-    return embeddingsInstance;
-  }
-
-  // 降级到 OpenAI
-  if (process.env.OPENAI_API_KEY) {
-    if (
-      !embeddingsInstance ||
-      !(embeddingsInstance instanceof OpenAIEmbeddings)
-    ) {
-      console.log("🚀 [RAG] 使用 OpenAI Embedding (text-embedding-3-small)");
-      embeddingsInstance = new OpenAIEmbeddings({
-        modelName: "text-embedding-3-small",
-        openAIApiKey: process.env.OPENAI_API_KEY,
-      });
-    }
-    return embeddingsInstance;
-  }
-
-  if (!hasCheckedApiKey) {
+  if (!hasOpenAI && !hasGemini) {
     console.warn(
       "⚠️ [RAG] 未找到 GEMINI_API_KEY 或 OPENAI_API_KEY，向量化功能将跳过。",
     );
-    hasCheckedApiKey = true;
+    return null;
   }
-  return null;
+
+  try {
+    const instance = createLangChainEmbeddings();
+    // Build a cache key that includes provider + model so switching providers
+    // invalidates the singleton.
+    const provider = hasOpenAI ? "openai" : "gemini";
+    const model = hasOpenAI
+      ? process.env.OPENAI_MODEL?.trim() || "text-embedding-3-small"
+      : process.env.GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001";
+    const cacheKey = `${provider}:${model}`;
+
+    if (!embeddingsInstance || embeddingsCacheKey !== cacheKey) {
+      console.log("🚀 [RAG] 初始化 Embedding 实例", { provider, model });
+      embeddingsInstance = instance;
+      embeddingsCacheKey = cacheKey;
+    }
+
+    return embeddingsInstance;
+  } catch {
+    console.warn("⚠️ [RAG] 初始化 Embedding 失败，向量化功能将跳过。");
+    return null;
+  }
 }
 
 /**
