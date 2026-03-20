@@ -129,7 +129,7 @@ describe("ResumeIntelligence 组件", () => {
       };
 
       vi.mocked(uploadResumeAction.uploadResume).mockResolvedValue(
-        mockResumeData,
+        mockResumeData as any,
       );
 
       renderComponent();
@@ -190,7 +190,7 @@ describe("ResumeIntelligence 组件", () => {
       };
 
       vi.mocked(uploadResumeAction.uploadResume).mockResolvedValue(
-        mockResumeData,
+        mockResumeData as any,
       );
 
       renderComponent();
@@ -269,7 +269,7 @@ describe("ResumeIntelligence 组件", () => {
       };
 
       vi.mocked(uploadResumeAction.uploadResume).mockResolvedValue(
-        mockResumeData,
+        mockResumeData as any,
       );
 
       renderComponent();

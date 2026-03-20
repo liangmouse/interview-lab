@@ -19,7 +19,8 @@ import { userProfileService } from "@/lib/user-profile-service";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { userProfile, action = "vectorize" } = await request.json();
+    const body = await request.json();
+    const { userProfile, action = "vectorize", query } = body;
 
     if (!userProfile || !userProfile.user_id) {
       return NextResponse.json({ error: "用户档案数据无效" }, { status: 400 });
@@ -70,7 +71,6 @@ export async function POST(request: NextRequest) {
     } else if (action === "rag_analysis") {
       // 执行RAG分析
       try {
-        const { query } = await request.json();
         if (!query) {
           return NextResponse.json(
             { error: "查询内容不能为空" },

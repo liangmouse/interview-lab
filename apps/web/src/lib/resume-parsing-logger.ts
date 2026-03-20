@@ -130,6 +130,9 @@ export const resumeLogger = new ResumeParsingLogger();
 
 // 导出工具函数
 export const logResumeStage = {
+  upload: (message: string, data?: any) =>
+    resumeLogger.info("上传", message, data),
+
   /**
    * PDF 解析阶段
    */

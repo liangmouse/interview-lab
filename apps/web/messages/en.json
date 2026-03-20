@@ -253,6 +253,34 @@
       "empty": {
         "resumeLibrary": "No resume is available. Please upload one from your profile first."
       }
+    },
+    "resumeReview": {
+      "form": {
+        "title": "Resume Review Configuration",
+        "description": "Select a resume and optionally paste a target JD to get AI-powered structured feedback and improvement suggestions.",
+        "resumeLabel": "Select Resume",
+        "resumePlaceholder": "Select an uploaded resume",
+        "noResumes": "No resumes found. Please upload one in your profile first.",
+        "goToProfile": "Go to Profile",
+        "jdLabel": "Job Description (Optional)",
+        "jdPlaceholder": "Paste target JD for targeted suggestions",
+        "startReview": "Start Review",
+        "reviewing": "AI is analyzing your resume...",
+        "reviewingHint": "AI is reviewing each section of your resume. Please wait..."
+      },
+      "result": {
+        "overallScore": "Overall Score",
+        "overallAssessment": "Overall Assessment",
+        "strengths": "Strengths",
+        "weaknesses": "Needs Improvement",
+        "before": "Original",
+        "after": "Suggested Change",
+        "reason": "Reason",
+        "atsTitle": "ATS Compatibility",
+        "jdMatchTitle": "JD Match",
+        "matchedKeywords": "Matched Keywords",
+        "missingKeywords": "Missing Keywords"
+      }
     }
   },
   "profile": {

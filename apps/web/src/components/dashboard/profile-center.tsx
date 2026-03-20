@@ -43,6 +43,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  triggerResumeProcessing,
+  waitForProcessedProfile,
+} from "@/lib/resume-processing-client";
 
 const ALIAS_STORAGE_KEY = "profile_resume_aliases_v1";
 
@@ -151,6 +155,7 @@ export function ProfileCenter() {
   const [interviews, setInterviews] = useState<ProfileInterviewRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const [isResumeProcessing, setIsResumeProcessing] = useState(false);
 
   const [aliases, setAliases] = useState<ResumeAliasMap>({});
   const [isAliasHydrated, setIsAliasHydrated] = useState(false);
@@ -249,8 +254,35 @@ export function ProfileCenter() {
           return;
         }
         setUserInfo(result.data);
-        toast.success(t("resumeLibrary.uploadSuccess"));
+        toast.success("简历上传成功，正在后台解析");
         await loadProfileData();
+
+        if (result.storagePath) {
+          setIsResumeProcessing(true);
+          void triggerResumeProcessing({
+            storagePath: result.storagePath,
+          })
+            .then(() =>
+              waitForProcessedProfile({
+                baselineUpdatedAt: result.data?.updated_at,
+              }),
+            )
+            .then(async (profile) => {
+              if (!profile) {
+                return;
+              }
+              setUserInfo(profile);
+              toast.success("简历解析完成，资料已更新");
+              await loadProfileData();
+            })
+            .catch((error) => {
+              console.error("Failed to process resume in background:", error);
+              toast.error("简历已上传，但后台解析失败，请稍后重试");
+            })
+            .finally(() => {
+              setIsResumeProcessing(false);
+            });
+        }
       } catch (error) {
         console.error("Failed to upload resume in profile center:", error);
         toast.error(t("resumeLibrary.uploadFailed"));
@@ -271,7 +303,7 @@ export function ProfileCenter() {
     noKeyboard: true,
     onDropAccepted: handleDropAccepted,
     onDropRejected: handleDropRejected,
-    disabled: isUploadingResume,
+    disabled: isUploadingResume || isResumeProcessing,
   });
 
   const resumeReportItems = useMemo<ResumeReportItem[]>(() => {
@@ -369,14 +401,14 @@ export function ProfileCenter() {
             size="sm"
             className="bg-[#0F3E2E] text-white hover:bg-[#0F3E2E]/90"
             onClick={open}
-            disabled={isUploadingResume}
+            disabled={isUploadingResume || isResumeProcessing}
           >
             {isUploadingResume ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
               <Upload className="mr-1.5 h-3.5 w-3.5" />
             )}
-            {t("resumeLibrary.uploadButton")}
+            {isResumeProcessing ? "解析中..." : t("resumeLibrary.uploadButton")}
           </Button>
         </div>
         <CardContent>

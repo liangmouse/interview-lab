@@ -31,6 +31,10 @@ import { updateUserProfile } from "@/action/user-profile";
 import { useUserStore } from "@/store/user";
 import { toast } from "sonner";
 import type { WorkExperience } from "@/types/profile";
+import {
+  triggerResumeProcessing,
+  waitForProcessedProfile,
+} from "@/lib/resume-processing-client";
 
 /** 简历上传配置 */
 const RESUME_CONFIG = {
@@ -58,8 +62,9 @@ export function ResumeIntelligence() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<
-    "idle" | "uploading" | "parsing" | "success" | "error"
+    "idle" | "uploading" | "success" | "error"
   >("idle");
+  const [isResumeProcessing, setIsResumeProcessing] = useState(false);
 
   // 技能补全状态
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -117,8 +122,6 @@ export function ResumeIntelligence() {
         const formData = new FormData();
         formData.append("file", file);
 
-        console.log("🤖 [简历上传] 开始 AI 解析...");
-        setUploadStatus("parsing");
         const result = await uploadResume(formData);
 
         console.log("📊 [简历上传] 服务端返回结果:", {
@@ -133,6 +136,9 @@ export function ResumeIntelligence() {
           setUploadStatus("error");
           return;
         }
+
+        // 上传已完成，先立刻解除阻塞
+        setUploadStatus("success");
 
         // 更新 store 中的用户信息，并同步到表单
         if (result.data) {
@@ -210,9 +216,35 @@ export function ResumeIntelligence() {
           console.warn("⚠️ [简历上传] 服务端返回数据为空");
         }
 
-        toast.success("简历解析成功，信息已自动填充");
-        setUploadStatus("success");
-        console.log("✨ [简历上传] 完成！");
+        toast.success("简历上传成功，正在后台解析");
+        console.log("✨ [简历上传] 文件上传完成，开始后台解析");
+
+        if (result.storagePath) {
+          setIsResumeProcessing(true);
+
+          void triggerResumeProcessing({
+            storagePath: result.storagePath,
+          })
+            .then(() =>
+              waitForProcessedProfile({
+                baselineUpdatedAt: result.data?.updated_at,
+              }),
+            )
+            .then((profile) => {
+              if (!profile) {
+                return;
+              }
+              setUserInfo(profile);
+              toast.success("简历解析完成，信息已自动填充");
+            })
+            .catch((processingError) => {
+              console.error("❌ [简历上传] 后台解析失败:", processingError);
+              toast.error("简历已上传，但后台解析失败，请稍后重试");
+            })
+            .finally(() => {
+              setIsResumeProcessing(false);
+            });
+        }
       } catch (err) {
         console.error("❌ [简历上传] 发生异常:", err);
         console.error("异常堆栈:", err instanceof Error ? err.stack : "无堆栈");
@@ -233,7 +265,7 @@ export function ResumeIntelligence() {
     noClick: false,
     onDropAccepted: handleDropAccepted,
     onDropRejected: handleDropRejected,
-    disabled: isUploading,
+    disabled: isUploading || isResumeProcessing,
   });
 
   const handleAddSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -355,7 +387,7 @@ export function ResumeIntelligence() {
         <>
           <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-emerald-600" />
           <h3 className="mb-2 text-lg font-medium text-[#141414]">
-            {uploadStatus === "parsing" ? "AI 正在解析简历..." : "正在上传..."}
+            正在上传...
           </h3>
           <p className="text-sm text-[#666666]">{uploadedFile?.name}</p>
         </>
@@ -366,7 +398,14 @@ export function ResumeIntelligence() {
       return (
         <>
           <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-emerald-600" />
-          <h3 className="mb-2 text-lg font-medium text-[#141414]">解析完成</h3>
+          <h3 className="mb-2 text-lg font-medium text-[#141414]">
+            {isResumeProcessing ? "上传完成" : "解析完成"}
+          </h3>
+          {isResumeProcessing ? (
+            <p className="mb-2 text-sm text-[#666666]">
+              文件已上传，后台正在解析简历...
+            </p>
+          ) : null}
           <div
             className={`mb-4 flex items-center justify-center gap-2 text-sm text-[#666666] ${
               userInfo?.resume_url

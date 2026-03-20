@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, CreditCard, Sparkles } from "lucide-react";
+import { Check, CreditCard, Sparkles, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type PlanKey = "free" | "starter" | "pro" | "champion";
+type PlanKey = "free" | "starter" | "pro";
 
 interface PlanData {
   key: PlanKey;
@@ -46,11 +46,6 @@ export function ProfileSubscriptionCard() {
         popular: true,
         features: t.raw("plans.pro.features") as string[],
       },
-      {
-        key: "champion",
-        price: t("plans.champion.price"),
-        features: t.raw("plans.champion.features") as string[],
-      },
     ],
     [t],
   );
@@ -61,10 +56,13 @@ export function ProfileSubscriptionCard() {
     <>
       <Card className="border-[#E5E5E5] bg-white shadow-sm">
         <CardContent className="space-y-4 p-6">
-          <div className="rounded-xl border border-[#E5E5E5] bg-linear-to-br from-[#F8FBFA] to-white p-4">
+          <div className="rounded-xl border border-[#E5E5E5] bg-gradient-to-br from-[#F8FBFA] to-white p-4">
             <div className="flex items-center justify-between">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0F3E2E]/10">
-                <Sparkles className="h-4.5 w-4.5 text-[#0F3E2E]" />
+                <Sparkles
+                  aria-hidden="true"
+                  className="h-4.5 w-4.5 text-[#0F3E2E]"
+                />
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#0F3E2E]" />
@@ -83,101 +81,137 @@ export function ProfileSubscriptionCard() {
             onClick={() => setOpen(true)}
             className="w-full bg-[#0F3E2E] text-white hover:bg-[#0F3E2E]/90"
           >
-            <CreditCard className="mr-1.5 h-4 w-4" />
+            <CreditCard aria-hidden="true" className="mr-1.5 h-4 w-4" />
             {t("entry")}
           </Button>
         </CardContent>
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85vh] max-w-6xl overflow-auto border-[#E5E5E5] p-5 sm:p-6">
-          <DialogHeader className="mb-2 flex flex-row items-start justify-between gap-4 text-left">
-            <div>
-              <DialogTitle className="text-2xl font-semibold text-[#141414]">
-                {t("modal.title")}
-              </DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-[#666666]">
-                {t("modal.subtitle")}
-              </DialogDescription>
-            </div>
-            <div className="text-right">
-              <p className="text-base font-semibold text-[#141414]">
-                {t("modal.currentLabel")}
-                <span className="ml-1 text-[#0F3E2E]">
-                  {t(`plans.${currentPlan}.name`)}
-                </span>
-              </p>
-              <p className="text-xs text-[#999999]">{t("modal.renewAt")}</p>
-            </div>
-          </DialogHeader>
-
-          <div className="mt-4 grid gap-5 lg:grid-cols-4">
-            {plans.map((plan) => {
-              const isCurrent = plan.key === currentPlan;
-              return (
-                <div
-                  key={plan.key}
-                  className={cn(
-                    "relative rounded-xl border bg-white p-4",
-                    plan.popular
-                      ? "border-[#0F3E2E] shadow-[0_0_0_1px_#0F3E2E20]"
-                      : "border-[#E5E5E5]",
-                  )}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#0F3E2E] px-3 py-1 text-xs font-medium text-white">
-                      <Sparkles className="mr-1 inline h-3.5 w-3.5" />
-                      {t("modal.popular")}
-                    </div>
-                  )}
-
-                  <p className="mt-4 text-center text-2xl font-semibold text-[#141414]">
-                    {t(`plans.${plan.key}.name`)}
-                  </p>
-                  <p className="mt-2 text-center text-4xl font-semibold leading-none text-[#141414]">
-                    {plan.price}
-                    {plan.key !== "free" && (
-                      <span className="ml-1 text-lg font-medium text-[#666666]">
-                        /mo
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-3 min-h-[64px] text-center text-sm leading-6 text-[#666666]">
-                    {t(`plans.${plan.key}.desc`)}
-                  </p>
-
-                  <ul className="mt-3 space-y-2">
-                    {plan.features.map((feature) => (
-                      <li
-                        key={feature}
-                        className="flex items-start gap-2 text-sm text-[#555555]"
-                      >
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0F3E2E]" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Button
-                    variant={isCurrent ? "outline" : "default"}
-                    className={cn(
-                      "mt-4 h-9 w-full text-sm",
-                      isCurrent
-                        ? "border-[#E5E5E5] text-[#666666]"
-                        : "bg-[#0F3E2E] text-white hover:bg-[#0F3E2E]/90",
-                    )}
-                    disabled={isCurrent}
-                    onClick={() => {
-                      toast.success(t("modal.comingSoon"));
-                    }}
-                  >
-                    {isCurrent
-                      ? t("modal.currentPlanBtn")
-                      : t("modal.selectPlanBtn")}
-                  </Button>
+        {/*
+          16:9 宽屏容器：宽度取 min(90vw, 900px)，高度由 aspect-video 锁定为 9/16 倍宽度。
+          内容不超出时无滚动条。
+        */}
+        <DialogContent className="w-[min(95vw,860px)] max-w-none sm:max-w-none overflow-hidden border-[#E5E5E5] p-0">
+          <div className="flex flex-col px-8 py-6 gap-5">
+            {/* Header */}
+            <DialogHeader className="shrink-0 space-y-0">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <DialogTitle className="text-lg font-bold tracking-tight text-[#141414]">
+                    {t("modal.title")}
+                  </DialogTitle>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-2 rounded-full border border-[#0F3E2E]/20 bg-[#0F3E2E]/5 px-3 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#0F3E2E]" />
+                  <span className="text-xs font-medium text-[#0F3E2E]">
+                    {t("modal.currentLabel")}
+                    {t(`plans.${currentPlan}.name`)}
+                  </span>
+                </div>
+              </div>
+            </DialogHeader>
+
+            {/* 3-column plan cards — fill remaining height */}
+            <div className="grid grid-cols-3 gap-4">
+              {plans.map((plan) => {
+                const isCurrent = plan.key === currentPlan;
+                return (
+                  <div
+                    key={plan.key}
+                    className={cn(
+                      "relative flex flex-col rounded-2xl border bg-white overflow-hidden transition-shadow",
+                      plan.popular
+                        ? "border-[#0F3E2E] shadow-lg shadow-[#0F3E2E]/15"
+                        : "border-[#EBEBEB] hover:shadow-sm",
+                      isCurrent && "ring-2 ring-[#0F3E2E]/20",
+                    )}
+                  >
+                    {/* Popular badge */}
+                    {plan.popular && (
+                      <div className="absolute -top-px left-1/2 -translate-x-1/2">
+                        <span className="inline-flex items-center gap-1 rounded-b-lg bg-amber-400 px-3 py-0.5 text-[11px] font-semibold text-amber-900">
+                          <Zap aria-hidden="true" className="h-2.5 w-2.5" />
+                          {t("modal.popular")}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Plan header area */}
+                    <div className="shrink-0 px-5 pt-6 pb-4 bg-[#FAFAFA]">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-[#BBBBBB]">
+                        {t(`plans.${plan.key}.name`)}
+                      </p>
+                      <div className="mt-1.5 flex items-end gap-1">
+                        <span className="text-3xl font-bold tabular-nums leading-none text-[#141414]">
+                          {plan.price}
+                        </span>
+                        {plan.key !== "free" && (
+                          <span className="mb-0.5 text-xs text-[#CCCCCC]">
+                            /mo
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-2 text-[11px] leading-relaxed text-[#BBBBBB]">
+                        {t(`plans.${plan.key}.desc`)}
+                      </p>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="h-px shrink-0 bg-[#F0F0F0]" />
+
+                    {/* Features — scrollable if overflow */}
+                    <ul className="px-5 py-4 space-y-2.5">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-2">
+                          <span
+                            className={cn(
+                              "mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full",
+                              "bg-[#0F3E2E]/10",
+                            )}
+                          >
+                            <Check
+                              aria-hidden="true"
+                              className={cn("h-2 w-2", "text-[#0F3E2E]")}
+                              strokeWidth={3}
+                            />
+                          </span>
+                          <span
+                            className={cn(
+                              "text-[12px] leading-[1.5]",
+                              "text-[#555555]",
+                            )}
+                          >
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* CTA */}
+                    <div className="shrink-0 px-5 pb-5 pt-3">
+                      <Button
+                        variant={isCurrent ? "outline" : "default"}
+                        className={cn(
+                          "h-9 w-full rounded-xl text-[13px] font-medium transition-all",
+                          isCurrent
+                            ? "cursor-default border-[#E5E5E5] text-[#CCCCCC]"
+                            : "border-0 bg-[#0F3E2E] text-white hover:bg-[#0F3E2E]/90",
+                        )}
+                        disabled={isCurrent}
+                        onClick={() => {
+                          toast.success(t("modal.comingSoon"));
+                        }}
+                      >
+                        {isCurrent
+                          ? t("modal.currentPlanBtn")
+                          : t("modal.selectPlanBtn")}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

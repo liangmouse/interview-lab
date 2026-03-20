@@ -3,6 +3,79 @@ import {
   profileToVectorDocuments,
   storeVectorDocuments,
 } from "@/lib/vector-rag";
+import type { UserProfile } from "@/types/profile";
+import type { ResumeData } from "@/lib/resume-processing-service";
+import { logResumeStage, resumeLogger } from "@/lib/resume-parsing-logger";
+
+interface ProcessResumeInput {
+  userId: string;
+  resumeUrl: string;
+  analyzeData: ResumeData;
+}
+
+function buildProfileUpdateData(
+  analyzeData: ResumeData,
+  resumeUrl: string,
+): Record<string, unknown> {
+  logResumeStage.dataMapping("开始数据映射", {
+    hasWorkExperiences: !!analyzeData.workExperiences,
+    workExperiencesCount: analyzeData.workExperiences?.length || 0,
+  });
+
+  const profileUpdateData = {
+    nickname: analyzeData.personalInfo?.name,
+    email: analyzeData.personalInfo?.email,
+    job_intention: analyzeData.jobIntention,
+    experience_years: analyzeData.experienceYears,
+    skills: analyzeData.skills,
+    school: analyzeData.education?.school,
+    major: analyzeData.education?.major,
+    degree: analyzeData.education?.degree,
+    graduation_date: analyzeData.education?.graduationDate,
+    work_experiences: analyzeData.workExperiences?.map((exp) => ({
+      company: exp.company,
+      position: exp.position,
+      start_date: exp.startDate || "",
+      end_date: exp.endDate || "",
+      description: exp.description,
+    })),
+    project_experiences: analyzeData.projectExperiences?.map((proj) => ({
+      project_name: proj.projectName,
+      role: proj.role || "",
+      start_date: proj.startDate,
+      end_date: proj.endDate,
+      tech_stack: proj.techStack,
+      description: proj.description,
+    })),
+    resume_url: resumeUrl,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (profileUpdateData.work_experiences) {
+    logResumeStage.dataMapping("工作经历映射完成", {
+      count: profileUpdateData.work_experiences.length,
+      data: profileUpdateData.work_experiences,
+    });
+  } else {
+    resumeLogger.warn("数据映射", "工作经历映射结果为空");
+  }
+
+  const filteredData = Object.fromEntries(
+    Object.entries(profileUpdateData).filter(
+      ([, value]) => value !== undefined && value !== null,
+    ),
+  );
+
+  logResumeStage.dataMapping("过滤后的数据", {
+    hasWorkExperiences: !!filteredData.work_experiences,
+    workExperiencesCount: Array.isArray(filteredData.work_experiences)
+      ? filteredData.work_experiences.length
+      : 0,
+    fields: Object.keys(filteredData),
+  });
+
+  return filteredData;
+}
 
 /**
  * 用户档案服务
@@ -11,6 +84,51 @@ import {
 export class UserProfileService {
   private getSupabase() {
     return createClient();
+  }
+
+  /**
+   * 上传简历文件
+   */
+  async uploadResumeFile(
+    userId: string,
+    file: File,
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    storagePath?: string;
+    resumeUrl?: string;
+  }> {
+    try {
+      const supabase = await this.getSupabase();
+      const storagePath = `${userId}/${crypto.randomUUID()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("resumes")
+        .upload(storagePath, file, { contentType: "application/pdf" });
+
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        return {
+          success: false,
+          error: `Storage error: ${uploadError.message}`,
+        };
+      }
+
+      const { data } = supabase.storage
+        .from("resumes")
+        .getPublicUrl(storagePath);
+
+      return {
+        success: true,
+        storagePath,
+        resumeUrl: data.publicUrl,
+      };
+    } catch (error) {
+      console.error("上传简历文件失败:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "上传简历文件失败",
+      };
+    }
   }
 
   /**
@@ -52,6 +170,76 @@ export class UserProfileService {
       return {
         success: false,
         error: error instanceof Error ? error.message : "未知错误",
+      };
+    }
+  }
+
+  async processResumeAndVectorize(input: ProcessResumeInput): Promise<{
+    success: boolean;
+    error?: string;
+    profile?: UserProfile;
+    documentCount?: number;
+  }> {
+    try {
+      const supabase = await this.getSupabase();
+      const dbSafeData = buildProfileUpdateData(
+        input.analyzeData,
+        input.resumeUrl,
+      );
+
+      logResumeStage.dbUpdate("开始更新数据库", {
+        userId: input.userId,
+        fieldsToUpdate: Object.keys(dbSafeData),
+        note: "后台解析流程更新核心字段",
+      });
+
+      const { data: profile, error } = await supabase
+        .from("user_profiles")
+        .update(dbSafeData)
+        .eq("user_id", input.userId)
+        .select("*")
+        .single();
+
+      if (error || !profile) {
+        logResumeStage.error("数据库更新", "更新失败", error);
+        return {
+          success: false,
+          error: error?.message || "更新用户资料失败",
+        };
+      }
+
+      logResumeStage.dbUpdate("数据库更新成功", {
+        hasWorkExperiences: !!profile.work_experiences,
+        workExperiencesCount: profile.work_experiences?.length || 0,
+      });
+
+      try {
+        logResumeStage.vectorization("开始向量化用户档案", {
+          userId: input.userId,
+        });
+        const documents = await profileToVectorDocuments(profile);
+        await storeVectorDocuments(documents, input.userId);
+        logResumeStage.vectorization("向量化用户档案完成", {
+          userId: input.userId,
+          documentCount: documents.length,
+        });
+        return {
+          success: true,
+          profile,
+          documentCount: documents.length,
+        };
+      } catch (vectorizeError) {
+        logResumeStage.error("向量化", "向量化用户档案失败", vectorizeError);
+        return {
+          success: true,
+          profile,
+        };
+      }
+    } catch (error) {
+      console.error("处理简历并向量化失败:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "处理简历并向量化失败",
       };
     }
   }

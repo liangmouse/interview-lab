@@ -431,24 +431,36 @@ export async function performIntelligentAnalysis(
  */
 let embeddingsInstance: Embeddings | null = null;
 let hasCheckedApiKey = false;
+let hasWarnedInvalidGeminiEmbeddingModel = false;
 
 function getEmbeddings(): Embeddings | null {
   // 优先使用 Gemini（OpenAI 兼容接口）
   if (process.env.GEMINI_API_KEY) {
+    const modelName =
+      process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001";
+
     if (
       !embeddingsInstance ||
       !(embeddingsInstance instanceof OpenAIEmbeddings)
     ) {
-      console.log(
-        "🚀 [RAG] 使用 Gemini Embedding (text-embedding-004, OpenAI compatible)",
-      );
+      console.log("🚀 [RAG] 使用 Gemini Embedding", { modelName });
       embeddingsInstance = new OpenAIEmbeddings({
-        modelName: process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
+        modelName,
         openAIApiKey: process.env.GEMINI_API_KEY,
         configuration: {
           baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
         },
       });
+    }
+
+    if (
+      modelName === "text-embedding-004" &&
+      !hasWarnedInvalidGeminiEmbeddingModel
+    ) {
+      console.warn(
+        "⚠️ [RAG] 检测到旧的 Gemini Embedding 模型 text-embedding-004，已默认切换到 gemini-embedding-001。",
+      );
+      hasWarnedInvalidGeminiEmbeddingModel = true;
     }
     return embeddingsInstance;
   }

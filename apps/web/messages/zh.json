@@ -255,6 +255,34 @@
       "empty": {
         "resumeLibrary": "暂无可选简历，请先前往个人资料上传并创建简历库。"
       }
+    },
+    "resumeReview": {
+      "form": {
+        "title": "简历诊断配置",
+        "description": "选择简历并（可选）粘贴目标岗位 JD，获得 AI 结构化点评与修改建议。",
+        "resumeLabel": "选择简历",
+        "resumePlaceholder": "选择已上传的简历",
+        "noResumes": "暂无简历，请先前往个人中心上传",
+        "goToProfile": "前往上传",
+        "jdLabel": "岗位描述（可选）",
+        "jdPlaceholder": "粘贴目标岗位 JD，获得针对性建议",
+        "startReview": "开始点评",
+        "reviewing": "AI 正在分析简历...",
+        "reviewingHint": "AI 正在逐项分析简历内容，请稍候..."
+      },
+      "result": {
+        "overallScore": "综合评分",
+        "overallAssessment": "总体评价",
+        "strengths": "优势",
+        "weaknesses": "待改进",
+        "before": "原文",
+        "after": "建议修改为",
+        "reason": "修改原因",
+        "atsTitle": "ATS 兼容性",
+        "jdMatchTitle": "JD 匹配度",
+        "matchedKeywords": "已匹配关键词",
+        "missingKeywords": "缺失关键词"
+      }
     }
   },
   "profile": {
@@ -366,11 +394,10 @@
             "price": "$69",
             "desc": "适合冲刺中高级岗位的候选人",
             "features": [
-              "每月 5 次实时面试",
-              "每月 10 次模拟面试",
-              "包含 STAR 经验故事",
-              "包含面试场景",
-              "详细表现报告 + 邮件支持"
+              "不限次数的专项面试",
+              "不限次数的模拟面试",
+              "不限次数的简历点评与押题",
+              "详细表现报告"
             ]
           },
           "champion": {
