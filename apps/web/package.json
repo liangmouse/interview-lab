@@ -13,6 +13,7 @@
     "@interviewclaw/ai-runtime": "workspace:*",
     "@interviewclaw/data-access": "workspace:*",
     "@livekit/components-react": "^2.9.20",
+    "@monaco-editor/react": "^4.7.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "livekit-client": "^2.16.0",

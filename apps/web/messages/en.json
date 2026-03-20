@@ -496,7 +496,9 @@
     "connecting": "Connecting...",
     "connected": "Connected",
     "disconnected": "Disconnected",
-    "connectionFailed": "Connection failed"
+    "connectionFailed": "Connection failed",
+    "run": "Run",
+    "running": "Running..."
   },
   "language": {
     "switch": "Language",
