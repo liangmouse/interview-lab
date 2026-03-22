@@ -21,34 +21,114 @@ export interface ResolveOpenAICompatibleConfigOptions {
   defaultModel?: string;
 }
 
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+export const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+export const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+export const DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash";
+export const DEFAULT_OPENROUTER_EMBEDDING_MODEL =
+  "openai/text-embedding-3-small";
+
+function trimString(value: string | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function getOpenRouterApiKey(env: NodeJS.ProcessEnv) {
+  return trimString(env.OPEN_ROUTER_API_KEY) || trimString(env.OPEN_ROUTER_API);
+}
+
+function getOpenRouterHeaders(env: NodeJS.ProcessEnv) {
+  const headers: Record<string, string> = {};
+  const referer = trimString(env.OPEN_ROUTER_HTTP_REFERER);
+  const title = trimString(env.OPEN_ROUTER_TITLE);
+
+  if (referer) {
+    headers["HTTP-Referer"] = referer;
+  }
+
+  if (title) {
+    headers["X-Title"] = title;
+  }
+
+  return Object.keys(headers).length > 0 ? headers : undefined;
+}
+
+export function resolveDefaultEmbeddingModel(): {
+  providerId: string;
+  model: string;
+} {
+  const env = process.env;
+
+  if (getOpenRouterApiKey(env)) {
+    return {
+      providerId: "openrouter",
+      model:
+        trimString(env.OPEN_ROUTER_EMBEDDING_MODEL) ||
+        DEFAULT_OPENROUTER_EMBEDDING_MODEL,
+    };
+  }
+
+  if (trimString(env.OPENAI_API_KEY)) {
+    return {
+      providerId: "openai",
+      model: "text-embedding-3-small",
+    };
+  }
+
+  return {
+    providerId: "gemini",
+    model: trimString(env.GEMINI_EMBEDDING_MODEL) || "gemini-embedding-001",
+  };
+}
+
 /**
  * Resolve provider configuration from environment variables.
  *
  * Priority:
- * 1. OPENAI_API_KEY (+ optional OPENAI_BASE_URL / OPENAI_MODEL)
- * 2. GEMINI_API_KEY (Gemini OpenAI-compatible endpoint, + optional GEMINI_MODEL)
+ * 1. OPEN_ROUTER_API_KEY / OPEN_ROUTER_API (+ optional OPEN_ROUTER_* vars)
+ * 2. OPENAI_API_KEY (+ optional OPENAI_BASE_URL / OPENAI_MODEL)
+ * 3. GEMINI_API_KEY (Gemini OpenAI-compatible endpoint, + optional GEMINI_MODEL)
  *
- * @throws if neither OPENAI_API_KEY nor GEMINI_API_KEY is set
+ * @throws if neither OPEN_ROUTER_API_KEY / OPEN_ROUTER_API, OPENAI_API_KEY nor GEMINI_API_KEY is set
  */
 export function resolveOpenAICompatibleConfig(
   options?: ResolveOpenAICompatibleConfigOptions,
 ): OpenAICompatibleConfig {
   const env = process.env;
 
-  const openaiKey = env.OPENAI_API_KEY?.trim();
-  if (openaiKey) {
-    const baseURL = env.OPENAI_BASE_URL?.trim() || undefined;
+  const openRouterKey = getOpenRouterApiKey(env);
+  if (openRouterKey) {
+    const baseURL = trimString(env.OPEN_ROUTER_BASE_URL) || OPENROUTER_BASE_URL;
     const model =
-      env.OPENAI_MODEL?.trim() || options?.defaultModel || "gpt-4o-mini";
+      trimString(env.OPEN_ROUTER_MODEL) ||
+      options?.defaultModel ||
+      DEFAULT_OPENROUTER_MODEL;
+
+    return {
+      providerId: "openrouter",
+      apiKey: openRouterKey,
+      baseURL,
+      model,
+      headers: getOpenRouterHeaders(env),
+    };
+  }
+
+  const openaiKey = trimString(env.OPENAI_API_KEY);
+  if (openaiKey) {
+    const baseURL = trimString(env.OPENAI_BASE_URL);
+    const model =
+      trimString(env.OPENAI_MODEL) ||
+      options?.defaultModel ||
+      DEFAULT_OPENAI_MODEL;
     return { providerId: "openai", apiKey: openaiKey, baseURL, model };
   }
 
-  const geminiKey = env.GEMINI_API_KEY?.trim();
+  const geminiKey = trimString(env.GEMINI_API_KEY);
   if (geminiKey) {
     const model =
-      env.GEMINI_MODEL?.trim() ||
+      trimString(env.GEMINI_MODEL) ||
       options?.defaultModel ||
-      "gemini-3-flash-preview";
+      DEFAULT_GEMINI_MODEL;
     return {
       providerId: "gemini",
       apiKey: geminiKey,
@@ -58,7 +138,7 @@ export function resolveOpenAICompatibleConfig(
   }
 
   throw new Error(
-    "LLM provider not configured: set OPENAI_API_KEY or GEMINI_API_KEY",
+    "LLM provider not configured: set OPEN_ROUTER_API_KEY/OPEN_ROUTER_API, OPENAI_API_KEY, or GEMINI_API_KEY",
   );
 }
 
@@ -66,15 +146,16 @@ export function resolveOpenAICompatibleConfig(
  * Validate that a usable LLM provider is configured.
  */
 export function validateLlmConfig(): { isValid: boolean; error?: string } {
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
-  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const openRouterKey = getOpenRouterApiKey(process.env);
+  const openaiKey = trimString(process.env.OPENAI_API_KEY);
+  const geminiKey = trimString(process.env.GEMINI_API_KEY);
 
-  const key = openaiKey || geminiKey;
+  const key = openRouterKey || openaiKey || geminiKey;
   if (!key) {
     return {
       isValid: false,
       error:
-        "LLM provider not configured: set OPENAI_API_KEY or GEMINI_API_KEY",
+        "LLM provider not configured: set OPEN_ROUTER_API_KEY/OPEN_ROUTER_API, OPENAI_API_KEY, or GEMINI_API_KEY",
     };
   }
 

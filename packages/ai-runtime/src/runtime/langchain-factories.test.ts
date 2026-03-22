@@ -25,6 +25,13 @@ describe("langchain-factories", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.OPEN_ROUTER_API_KEY;
+    delete process.env.OPEN_ROUTER_API;
+    delete process.env.OPEN_ROUTER_BASE_URL;
+    delete process.env.OPEN_ROUTER_MODEL;
+    delete process.env.OPEN_ROUTER_EMBEDDING_MODEL;
+    delete process.env.OPEN_ROUTER_HTTP_REFERER;
+    delete process.env.OPEN_ROUTER_TITLE;
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_BASE_URL;
     delete process.env.OPENAI_MODEL;
@@ -35,6 +42,13 @@ describe("langchain-factories", () => {
 
   afterEach(() => {
     for (const key of [
+      "OPEN_ROUTER_API_KEY",
+      "OPEN_ROUTER_API",
+      "OPEN_ROUTER_BASE_URL",
+      "OPEN_ROUTER_MODEL",
+      "OPEN_ROUTER_EMBEDDING_MODEL",
+      "OPEN_ROUTER_HTTP_REFERER",
+      "OPEN_ROUTER_TITLE",
       "OPENAI_API_KEY",
       "OPENAI_BASE_URL",
       "OPENAI_MODEL",
@@ -51,6 +65,27 @@ describe("langchain-factories", () => {
   });
 
   describe("createLangChainChatModel", () => {
+    it("uses OpenRouter config when OPEN_ROUTER_API_KEY is set", () => {
+      process.env.OPEN_ROUTER_API_KEY = "or-key";
+      process.env.OPEN_ROUTER_HTTP_REFERER = "https://example.com";
+      process.env.OPEN_ROUTER_TITLE = "InterviewClaw";
+
+      createLangChainChatModel();
+
+      const callArg = MockChatOpenAI.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      const configuration = callArg.configuration as Record<string, unknown>;
+      expect(callArg.apiKey).toBe("or-key");
+      expect(callArg.model).toBe("google/gemini-2.5-flash");
+      expect(configuration.baseURL).toBe("https://openrouter.ai/api/v1");
+      expect(configuration.defaultHeaders).toEqual({
+        "HTTP-Referer": "https://example.com",
+        "X-Title": "InterviewClaw",
+      });
+    });
+
     it("uses OPENAI_API_KEY when only OPENAI_API_KEY is set (default OpenAI config)", () => {
       process.env.OPENAI_API_KEY = "sk-test-openai";
 
@@ -121,6 +156,23 @@ describe("langchain-factories", () => {
   });
 
   describe("createLangChainEmbeddings", () => {
+    it("uses OpenRouter embeddings config when OPEN_ROUTER_API_KEY is set", () => {
+      process.env.OPEN_ROUTER_API_KEY = "or-key";
+      process.env.OPEN_ROUTER_EMBEDDING_MODEL = "openai/text-embedding-3-large";
+
+      createLangChainEmbeddings();
+
+      const callArg = MockOpenAIEmbeddings.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      expect(callArg.model).toBe("openai/text-embedding-3-large");
+      expect(callArg.openAIApiKey).toBe("or-key");
+      expect((callArg.configuration as Record<string, unknown>).baseURL).toBe(
+        "https://openrouter.ai/api/v1",
+      );
+    });
+
     it("returns an OpenAIEmbeddings instance", () => {
       process.env.OPENAI_API_KEY = "sk-test";
 

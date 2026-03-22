@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   createLangChainChatModel,
   createLangChainEmbeddings,
+  resolveDefaultEmbeddingModel,
 } from "@interviewclaw/ai-runtime";
 import { Embeddings } from "@langchain/core/embeddings";
 import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
@@ -429,12 +430,15 @@ let embeddingsInstance: Embeddings | null = null;
 let embeddingsCacheKey: string | null = null;
 
 function getEmbeddings(): Embeddings | null {
+  const hasOpenRouter =
+    !!process.env.OPEN_ROUTER_API_KEY?.trim() ||
+    !!process.env.OPEN_ROUTER_API?.trim();
   const hasOpenAI = !!process.env.OPENAI_API_KEY?.trim();
   const hasGemini = !!process.env.GEMINI_API_KEY?.trim();
 
-  if (!hasOpenAI && !hasGemini) {
+  if (!hasOpenRouter && !hasOpenAI && !hasGemini) {
     console.warn(
-      "⚠️ [RAG] 未找到 GEMINI_API_KEY 或 OPENAI_API_KEY，向量化功能将跳过。",
+      "⚠️ [RAG] 未找到 OPEN_ROUTER_API_KEY/OPEN_ROUTER_API、OPENAI_API_KEY 或 GEMINI_API_KEY，向量化功能将跳过。",
     );
     return null;
   }
@@ -443,10 +447,7 @@ function getEmbeddings(): Embeddings | null {
     const instance = createLangChainEmbeddings();
     // Build a cache key that includes provider + model so switching providers
     // invalidates the singleton.
-    const provider = hasOpenAI ? "openai" : "gemini";
-    const model = hasOpenAI
-      ? process.env.OPENAI_MODEL?.trim() || "text-embedding-3-small"
-      : process.env.GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001";
+    const { providerId: provider, model } = resolveDefaultEmbeddingModel();
     const cacheKey = `${provider}:${model}`;
 
     if (!embeddingsInstance || embeddingsCacheKey !== cacheKey) {

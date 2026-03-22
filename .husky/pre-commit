@@ -21,4 +21,13 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+# 运行构建，确保提交前可以成功构建
+echo "🏗️ Running build..."
+pnpm build
+
+if [ $? -ne 0 ]; then
+  echo "❌ Build failed! Please fix build errors before committing."
+  exit 1
+fi
+
 echo "✅ Pre-commit checks passed!"

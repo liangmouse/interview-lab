@@ -27,7 +27,7 @@ import { TurnCoordinator } from "./turn-coordinator";
 import {
   createDeepgramSTT,
   createConfiguredLLM,
-  createGeminiTTS,
+  createConfiguredTTS,
 } from "../config/providers";
 import {
   saveUserMessage,
@@ -150,7 +150,7 @@ export async function runAgentSession(
   const session = new voice.AgentSession({
     stt: createDeepgramSTT(combinedVocabulary, locale),
     llm: await createConfiguredLLM(participant.identity),
-    tts: createGeminiTTS(locale),
+    tts: createConfiguredTTS(locale),
     vad: vad,
     // 使用 Turn Detector 多语言模型，基于语义理解判断用户是否说完
     // 可以理解"让我想想..."这类语句，不会在用户思考时打断

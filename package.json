@@ -134,5 +134,10 @@
     "*.{json,md,css}": [
       "prettier --write"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "sharp": "0.34.4"
+    }
   }
 }

@@ -1,5 +1,8 @@
 import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
-import { resolveOpenAICompatibleConfig } from "./openai-compatible-config";
+import {
+  resolveDefaultEmbeddingModel,
+  resolveOpenAICompatibleConfig,
+} from "./openai-compatible-config";
 
 export interface CreateLangChainChatModelOptions {
   /** Override the default model resolved from env */
@@ -15,9 +18,7 @@ export interface CreateLangChainChatModelOptions {
 export function createLangChainChatModel(
   options?: CreateLangChainChatModelOptions,
 ) {
-  const config = resolveOpenAICompatibleConfig({
-    defaultModel: "gemini-3-flash-preview",
-  });
+  const config = resolveOpenAICompatibleConfig();
 
   return new ChatOpenAI({
     model: options?.model ?? config.model,
@@ -49,10 +50,8 @@ export interface CreateLangChainEmbeddingsOptions {
 export function createLangChainEmbeddings(
   options?: CreateLangChainEmbeddingsOptions,
 ) {
-  const defaultEmbeddingModel =
-    process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY
-      ? process.env.GEMINI_EMBEDDING_MODEL?.trim() || "gemini-embedding-001"
-      : "text-embedding-3-small";
+  const defaultEmbeddingConfig = resolveDefaultEmbeddingModel();
+  const defaultEmbeddingModel = defaultEmbeddingConfig.model;
 
   const config = resolveOpenAICompatibleConfig({
     defaultModel: defaultEmbeddingModel,

@@ -3,6 +3,7 @@ import {
   buildProviderRegistry,
   createOpenAICodexRegistryEntry,
   createOpenAIRegistryEntry,
+  createOpenRouterRegistryEntry,
   type ProviderRegistryEntry,
 } from "./provider-registry";
 import { resolveModelRoute } from "./model-routing";
@@ -33,6 +34,46 @@ describe("runtime/provider-registry", () => {
     });
 
     expect(Array.from(registry.keys())).toEqual(["openai"]);
+  });
+
+  it("registers openrouter when the OpenRouter key is present", async () => {
+    const registry = await buildProviderRegistry({
+      env: { OPEN_ROUTER_API_KEY: "or-key" },
+      entries: [createOpenRouterRegistryEntry()],
+    });
+
+    expect(Array.from(registry.keys())).toEqual(["openrouter"]);
+  });
+
+  it("accepts the OPEN_ROUTER_API alias and forwards OpenRouter headers", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(new Response("ok", { status: 200 }));
+    const registry = await buildProviderRegistry({
+      env: {
+        OPEN_ROUTER_API: "or-key",
+        OPEN_ROUTER_HTTP_REFERER: "https://example.com",
+        OPEN_ROUTER_TITLE: "InterviewClaw",
+      },
+      fetch,
+      entries: [createOpenRouterRegistryEntry()],
+    });
+
+    const provider = registry.get("openrouter");
+    expect(provider).toBeDefined();
+
+    await provider?.createClientFetch()(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+      },
+    );
+
+    const [, init] = fetch.mock.calls[0];
+    const headers = new Headers(init?.headers);
+    expect(headers.get("authorization")).toBe("Bearer or-key");
+    expect(headers.get("HTTP-Referer")).toBe("https://example.com");
+    expect(headers.get("X-Title")).toBe("InterviewClaw");
   });
 
   it("registers only openai-codex when a codex profile exists", async () => {

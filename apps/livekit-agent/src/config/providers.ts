@@ -2,11 +2,13 @@ import * as deepgram from "@livekit/agents-plugin-deepgram";
 import * as openai from "@livekit/agents-plugin-openai";
 import {
   type AuthProfileStore,
+  type OpenAICompatibleConfig,
   buildProviderRegistry,
   createAuthProfileStore,
   createOpenAICodexRegistryEntry,
   createOpenAICodexAuthProvider,
   createOpenAIRegistryEntry,
+  createOpenRouterRegistryEntry,
   resolveModelRoute,
   resolveOpenAICompatibleConfig,
 } from "@interviewclaw/ai-runtime";
@@ -14,12 +16,14 @@ import {
   createUserScopedSupabaseAuthProfileStore,
   getSupabaseAdminClient,
 } from "@interviewclaw/data-access";
-import { GeminiTTS } from "../plugins/gemini-tts-plugin";
+import {
+  createTtsFromConfig,
+  resolveTtsConfig,
+  type TtsRuntimeOverrides,
+} from "../plugins/tts";
 
 export const GEMINI_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai";
-export const GEMINI_NATIVE_BASE_URL =
-  "https://generativelanguage.googleapis.com/v1beta";
 export const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 export const DEFAULT_GEMINI_TEMPERATURE = 0.4;
 
@@ -29,8 +33,6 @@ export const DEFAULT_DEEPGRAM_LANGUAGE = "zh";
 export const DEFAULT_DEEPGRAM_SMART_FORMAT = true;
 export const DEEPGRAM_KEYTERM_LIMIT = 20;
 
-export const DEFAULT_GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
-export const DEFAULT_GEMINI_TTS_VOICE = "Kore";
 export const ROUTED_OPENAI_RUNTIME_TOKEN = "openai-codex-runtime-token";
 
 type AgentRuntimeProviderConfig = {
@@ -49,10 +51,6 @@ function requireEnv(name: string): string {
     throw new Error(`[Agent Config] Missing required env: ${name}`);
   }
   return resolved;
-}
-
-export function getGeminiApiKey(): string {
-  return requireEnv("GEMINI_API_KEY");
 }
 
 export function getDeepgramApiKey(): string {
@@ -128,16 +126,37 @@ export function createDeepgramSTT(keyterm: string[], language?: string) {
   return sttInstance;
 }
 
-export function createGeminiLLM() {
-  const config = resolveOpenAICompatibleConfig({
-    defaultModel: DEFAULT_GEMINI_MODEL,
-  });
+export function createDefaultLLM() {
+  const config = resolveOpenAICompatibleConfig();
+  const client = createDefaultLlmClient(config);
   return new openai.LLM({
     apiKey: config.apiKey,
     model: config.model,
-    baseURL: config.baseURL ?? GEMINI_BASE_URL,
+    ...(config.baseURL ? { baseURL: config.baseURL } : {}),
+    ...(client ? { client } : {}),
     temperature: DEFAULT_GEMINI_TEMPERATURE,
   });
+}
+
+function createDefaultLlmClient(config: OpenAICompatibleConfig) {
+  if (config.providerId !== "openrouter" || !config.headers) {
+    return undefined;
+  }
+
+  const provider = createOpenRouterRegistryEntry().load({
+    env: {
+      OPEN_ROUTER_API_KEY: config.apiKey,
+      OPEN_ROUTER_BASE_URL: config.baseURL,
+      OPEN_ROUTER_HTTP_REFERER: config.headers["HTTP-Referer"],
+      OPEN_ROUTER_TITLE: config.headers["X-Title"],
+    },
+  });
+
+  if (!provider || provider instanceof Promise) {
+    return undefined;
+  }
+
+  return provider.createOpenAIClient(config.apiKey) as any;
 }
 
 function getAgentLlmModel(): string | null {
@@ -147,6 +166,10 @@ function getAgentLlmModel(): string | null {
 
 function getAgentRuntimeProviderConfigs(): AgentRuntimeProviderConfig[] {
   return [
+    {
+      providerId: "openrouter",
+      createRegistryEntry: () => createOpenRouterRegistryEntry(),
+    },
     {
       providerId: "openai",
       createRegistryEntry: () => createOpenAIRegistryEntry(),
@@ -170,7 +193,7 @@ function getAgentRuntimeProviderConfigs(): AgentRuntimeProviderConfig[] {
 export async function createConfiguredLLM(userId?: string) {
   const configuredModel = getAgentLlmModel();
   if (!configuredModel) {
-    return createGeminiLLM();
+    return createDefaultLLM();
   }
 
   const providerId = configuredModel.split("/", 1)[0];
@@ -216,15 +239,11 @@ export async function createConfiguredLLM(userId?: string) {
   });
 }
 
-export function createGeminiTTS(language?: string) {
-  const isEnglish = language?.toLowerCase().startsWith("en");
-  const voice = isEnglish ? "Zephyr" : DEFAULT_GEMINI_TTS_VOICE;
+export { resolveTtsConfig } from "../plugins/tts";
 
-  return new GeminiTTS({
-    apiKey: getGeminiApiKey(),
-    model: process.env.GEMINI_TTS_MODEL || DEFAULT_GEMINI_TTS_MODEL,
-    voiceName: voice,
-    baseUrl: GEMINI_NATIVE_BASE_URL,
-    sampleRate: 24000,
-  });
+export function createConfiguredTTS(
+  locale?: string,
+  overrides?: TtsRuntimeOverrides,
+) {
+  return createTtsFromConfig(resolveTtsConfig(locale, overrides));
 }

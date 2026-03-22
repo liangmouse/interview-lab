@@ -6,7 +6,7 @@ import {
   animate,
   useMotionValue,
   useMotionValueEvent,
-} from "motion/react";
+} from "framer-motion";
 import {
   type AgentState,
   type TrackReference,

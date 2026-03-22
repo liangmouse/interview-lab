@@ -1,4 +1,4 @@
-import { OPENAI_CODEX_OAUTH_PROVIDER } from "./pi-ai";
+const OPENAI_CODEX_OAUTH_PROVIDER = "openai-codex";
 
 export const OPENAI_CODEX_OAUTH_COOKIE = "openai-codex-oauth";
 export const OPENAI_CODEX_OAUTH_MESSAGE_SOURCE = "openai-codex-oauth";

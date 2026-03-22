@@ -10,14 +10,14 @@ import {
 export { validateLlmConfig as validateGeminiConfig };
 
 export function getGeminiOpenAICompatConfig() {
-  const config = resolveOpenAICompatibleConfig({
-    defaultModel: "gemini-3-flash-preview",
-  });
+  const config = resolveOpenAICompatibleConfig();
   return {
     apiKey: config.apiKey,
     model: config.model,
     baseURL:
       config.baseURL ??
-      "https://generativelanguage.googleapis.com/v1beta/openai",
+      (config.providerId === "gemini"
+        ? "https://generativelanguage.googleapis.com/v1beta/openai"
+        : "https://api.openai.com/v1"),
   };
 }

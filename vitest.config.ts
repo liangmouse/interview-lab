@@ -14,6 +14,7 @@ export default defineConfig({
       "**/node_modules/**",
       "**/dist/**",
       "**/.next/**",
+      "**/.claude/**",
       "**/.worktrees/**",
     ],
     alias: {
