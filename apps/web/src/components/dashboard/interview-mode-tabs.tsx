@@ -4,7 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SectionPlaceholder } from "@/components/dashboard/section-placeholder";
+import { FullInterviewPanel } from "@/components/interview/full-interview-panel";
+import { FocusInterviewPanel } from "@/components/interview/focus-interview-panel";
 import {
   buildInterviewModeHref,
   normalizeInterviewMode,
@@ -23,31 +24,19 @@ export function InterviewModeTabs() {
     router.replace(buildInterviewModeHref(pathname, normalized, searchParams));
   };
 
-  const modeTabs = (
-    <TabsList className="h-10">
-      <TabsTrigger value="full">{t("fullInterview")}</TabsTrigger>
-      <TabsTrigger value="focus">{t("focusInterview")}</TabsTrigger>
-    </TabsList>
-  );
-
   return (
-    <Tabs value={mode} onValueChange={handleModeChange} className="gap-4">
+    <Tabs value={mode} onValueChange={handleModeChange} className="gap-6">
+      <TabsList className="h-10">
+        <TabsTrigger value="full">{t("fullInterview")}</TabsTrigger>
+        <TabsTrigger value="focus">{t("focusInterview")}</TabsTrigger>
+      </TabsList>
+
       <TabsContent value="full">
-        <SectionPlaceholder
-          title={t("fullInterview")}
-          description={t("fullInterviewDesc")}
-          actionLabel={t("backToDashboard")}
-          headerExtra={modeTabs}
-        />
+        <FullInterviewPanel />
       </TabsContent>
 
       <TabsContent value="focus">
-        <SectionPlaceholder
-          title={t("focusInterview")}
-          description={t("focusInterviewDesc")}
-          actionLabel={t("backToDashboard")}
-          headerExtra={modeTabs}
-        />
+        <FocusInterviewPanel />
       </TabsContent>
     </Tabs>
   );
