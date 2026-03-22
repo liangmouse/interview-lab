@@ -9,8 +9,15 @@ import {
   ChevronRight,
   BarChart3,
 } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 import {
   getProfileInterviews,
@@ -26,19 +33,14 @@ import {
 
 // ── Score Trend Chart ──────────────────────────────────────────────────────────
 
-function ScoreTrendChart({
-  records,
-}: {
-  records: ProfileInterviewRecord[];
-}) {
-  const width = 480;
-  const height = 140;
-  const paddingX = 36;
-  const paddingTop = 16;
-  const paddingBottom = 28;
-  const chartW = width - paddingX * 2;
-  const chartH = height - paddingTop - paddingBottom;
+const scoreTrendConfig = {
+  score: {
+    label: "评分",
+    color: "hsl(161 94% 30%)",
+  },
+} satisfies ChartConfig;
 
+function ScoreTrendChart({ records }: { records: ProfileInterviewRecord[] }) {
   const completed = records
     .filter((r) => r.status === "completed" && r.score > 0)
     .slice()
@@ -46,112 +48,77 @@ function ScoreTrendChart({
 
   if (completed.length < 2) {
     return (
-      <div className="flex h-[140px] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-[160px] items-center justify-center text-sm text-muted-foreground">
         至少需要 2 次有评分的面试才能展示趋势
       </div>
     );
   }
 
+  const chartData = completed.map((r) => ({
+    date: r.date.replace(/\d{4}\//, ""),
+    score: r.score,
+  }));
+
   const scores = completed.map((r) => r.score);
   const minScore = Math.max(0, Math.min(...scores) - 10);
   const maxScore = Math.min(100, Math.max(...scores) + 10);
-  const range = maxScore - minScore || 1;
-
-  const points = completed.map((r, i) => {
-    const x = paddingX + (i / (completed.length - 1)) * chartW;
-    const y = paddingTop + chartH - ((r.score - minScore) / range) * chartH;
-    return { x, y, score: r.score, date: r.date };
-  });
-
-  const polyline = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-
-  // Area fill path
-  const areaPath = [
-    `M ${points[0].x.toFixed(1)},${(paddingTop + chartH).toFixed(1)}`,
-    ...points.map((p) => `L ${p.x.toFixed(1)},${p.y.toFixed(1)}`),
-    `L ${points[points.length - 1].x.toFixed(1)},${(paddingTop + chartH).toFixed(1)}`,
-    "Z",
-  ].join(" ");
-
-  // Y-axis ticks
-  const yTicks = [minScore, Math.round((minScore + maxScore) / 2), maxScore];
 
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="w-full"
-      style={{ height }}
-      aria-label="分数趋势图"
-    >
-      {/* Grid lines */}
-      {yTicks.map((tick) => {
-        const y = paddingTop + chartH - ((tick - minScore) / range) * chartH;
-        return (
-          <g key={tick}>
-            <line
-              x1={paddingX}
-              y1={y}
-              x2={width - paddingX}
-              y2={y}
-              stroke="hsl(160 10% 90%)"
-              strokeWidth={1}
-              strokeDasharray="4,4"
+    <ChartContainer config={scoreTrendConfig} className="h-[160px] w-full">
+      <AreaChart
+        data={chartData}
+        margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+      >
+        <defs>
+          <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="hsl(161 94% 30%)" stopOpacity={0.15} />
+            <stop offset="95%" stopColor="hsl(161 94% 30%)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid
+          vertical={false}
+          strokeDasharray="4 4"
+          stroke="hsl(160 10% 90%)"
+        />
+        <XAxis
+          dataKey="date"
+          tickLine={false}
+          axisLine={false}
+          tick={{ fontSize: 10, fill: "hsl(160 10% 50%)" }}
+          tickMargin={6}
+        />
+        <YAxis
+          domain={[minScore, maxScore]}
+          tickLine={false}
+          axisLine={false}
+          tick={{ fontSize: 10, fill: "hsl(160 10% 50%)" }}
+          tickCount={3}
+          tickMargin={4}
+        />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              formatter={(value) => [`${value} 分`, "评分"]}
+              hideLabel
             />
-            <text
-              x={paddingX - 6}
-              y={y + 4}
-              textAnchor="end"
-              fontSize={9}
-              fill="hsl(160 10% 50%)"
-            >
-              {tick}
-            </text>
-          </g>
-        );
-      })}
-
-      {/* X-axis labels */}
-      {completed.map((r, i) => {
-        const x = paddingX + (i / (completed.length - 1)) * chartW;
-        const shortDate = r.date.replace(/\d{4}\//, "");
-        return (
-          <text
-            key={r.id}
-            x={x}
-            y={height - 4}
-            textAnchor="middle"
-            fontSize={9}
-            fill="hsl(160 10% 50%)"
-          >
-            {shortDate}
-          </text>
-        );
-      })}
-
-      {/* Area fill */}
-      <path
-        d={areaPath}
-        fill="hsl(161 94% 30% / 0.08)"
-      />
-
-      {/* Line */}
-      <polyline
-        points={polyline}
-        fill="none"
-        stroke="hsl(161 94% 30%)"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-
-      {/* Dots */}
-      {points.map((p, i) => (
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r={4} fill="white" stroke="hsl(161 94% 30%)" strokeWidth={2} />
-          <circle cx={p.x} cy={p.y} r={2} fill="hsl(161 94% 30%)" />
-        </g>
-      ))}
-    </svg>
+          }
+        />
+        <Area
+          type="monotone"
+          dataKey="score"
+          stroke="hsl(161 94% 30%)"
+          strokeWidth={2}
+          fill="url(#scoreGradient)"
+          dot={{
+            r: 4,
+            fill: "white",
+            strokeWidth: 2,
+            stroke: "hsl(161 94% 30%)",
+          }}
+          activeDot={{ r: 5, fill: "hsl(161 94% 30%)", strokeWidth: 0 }}
+        />
+      </AreaChart>
+    </ChartContainer>
   );
 }
 
@@ -300,13 +267,7 @@ function StatCard({
 
 // ── Dimension Score Row ───────────────────────────────────────────────────────
 
-function DimensionRow({
-  label,
-  score,
-}: {
-  label: string;
-  score: number;
-}) {
+function DimensionRow({ label, score }: { label: string; score: number }) {
   const isHigh = score >= 80;
   const isMid = score >= 60;
   const barColor = isHigh
@@ -322,7 +283,10 @@ function DimensionRow({
       </span>
       <div className="flex-1 overflow-hidden rounded-full bg-secondary h-1.5">
         <div
-          className={cn("h-full rounded-full transition-all duration-700", barColor)}
+          className={cn(
+            "h-full rounded-full transition-all duration-700",
+            barColor,
+          )}
           style={{ width: `${score}%` }}
         />
       </div>
@@ -395,7 +359,10 @@ export function RecordsView() {
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-4 rounded-xl border bg-card p-5">
+            <div
+              key={i}
+              className="flex items-center gap-4 rounded-xl border bg-card p-5"
+            >
               <Skeleton className="h-10 w-10 rounded-xl" />
               <div className="space-y-2">
                 <Skeleton className="h-3 w-20" />
@@ -423,10 +390,7 @@ export function RecordsView() {
     return `${h}h${m}m`;
   };
 
-  const durationUnit =
-    stats && stats.totalMinutes >= 60
-      ? "小时"
-      : "分钟";
+  const durationUnit = stats && stats.totalMinutes >= 60 ? "小时" : "分钟";
 
   // Aggregate radar
   const radarSourceList = records.map((r) => r.radarScores);
@@ -468,14 +432,18 @@ export function RecordsView() {
       {/* Radar + Dimension breakdown */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border/60 bg-card p-6 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-foreground">综合能力分布</h3>
+          <h3 className="mb-4 text-sm font-semibold text-foreground">
+            综合能力分布
+          </h3>
           <div className="flex items-center justify-center">
             <FullRadarChart scores={avgRadar} />
           </div>
         </div>
 
         <div className="rounded-xl border border-border/60 bg-card p-6 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-foreground">各维度均值</h3>
+          <h3 className="mb-4 text-sm font-semibold text-foreground">
+            各维度均值
+          </h3>
           <div className="space-y-4 pt-2">
             {RADAR_DIMENSIONS.map((d) => (
               <DimensionRow
@@ -549,13 +517,17 @@ export function RecordsView() {
                       <span
                         className={cn(
                           "inline-flex items-center gap-1.5 text-xs font-medium",
-                          isCompleted ? "text-emerald-600" : "text-muted-foreground",
+                          isCompleted
+                            ? "text-emerald-600"
+                            : "text-muted-foreground",
                         )}
                       >
                         <span
                           className={cn(
                             "h-1.5 w-1.5 rounded-full",
-                            isCompleted ? "bg-emerald-500" : "bg-muted-foreground/50",
+                            isCompleted
+                              ? "bg-emerald-500"
+                              : "bg-muted-foreground/50",
                           )}
                         />
                         {isCompleted ? "已完成" : "未完成"}
