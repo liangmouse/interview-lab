@@ -1,5 +1,6 @@
 "use server";
 
+import { upsertResumeRecord } from "@interviewclaw/data-access";
 import { createClient } from "@/lib/supabase/server";
 import { userProfileService } from "@/lib/user-profile-service";
 import { logResumeStage } from "@/lib/resume-parsing-logger";
@@ -54,6 +55,17 @@ export async function uploadResume(
         error: uploadedResume.error || "简历上传失败",
       };
     }
+
+    await upsertResumeRecord(
+      {
+        userId: user.id,
+        storagePath: uploadedResume.storagePath,
+        fileUrl: uploadedResume.resumeUrl || "",
+        fileName: file.name,
+        processingStatus: "uploaded",
+      },
+      supabase,
+    );
 
     const { data, error } = await supabase
       .from("user_profiles")

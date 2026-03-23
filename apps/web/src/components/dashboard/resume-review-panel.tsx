@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ResumeReviewJob } from "@interviewclaw/domain";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { FileText, Sparkles } from "lucide-react";
@@ -24,11 +25,13 @@ import {
   getResumeLibrary,
   type ResumeLibraryItem,
 } from "@/action/get-resume-library";
-import { mockResumeReviewResult } from "@/lib/resume-review-mock";
+import {
+  createResumeReviewJob,
+  getResumeReviewJob,
+  listResumeReviewJobs,
+} from "@/lib/llm-jobs-client";
 import { ResumeReviewResults } from "./resume-review-results";
 import type { ResumeReviewResult } from "@/types/resume-review";
-
-const REVIEW_DURATION = 2000;
 
 export function ResumeReviewPanel() {
   const t = useTranslations("dashboard.resumeReview");
@@ -37,13 +40,79 @@ export function ResumeReviewPanel() {
   const [selectedResumePath, setSelectedResumePath] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [isReviewing, setIsReviewing] = useState(false);
+  const [activeJob, setActiveJob] = useState<ResumeReviewJob | null>(null);
+  const [jobError, setJobError] = useState("");
   const [reviewResult, setReviewResult] = useState<ResumeReviewResult | null>(
     null,
   );
+  const [pollCount, setPollCount] = useState(0);
+  const [jobStartedAt, setJobStartedAt] = useState<number | null>(null);
 
   useEffect(() => {
-    getResumeLibrary().then(setResumes);
+    void getResumeLibrary().then(setResumes);
+    void listResumeReviewJobs()
+      .then((jobs) => {
+        console.info("[resume-review] initial jobs loaded", {
+          jobCount: jobs.length,
+        });
+        const latestSucceeded = jobs.find((job) => job.status === "succeeded");
+        if (latestSucceeded?.result) {
+          setReviewResult(latestSucceeded.result);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load resume review jobs:", error);
+      });
   }, []);
+
+  useEffect(() => {
+    if (
+      !activeJob ||
+      activeJob.status === "succeeded" ||
+      activeJob.status === "failed"
+    ) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void getResumeReviewJob(activeJob.id)
+        .then((job) => {
+          const waitSeconds = jobStartedAt
+            ? Math.round((Date.now() - jobStartedAt) / 1000)
+            : null;
+          setPollCount((prev) => {
+            const next = prev + 1;
+            console.info("[resume-review] poll result", {
+              jobId: activeJob.id,
+              pollCount: next,
+              status: job.status,
+              waitSeconds,
+              attemptCount: job.attemptCount,
+              startedAt: job.startedAt,
+              completedAt: job.completedAt,
+            });
+            return next;
+          });
+          setActiveJob(job);
+          if (job.status === "succeeded" && job.result) {
+            setReviewResult(job.result);
+            setIsReviewing(false);
+            setJobError("");
+          }
+          if (job.status === "failed") {
+            setIsReviewing(false);
+            setJobError(job.errorMessage || "简历点评生成失败，请稍后重试");
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to poll resume review job:", error);
+        });
+    }, 3000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [activeJob, jobStartedAt]);
 
   const hasResumes = resumes.length > 0;
 
@@ -52,23 +121,35 @@ export function ResumeReviewPanel() {
 
     setIsReviewing(true);
     setReviewResult(null);
-
-    await new Promise((resolve) => {
-      window.setTimeout(resolve, REVIEW_DURATION);
+    setJobError("");
+    setPollCount(0);
+    setJobStartedAt(Date.now());
+    console.info("[resume-review] create job start", {
+      resumeStoragePath: selectedResumePath,
+      hasJobDescription: !!jobDescription.trim(),
     });
 
-    const selectedResume = resumes.find(
-      (r) => r.filePath === selectedResumePath,
-    );
-    setReviewResult({
-      ...mockResumeReviewResult,
-      resumeName:
-        selectedResume?.defaultName ?? mockResumeReviewResult.resumeName,
-      jdMatchAnalysis: jobDescription.trim()
-        ? mockResumeReviewResult.jdMatchAnalysis
-        : undefined,
-    });
-    setIsReviewing(false);
+    try {
+      const job = await createResumeReviewJob({
+        resumeStoragePath: selectedResumePath,
+        ...(jobDescription.trim()
+          ? { jobDescription: jobDescription.trim() }
+          : {}),
+      });
+      console.info("[resume-review] create job success", {
+        jobId: job.id,
+        status: job.status,
+        createdAt: job.createdAt,
+      });
+      setActiveJob(job);
+    } catch (error) {
+      console.error("Failed to create resume review job:", error);
+      setIsReviewing(false);
+      setJobStartedAt(null);
+      setJobError(
+        error instanceof Error ? error.message : "简历点评任务创建失败",
+      );
+    }
   };
 
   return (
@@ -145,13 +226,21 @@ export function ResumeReviewPanel() {
             <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
               <div className="flex items-center gap-2 text-sm text-primary">
                 <Sparkles className="h-4 w-4 animate-pulse" />
-                {t("form.reviewingHint")}
+                {activeJob?.status === "running"
+                  ? "正在分析简历并生成点评，请稍候..."
+                  : "任务已提交，正在加紧处理，您可以稍后回来查看结果..."}
               </div>
               <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-primary/10">
                 <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
               </div>
             </div>
           )}
+
+          {jobError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {jobError}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

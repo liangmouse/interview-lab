@@ -1,5 +1,6 @@
 "use server";
 
+import { deleteResumeRecordByStoragePath } from "@interviewclaw/data-access";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -62,6 +63,8 @@ export async function deleteResume(
         }
       }
     }
+
+    await deleteResumeRecordByStoragePath(user.id, filePath);
 
     return { success: true };
   } catch (error) {

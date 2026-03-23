@@ -1,5 +1,6 @@
 import { extractText } from "unpdf";
 import { z } from "zod";
+import { upsertResumeRecord } from "@interviewclaw/data-access";
 import { createLangChainChatModelForUseCase } from "@interviewclaw/ai-runtime";
 import { createClient } from "@/lib/supabase/server";
 import { userProfileService } from "@/lib/user-profile-service";
@@ -235,6 +236,22 @@ export async function processResumeFromStorage(
 }> {
   try {
     const supabase = await createClient();
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("resumes").getPublicUrl(storagePath);
+    const fileName = storagePath.split("/").pop() || "resume.pdf";
+
+    await upsertResumeRecord(
+      {
+        userId,
+        storagePath,
+        fileUrl: publicUrl,
+        fileName,
+        processingStatus: "processing",
+      },
+      supabase,
+    );
+
     const { data: fileData, error: downloadError } = await supabase.storage
       .from("resumes")
       .download(storagePath);
@@ -253,6 +270,16 @@ export async function processResumeFromStorage(
     });
 
     if (!parseResult.success) {
+      await upsertResumeRecord(
+        {
+          userId,
+          storagePath,
+          fileUrl: publicUrl,
+          fileName,
+          processingStatus: "failed",
+        },
+        supabase,
+      );
       return {
         success: false,
         error: parseResult.error,
@@ -266,18 +293,40 @@ export async function processResumeFromStorage(
     });
 
     if (!analyzeResult.success || !analyzeResult.data) {
+      await upsertResumeRecord(
+        {
+          userId,
+          storagePath,
+          fileUrl: publicUrl,
+          fileName,
+          parsedText: parseResult.text,
+          processingStatus: "failed",
+        },
+        supabase,
+      );
       return {
         success: false,
         error: analyzeResult.success ? "AI 分析失败" : analyzeResult.error,
       };
     }
 
-    const resumeUrl = supabase.storage.from("resumes").getPublicUrl(storagePath)
-      .data.publicUrl;
+    await upsertResumeRecord(
+      {
+        userId,
+        storagePath,
+        fileUrl: publicUrl,
+        fileName,
+        parsedText: parseResult.text,
+        parsedJson: analyzeResult.data as Record<string, unknown>,
+        processingStatus: "completed",
+        lastProcessedAt: new Date().toISOString(),
+      },
+      supabase,
+    );
 
     const profileResult = await userProfileService.processResumeAndVectorize({
       userId,
-      resumeUrl,
+      resumeUrl: publicUrl,
       analyzeData: analyzeResult.data,
     });
 
