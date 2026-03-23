@@ -191,6 +191,7 @@ describe("langchain-factories", () => {
 
       createLangChainChatModel({
         tracing: {
+          traceName: "chat-api",
           userId: "user-1",
           sessionId: "session-1",
           tags: ["chat-api"],
@@ -200,6 +201,7 @@ describe("langchain-factories", () => {
 
       expect(MockLangfuseCallbackHandler).toHaveBeenCalledWith(
         expect.objectContaining({
+          traceName: "chat-api",
           userId: "user-1",
           sessionId: "session-1",
           version: "release-123",

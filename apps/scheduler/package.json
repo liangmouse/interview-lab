@@ -9,6 +9,7 @@
   "dependencies": {
     "@interviewclaw/agent-core": "workspace:*",
     "@interviewclaw/domain": "workspace:*",
+    "@interviewclaw/llm-apps": "workspace:*",
     "@interviewclaw/workflows": "workspace:*"
   }
 }

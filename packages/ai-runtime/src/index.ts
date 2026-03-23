@@ -9,4 +9,5 @@ export * from "./runtime/model-policy";
 export * from "./runtime/openai-compatible-config";
 export * from "./runtime/langchain-factories";
 export * from "./runtime/langfuse";
+export * from "./runtime/langfuse-otel";
 export * from "./runtime/providers/openai";

@@ -30,9 +30,28 @@ export function isLangfuseEnabled(
   );
 }
 
+export function resolveLangfuseBaseUrl(
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  return (
+    normalizeString(env.LANGFUSE_BASE_URL) ?? normalizeString(env.LANGFUSE_HOST)
+  );
+}
+
+export function applyLegacyLangfuseEnvAliases(
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  const baseUrl = resolveLangfuseBaseUrl(env);
+  if (baseUrl && !normalizeString(env.LANGFUSE_BASE_URL)) {
+    env.LANGFUSE_BASE_URL = baseUrl;
+  }
+}
+
 export function createLangfuseLangChainCallbacks(
   context?: LangfuseTracingContext,
 ): Callbacks | undefined {
+  applyLegacyLangfuseEnvAliases();
+
   if (!isLangfuseEnabled()) {
     return undefined;
   }
@@ -44,6 +63,7 @@ export function createLangfuseLangChainCallbacks(
     new CallbackHandler({
       ...(context?.userId ? { userId: context.userId } : {}),
       ...(context?.sessionId ? { sessionId: context.sessionId } : {}),
+      ...(context?.traceName ? { traceName: context.traceName } : {}),
       ...(tags ? { tags } : {}),
       ...(context?.metadata ? { traceMetadata: context.metadata } : {}),
       ...(version ? { version } : {}),
@@ -55,6 +75,8 @@ export function observeOpenAIClient<SDKType extends object>(
   client: SDKType,
   context?: LangfuseTracingContext,
 ): SDKType {
+  applyLegacyLangfuseEnvAliases();
+
   if (!isLangfuseEnabled()) {
     return client;
   }
@@ -112,6 +134,12 @@ function resolveLangfuseVersion(
     normalizeString(env.VERCEL_GIT_COMMIT_SHA) ||
     normalizeString(env.GIT_COMMIT_SHA)
   );
+}
+
+export function getLangfuseRelease(
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  return resolveLangfuseVersion(env);
 }
 
 function normalizeTags(tags?: string[]) {

@@ -21,6 +21,10 @@
       "@interviewclaw/channel-sdk": ["packages/channel-sdk/src/index.ts"],
       "@interviewclaw/agent-core": ["packages/agent-core/src/index.ts"],
       "@interviewclaw/ai-runtime": ["packages/ai-runtime/src/index.ts"],
+      "@interviewclaw/ai-runtime/telemetry": [
+        "packages/ai-runtime/src/telemetry.ts"
+      ],
+      "@interviewclaw/llm-apps": ["packages/llm-apps/src/index.ts"],
       "@interviewclaw/workflows": ["packages/workflows/src/index.ts"]
     }
   }

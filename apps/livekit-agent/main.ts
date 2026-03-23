@@ -1,6 +1,10 @@
 import { type JobProcess, defineAgent } from "@livekit/agents";
 import * as dotenv from "dotenv";
 import * as silero from "@livekit/agents-plugin-silero";
+import {
+  initializeLangfuseTelemetry,
+  registerLangfuseProcessShutdown,
+} from "@interviewclaw/ai-runtime";
 import { initAgentsLogger } from "./src/bootstrap/logger";
 import { agentEntry } from "./src/runtime/entry";
 
@@ -16,6 +20,17 @@ process.on("uncaughtException", (error) => {
 // Load environment variables
 dotenv.config({ path: ".env.local" });
 dotenv.config();
+
+void initializeLangfuseTelemetry({
+  serviceName: "interviewclaw-livekit-agent",
+  exportMode: "batched",
+})
+  .then(() => {
+    registerLangfuseProcessShutdown();
+  })
+  .catch((error) => {
+    console.error("❌ Failed to initialize Langfuse telemetry:", error);
+  });
 
 // LiveKit Agents logger must be initialized before using plugins
 initAgentsLogger();

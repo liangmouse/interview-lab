@@ -28,7 +28,9 @@ function spawnService(name, args) {
     const resolvedCode = typeof code === "number" ? code : 1;
     const reason = signal ? `signal ${signal}` : `code ${resolvedCode}`;
     if (name === "web") {
-      console.error(`[dev] ${name} exited with ${reason}, stopping all services`);
+      console.error(
+        `[dev] ${name} exited with ${reason}, stopping all services`,
+      );
       shutdown(resolvedCode);
       return;
     }
@@ -74,8 +76,13 @@ process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
 spawnService("web", ["run", "dev:web"]);
+spawnService("scheduler", ["run", "dev:scheduler"]);
 
-const requiredAgentEnv = ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "LIVEKIT_URL"];
+const requiredAgentEnv = [
+  "LIVEKIT_API_KEY",
+  "LIVEKIT_API_SECRET",
+  "LIVEKIT_URL",
+];
 const missingAgentEnv = requiredAgentEnv.filter((key) => !process.env[key]);
 
 if (missingAgentEnv.length === 0) {
@@ -84,5 +91,7 @@ if (missingAgentEnv.length === 0) {
   console.warn(
     `[dev] Skip agent startup because missing env: ${missingAgentEnv.join(", ")}`,
   );
-  console.warn("[dev] Interview realtime mode will be unavailable in this session");
+  console.warn(
+    "[dev] Interview realtime mode will be unavailable in this session",
+  );
 }

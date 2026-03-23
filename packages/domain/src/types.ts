@@ -230,3 +230,133 @@ export type EvaluationTrace = {
   finalComment: string;
   confidence: number;
 };
+
+export type LlmJobStatus = "queued" | "running" | "succeeded" | "failed";
+
+export type ResumeRecordStatus =
+  | "uploaded"
+  | "processing"
+  | "completed"
+  | "failed";
+
+export type ResumeRecord = {
+  id: string;
+  userId: string;
+  storagePath: string;
+  fileName: string;
+  fileUrl: string;
+  parsedText?: string;
+  parsedJson?: Record<string, unknown>;
+  processingStatus: ResumeRecordStatus;
+  uploadedAt: string;
+  lastProcessedAt?: string;
+};
+
+export type ResumeReviewSuggestion = {
+  original: string;
+  improved: string;
+  reason: string;
+};
+
+export type ResumeReviewSection = {
+  sectionName: string;
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: ResumeReviewSuggestion[];
+};
+
+export type ATSCompatibility = {
+  score: number;
+  issues: string[];
+  recommendations: string[];
+};
+
+export type JDMatchAnalysis = {
+  matchScore: number;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  recommendations: string[];
+};
+
+export type ResumeReviewResult = {
+  id: string;
+  overallScore: number;
+  overallAssessment: string;
+  sections: ResumeReviewSection[];
+  atsCompatibility: ATSCompatibility;
+  jdMatchAnalysis?: JDMatchAnalysis;
+  createdAt: string;
+  resumeName: string;
+};
+
+export type QuestioningQuestion = {
+  questionId: string;
+  questionText: string;
+  questionType: QuestionType;
+  topics: string[];
+  expectedSignals: string[];
+  reason: string;
+  preparationAdvice: string;
+};
+
+export type QuestioningTrack = "social" | "campus";
+
+export type QuestioningReport = {
+  id: string;
+  title: string;
+  targetRole: string;
+  track: QuestioningTrack;
+  createdAt: string;
+  highlights: string[];
+  summary: string;
+  questions: QuestioningQuestion[];
+};
+
+export type ResumeReviewJobPayload = {
+  resumeStoragePath: string;
+  jobDescription?: string;
+};
+
+export type QuestioningJobPayload = {
+  resumeStoragePath: string;
+  targetRole: string;
+  track: QuestioningTrack;
+  workExperience?: string;
+  targetCompany?: string;
+  jobDescription?: string;
+};
+
+export type ResumeReviewJob = {
+  id: string;
+  userId: string;
+  status: LlmJobStatus;
+  payload: ResumeReviewJobPayload;
+  result?: ResumeReviewResult;
+  errorMessage?: string;
+  providerId?: string;
+  model?: string;
+  attemptCount: number;
+  availableAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type QuestioningJob = {
+  id: string;
+  userId: string;
+  status: LlmJobStatus;
+  payload: QuestioningJobPayload;
+  result?: QuestioningReport;
+  errorMessage?: string;
+  providerId?: string;
+  model?: string;
+  attemptCount: number;
+  availableAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};

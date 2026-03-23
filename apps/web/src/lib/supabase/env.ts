@@ -54,7 +54,9 @@ export function getSupabaseAdminEnv(env?: SupabaseEnvInput) {
     url: env
       ? env.NEXT_PUBLIC_SUPABASE_URL
       : process.env.NEXT_PUBLIC_SUPABASE_URL,
-    key: env?.SUPABASE_SERVICE_ROLE_KEY || getPublicSupabaseKey(env),
+    key: env
+      ? env.SUPABASE_SERVICE_ROLE_KEY || getPublicSupabaseKey(env)
+      : process.env.SUPABASE_SERVICE_ROLE_KEY || getPublicSupabaseKey(),
   };
 }
 
