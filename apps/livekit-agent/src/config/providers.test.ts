@@ -1,15 +1,59 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const llmConstructor = vi.fn();
-const createOpenRouterClient = vi.fn(() => ({ kind: "sdk-openai-client" }));
+const createOpenAIProviderClient = vi.fn(() => ({ kind: "sdk-openai-client" }));
 const resolveModelRoute = vi.fn();
+const resolveAiModelRoute = vi.fn(
+  ({ useCase, userTier }: { useCase: string; userTier?: string }) => {
+    if (useCase === "interview-summary") {
+      return {
+        useCase,
+        userTier: userTier ?? "premium",
+        providerId: "openrouter",
+        model: "openai/gpt-5.4-mini",
+        fallbackModels: ["gpt-5.4-mini"],
+        temperature: 0.3,
+      };
+    }
+
+    if (process.env.OPEN_ROUTER_API_KEY?.trim()) {
+      return {
+        useCase,
+        userTier: userTier ?? "premium",
+        providerId: "openrouter",
+        model: "openai/gpt-5.4",
+        fallbackModels: ["gpt-5.4"],
+        temperature: 0.7,
+      };
+    }
+
+    return {
+      useCase,
+      userTier: userTier ?? "premium",
+      providerId: "gemini",
+      model: process.env.GEMINI_MODEL?.trim() || "gemini-3-flash-preview",
+      fallbackModels: [],
+      temperature: 0.7,
+    };
+  },
+);
 const buildProviderRegistry = vi.fn();
 const createAuthProfileStore = vi.fn(() => ({ kind: "profile-store" }));
 const createOpenAICodexAuthProvider = vi.fn(() => ({ kind: "codex-auth" }));
+const createOpenAIProvider = vi.fn((input: any) => ({
+  kind: "runtime-provider",
+  input,
+  createOpenAIClient: createOpenAIProviderClient,
+}));
+const observeOpenAIClient = vi.fn((client: any, tracing: any) => ({
+  ...client,
+  observed: true,
+  tracing,
+}));
 const createOpenRouterRegistryEntry = vi.fn(() => ({
   providerId: "openrouter",
   load: vi.fn(() => ({
-    createOpenAIClient: createOpenRouterClient,
+    createOpenAIClient: vi.fn(() => ({ kind: "sdk-openai-client" })),
   })),
 }));
 const createOpenAIRegistryEntry = vi.fn(() => ({ providerId: "openai" }));
@@ -36,6 +80,48 @@ const createUserScopedSupabaseAuthProfileStore = vi.fn(() => ({
   kind: "user-scoped-profile-store",
 }));
 const getSupabaseAdminClient = vi.fn(() => ({ kind: "supabase-admin" }));
+const resolveOpenAICompatibleProviderConfig = vi.fn(
+  ({
+    providerId,
+    defaultModel,
+  }: {
+    providerId: string;
+    defaultModel: string;
+  }) => {
+    if (providerId === "openrouter") {
+      return {
+        providerId: "openrouter",
+        apiKey: process.env.OPEN_ROUTER_API_KEY?.trim() ?? "",
+        baseURL:
+          process.env.OPEN_ROUTER_BASE_URL?.trim() ??
+          "https://openrouter.ai/api/v1",
+        model: defaultModel,
+        headers:
+          process.env.OPEN_ROUTER_HTTP_REFERER?.trim() ||
+          process.env.OPEN_ROUTER_TITLE?.trim()
+            ? {
+                ...(process.env.OPEN_ROUTER_HTTP_REFERER?.trim()
+                  ? {
+                      "HTTP-Referer":
+                        process.env.OPEN_ROUTER_HTTP_REFERER.trim(),
+                    }
+                  : {}),
+                ...(process.env.OPEN_ROUTER_TITLE?.trim()
+                  ? { "X-Title": process.env.OPEN_ROUTER_TITLE.trim() }
+                  : {}),
+              }
+            : undefined,
+      };
+    }
+
+    return {
+      providerId: "gemini",
+      apiKey: process.env.GEMINI_API_KEY?.trim() ?? "",
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+      model: defaultModel,
+    };
+  },
+);
 
 vi.mock("@livekit/agents-plugin-deepgram", () => ({
   STT: vi.fn(() => ({ kind: "deepgram-stt" })),
@@ -56,43 +142,26 @@ vi.mock("@interviewclaw/ai-runtime", () => {
     resolveModelRoute,
     createAuthProfileStore,
     createOpenAICodexAuthProvider,
+    createOpenAIProvider,
     createOpenRouterRegistryEntry,
     createOpenAIRegistryEntry,
     createOpenAICodexRegistryEntry,
-    resolveOpenAICompatibleConfig: vi.fn(() =>
-      process.env.OPEN_ROUTER_API_KEY?.trim()
-        ? {
-            providerId: "openrouter",
-            apiKey: process.env.OPEN_ROUTER_API_KEY.trim(),
-            baseURL: "https://openrouter.ai/api/v1",
-            model:
-              process.env.OPEN_ROUTER_MODEL?.trim() ||
-              "google/gemini-2.5-flash",
-            headers:
-              process.env.OPEN_ROUTER_HTTP_REFERER?.trim() ||
-              process.env.OPEN_ROUTER_TITLE?.trim()
-                ? {
-                    ...(process.env.OPEN_ROUTER_HTTP_REFERER?.trim()
-                      ? {
-                          "HTTP-Referer":
-                            process.env.OPEN_ROUTER_HTTP_REFERER.trim(),
-                        }
-                      : {}),
-                    ...(process.env.OPEN_ROUTER_TITLE?.trim()
-                      ? {
-                          "X-Title": process.env.OPEN_ROUTER_TITLE.trim(),
-                        }
-                      : {}),
-                  }
-                : undefined,
-          }
-        : {
-            providerId: "gemini",
-            apiKey: process.env.GEMINI_API_KEY?.trim() ?? "",
-            baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
-            model: process.env.GEMINI_MODEL?.trim() || "gemini-3-flash-preview",
+    observeOpenAIClient,
+    resolveAiModelRoute,
+    mergeLangfuseTracingContext: (...contexts: any[]) =>
+      contexts.filter(Boolean).reduce(
+        (acc: any, current: any) => ({
+          ...acc,
+          ...current,
+          metadata: {
+            ...(acc?.metadata ?? {}),
+            ...(current?.metadata ?? {}),
           },
-    ),
+          tags: [...(acc?.tags ?? []), ...(current?.tags ?? [])],
+        }),
+        undefined,
+      ),
+    resolveOpenAICompatibleProviderConfig,
   };
 });
 
@@ -120,9 +189,11 @@ describe("config/providers.createConfiguredLLM", () => {
     delete process.env.OPEN_ROUTER_MODEL;
     delete process.env.OPEN_ROUTER_HTTP_REFERER;
     delete process.env.OPEN_ROUTER_TITLE;
+    delete process.env.LANGFUSE_PUBLIC_KEY;
+    delete process.env.LANGFUSE_SECRET_KEY;
   });
 
-  it("uses OpenRouter by default when OPEN_ROUTER_API_KEY is set", async () => {
+  it("uses the policy-selected OpenRouter model by default", async () => {
     process.env.OPEN_ROUTER_API_KEY = "or-key";
 
     const providers = await import("./providers");
@@ -131,16 +202,27 @@ describe("config/providers.createConfiguredLLM", () => {
 
     expect(llm).toMatchObject({ kind: "openai-llm" });
     expect(buildProviderRegistry).not.toHaveBeenCalled();
+    expect(createOpenAIProvider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "openrouter",
+        apiKey: "or-key",
+        baseURL: "https://openrouter.ai/api/v1",
+      }),
+    );
     expect(llmConstructor).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: "or-key",
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5.4",
         baseURL: "https://openrouter.ai/api/v1",
+        client: expect.objectContaining({
+          kind: "sdk-openai-client",
+          observed: true,
+        }),
       }),
     );
   });
 
-  it("forwards OpenRouter headers through a custom OpenAI client", async () => {
+  it("forwards OpenRouter headers through the observed OpenAI client", async () => {
     process.env.OPEN_ROUTER_API_KEY = "or-key";
     process.env.OPEN_ROUTER_HTTP_REFERER = "https://example.com";
     process.env.OPEN_ROUTER_TITLE = "InterviewClaw";
@@ -149,15 +231,26 @@ describe("config/providers.createConfiguredLLM", () => {
 
     await providers.createConfiguredLLM();
 
-    expect(createOpenRouterRegistryEntry).toHaveBeenCalledTimes(1);
-    expect(createOpenRouterClient).toHaveBeenCalledWith("or-key");
-    expect(createOpenRouterRegistryEntry.mock.results[0]?.value.load).toHaveBeenCalledWith(
+    expect(createOpenAIProvider).toHaveBeenCalledWith(
       expect.objectContaining({
-        env: expect.objectContaining({
-          OPEN_ROUTER_API_KEY: "or-key",
-          OPEN_ROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-          OPEN_ROUTER_HTTP_REFERER: "https://example.com",
-          OPEN_ROUTER_TITLE: "InterviewClaw",
+        id: "openrouter",
+        apiKey: "or-key",
+        baseURL: "https://openrouter.ai/api/v1",
+        headers: {
+          "HTTP-Referer": "https://example.com",
+          "X-Title": "InterviewClaw",
+        },
+      }),
+    );
+    expect(createOpenAIProviderClient).toHaveBeenCalledWith("or-key");
+    expect(observeOpenAIClient).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "sdk-openai-client" }),
+      expect.objectContaining({
+        traceName: "livekit-agent-llm",
+        tags: expect.arrayContaining(["livekit-agent", "openrouter"]),
+        metadata: expect.objectContaining({
+          providerId: "openrouter",
+          model: "openai/gpt-5.4",
         }),
       }),
     );
@@ -173,11 +266,46 @@ describe("config/providers.createConfiguredLLM", () => {
 
     await providers.createConfiguredLLM();
 
+    expect(createOpenAIProvider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "gemini",
+        apiKey: "gemini-key",
+        baseURL: providers.GEMINI_BASE_URL,
+      }),
+    );
     expect(llmConstructor).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: "gemini-key",
         model: providers.DEFAULT_GEMINI_MODEL,
         baseURL: providers.GEMINI_BASE_URL,
+        temperature: 0.7,
+        client: expect.objectContaining({
+          kind: "sdk-openai-client",
+          observed: true,
+        }),
+      }),
+    );
+  });
+
+  it("uses the interview-summary policy when requested", async () => {
+    process.env.OPEN_ROUTER_API_KEY = "or-key";
+
+    const providers = await import("./providers");
+
+    await providers.createConfiguredLLM(
+      "user-1",
+      { traceName: "summary" },
+      { useCase: "interview-summary" },
+    );
+
+    expect(resolveAiModelRoute).toHaveBeenCalledWith({
+      useCase: "interview-summary",
+      userTier: undefined,
+    });
+    expect(llmConstructor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "openai/gpt-5.4-mini",
+        temperature: 0.3,
       }),
     );
   });
@@ -219,6 +347,22 @@ describe("config/providers.createConfiguredLLM", () => {
         model: "gpt-5.4",
         apiKey: "openai-codex-runtime-token",
         baseURL: "https://chatgpt.com/backend-api/codex",
+        client: expect.objectContaining({
+          kind: "openai-client",
+          observed: true,
+        }),
+      }),
+    );
+    expect(observeOpenAIClient).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "openai-client" }),
+      expect.objectContaining({
+        userId: "user-1",
+        traceName: "livekit-agent-routed-llm",
+        tags: expect.arrayContaining(["livekit-agent", "openai-codex"]),
+        metadata: expect.objectContaining({
+          providerId: "openai-codex",
+          model: "gpt-5.4",
+        }),
       }),
     );
   });
@@ -249,6 +393,10 @@ describe("config/providers.createConfiguredLLM", () => {
         model: "google/gemini-2.5-flash",
         apiKey: "openai-codex-runtime-token",
         baseURL: "https://openrouter.ai/api/v1",
+        client: expect.objectContaining({
+          kind: "openai-client",
+          observed: true,
+        }),
       }),
     );
   });

@@ -55,7 +55,20 @@ describe("runtime/fsm/summarizer", () => {
       "user-1",
     );
 
-    expect(createConfiguredLLM).toHaveBeenCalledWith("user-1");
+    expect(createConfiguredLLM).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        traceName: "interview-stage-summarizer",
+        tags: ["livekit-agent", "stage-summarizer", "introduction"],
+        metadata: {
+          stage: "introduction",
+          messageCount: 1,
+        },
+      }),
+      {
+        useCase: "interview-summary",
+      },
+    );
     expect(summary).toBe("summary");
   });
 });

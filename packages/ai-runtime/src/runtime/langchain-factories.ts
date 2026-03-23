@@ -3,12 +3,18 @@ import {
   resolveDefaultEmbeddingModel,
   resolveOpenAICompatibleConfig,
 } from "./openai-compatible-config";
+import {
+  createLangfuseLangChainCallbacks,
+  mergeLangfuseTracingContext,
+  type LangfuseTracingContext,
+} from "./langfuse";
 
 export interface CreateLangChainChatModelOptions {
   /** Override the default model resolved from env */
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  tracing?: LangfuseTracingContext;
 }
 
 /**
@@ -19,14 +25,28 @@ export function createLangChainChatModel(
   options?: CreateLangChainChatModelOptions,
 ) {
   const config = resolveOpenAICompatibleConfig();
+  const modelName = options?.model ?? config.model;
+  const callbacks = createLangfuseLangChainCallbacks(
+    mergeLangfuseTracingContext(
+      {
+        tags: ["langchain", config.providerId],
+        metadata: {
+          providerId: config.providerId,
+          model: modelName,
+        },
+      },
+      options?.tracing,
+    ),
+  );
 
   return new ChatOpenAI({
-    model: options?.model ?? config.model,
+    model: modelName,
     temperature: options?.temperature ?? 0.7,
     ...(options?.maxTokens !== undefined
       ? { maxTokens: options.maxTokens }
       : {}),
     apiKey: config.apiKey,
+    ...(callbacks ? { callbacks } : {}),
     ...(config.baseURL || config.headers
       ? {
           configuration: {

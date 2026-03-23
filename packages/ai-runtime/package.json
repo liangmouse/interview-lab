@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@langchain/openai": "^1.1.3",
+    "@langfuse/langchain": "^5.0.1",
+    "@langfuse/openai": "^5.0.1",
     "@mariozechner/pi-ai": "^0.57.1",
     "openai": "^6.10.0"
   }

@@ -2,13 +2,17 @@ import * as deepgram from "@livekit/agents-plugin-deepgram";
 import * as openai from "@livekit/agents-plugin-openai";
 import {
   type AuthProfileStore,
+  type LangfuseTracingContext,
   type OpenAICompatibleConfig,
   buildProviderRegistry,
   createAuthProfileStore,
+  createOpenAIProvider,
   createOpenAICodexRegistryEntry,
   createOpenAICodexAuthProvider,
   createOpenAIRegistryEntry,
   createOpenRouterRegistryEntry,
+  mergeLangfuseTracingContext,
+  observeOpenAIClient,
   resolveModelRoute,
   resolveOpenAICompatibleConfig,
 } from "@interviewclaw/ai-runtime";
@@ -126,9 +130,9 @@ export function createDeepgramSTT(keyterm: string[], language?: string) {
   return sttInstance;
 }
 
-export function createDefaultLLM() {
+export function createDefaultLLM(tracing?: LangfuseTracingContext) {
   const config = resolveOpenAICompatibleConfig();
-  const client = createDefaultLlmClient(config);
+  const client = createDefaultLlmClient(config, tracing);
   return new openai.LLM({
     apiKey: config.apiKey,
     model: config.model,
@@ -138,25 +142,31 @@ export function createDefaultLLM() {
   });
 }
 
-function createDefaultLlmClient(config: OpenAICompatibleConfig) {
-  if (config.providerId !== "openrouter" || !config.headers) {
-    return undefined;
-  }
-
-  const provider = createOpenRouterRegistryEntry().load({
-    env: {
-      OPEN_ROUTER_API_KEY: config.apiKey,
-      OPEN_ROUTER_BASE_URL: config.baseURL,
-      OPEN_ROUTER_HTTP_REFERER: config.headers["HTTP-Referer"],
-      OPEN_ROUTER_TITLE: config.headers["X-Title"],
-    },
+function createDefaultLlmClient(
+  config: OpenAICompatibleConfig,
+  tracing?: LangfuseTracingContext,
+) {
+  const provider = createOpenAIProvider({
+    id: config.providerId,
+    apiKey: config.apiKey,
+    ...(config.baseURL ? { baseURL: config.baseURL } : {}),
+    ...(config.headers ? { headers: config.headers } : {}),
   });
 
-  if (!provider || provider instanceof Promise) {
-    return undefined;
-  }
-
-  return provider.createOpenAIClient(config.apiKey) as any;
+  return observeOpenAIClient(
+    provider.createOpenAIClient(config.apiKey) as any,
+    mergeLangfuseTracingContext(
+      {
+        traceName: "livekit-agent-llm",
+        tags: ["livekit-agent", config.providerId],
+        metadata: {
+          providerId: config.providerId,
+          model: config.model,
+        },
+      },
+      tracing,
+    ),
+  ) as any;
 }
 
 function getAgentLlmModel(): string | null {
@@ -190,10 +200,14 @@ function getAgentRuntimeProviderConfigs(): AgentRuntimeProviderConfig[] {
   ];
 }
 
-export async function createConfiguredLLM(userId?: string) {
+export async function createConfiguredLLM(
+  userId?: string,
+  tracing?: LangfuseTracingContext,
+) {
+  const mergedTracing = mergeLangfuseTracingContext({ userId }, tracing);
   const configuredModel = getAgentLlmModel();
   if (!configuredModel) {
-    return createDefaultLLM();
+    return createDefaultLLM(mergedTracing);
   }
 
   const providerId = configuredModel.split("/", 1)[0];
@@ -225,6 +239,20 @@ export async function createConfiguredLLM(userId?: string) {
     ),
   });
   const route = await resolveModelRoute(configuredModel, registry);
+  const observedClient = observeOpenAIClient(
+    route.provider.createOpenAIClient(ROUTED_OPENAI_RUNTIME_TOKEN) as any,
+    mergeLangfuseTracingContext(
+      {
+        traceName: "livekit-agent-routed-llm",
+        tags: ["livekit-agent", providerId],
+        metadata: {
+          providerId,
+          model: route.model,
+        },
+      },
+      mergedTracing,
+    ),
+  );
 
   return new openai.LLM({
     apiKey: ROUTED_OPENAI_RUNTIME_TOKEN,
@@ -233,9 +261,7 @@ export async function createConfiguredLLM(userId?: string) {
     temperature: DEFAULT_GEMINI_TEMPERATURE,
     // The LiveKit OpenAI plugin pins its own OpenAI client version, so we keep
     // the shared runtime client behind a narrow compatibility cast here.
-    client: route.provider.createOpenAIClient(
-      ROUTED_OPENAI_RUNTIME_TOKEN,
-    ) as any,
+    client: observedClient as any,
   });
 }
 

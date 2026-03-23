@@ -222,6 +222,16 @@ export async function POST(request: NextRequest) {
       ...(model ? { model } : {}),
       temperature: 0.7,
       maxTokens: 4000,
+      tracing: {
+        ...(userId ? { userId } : {}),
+        traceName: "web-chat-api",
+        tags: ["web", "chat-api"],
+        metadata: {
+          feature: "chat-api",
+          enablePersonalization,
+          selectedModel: model ?? "default",
+        },
+      },
     });
 
     const lcMessages = toLangChainMessages(coreMessages);

@@ -375,6 +375,12 @@ importers:
       '@langchain/openai':
         specifier: ^1.1.3
         version: 1.1.3(@langchain/core@1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12)))(ws@8.18.3)
+      '@langfuse/langchain':
+        specifier: ^5.0.1
+        version: 5.0.1(@langchain/core@1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12)))(@opentelemetry/api@1.9.0)
+      '@langfuse/openai':
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.0)
       '@mariozechner/pi-ai':
         specifier: ^0.57.1
         version: 0.57.1(ws@8.18.3)(zod@4.1.12)
@@ -1899,6 +1905,26 @@ packages:
     engines: {node: '>=20'}
     peerDependencies:
       '@langchain/core': ^1.0.0
+
+  '@langfuse/core@5.0.1':
+    resolution: {integrity: sha512-DirjtE+RjToRuJeVzy7EC05ebtz+ryEDBjjeRNbcQ5OQ38VaIMqWgt124ZQXfW5Rel9oobGcYDu6V5nkr2TuMg==}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+
+  '@langfuse/langchain@5.0.1':
+    resolution: {integrity: sha512-/G/DOSD4HPtnHahFO1yhXHQLyUEdAp/ihwl1LN4I07rivF02BxALUeUUxd49GDusqkEhtC4UK03apVmrsnEzng==}
+    peerDependencies:
+      '@langchain/core': '>=0.3.8'
+      '@opentelemetry/api': ^1.9.0
+
+  '@langfuse/openai@5.0.1':
+    resolution: {integrity: sha512-t6K5O2EQlmTksrf+nt7Kg99o0a0cRkZE5fGKLLr2HfjYNhmTZDuMQ8sWhIJAmVMRI6OtnkAGM0VqX7HTyOZEaw==}
+
+  '@langfuse/tracing@5.0.1':
+    resolution: {integrity: sha512-1LyOj6ct1piIivqMKMPcMFFWksH6MaUjA/0hY1N5IAquSnx6GQuN7Hhj/XqqZWBMWszcd2vcTRb9i6MIdDY49g==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
 
   '@livekit/agents-plugin-deepgram@1.0.24':
     resolution: {integrity: sha512-9BeWttjtsMuA3dtlPWew2vFnyJbVDRnwiTXJWaGmQKywR/8s7sYeVx6ISy4Bx7dXFH8cB0LU2jVtjVGWibIuzA==}
@@ -8915,6 +8941,29 @@ snapshots:
       '@langchain/core': 1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.26.0(ws@8.18.3)(zod@4.1.12))
       js-tiktoken: 1.0.21
 
+  '@langfuse/core@5.0.1(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+
+  '@langfuse/langchain@5.0.1(@langchain/core@1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12)))(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@langchain/core': 1.0.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.54.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.10.0(ws@8.18.3)(zod@4.1.12))
+      '@langfuse/core': 5.0.1(@opentelemetry/api@1.9.0)
+      '@langfuse/tracing': 5.0.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/api': 1.9.0
+
+  '@langfuse/openai@5.0.1(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@langfuse/core': 5.0.1(@opentelemetry/api@1.9.0)
+      '@langfuse/tracing': 5.0.1(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@langfuse/tracing@5.0.1(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@langfuse/core': 5.0.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/api': 1.9.0
+
   '@livekit/agents-plugin-deepgram@1.0.24(@livekit/agents@1.0.24(@livekit/rtc-node@0.13.22)(zod@4.1.12))(@livekit/rtc-node@0.13.22)':
     dependencies:
       '@livekit/agents': 1.0.24(@livekit/rtc-node@0.13.22)(zod@4.1.12)
@@ -12486,7 +12535,7 @@ snapshots:
       isstream: 0.1.2
       jsonwebtoken: 9.0.2
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.13.2)
+      retry-axios: 2.6.0(axios@1.13.2(debug@4.4.3))
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -14137,7 +14186,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.13.2):
+  retry-axios@2.6.0(axios@1.13.2(debug@4.4.3)):
     dependencies:
       axios: 1.13.2(debug@4.4.3)
 

@@ -1,18 +1,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { MockChatOpenAI, MockOpenAIEmbeddings } = vi.hoisted(() => {
-  const MockChatOpenAI = vi.fn(function (this: unknown, opts: unknown) {
-    return { _type: "ChatOpenAI", opts };
+const { MockChatOpenAI, MockOpenAIEmbeddings, MockLangfuseCallbackHandler } =
+  vi.hoisted(() => {
+    const MockChatOpenAI = vi.fn(function (this: unknown, opts: unknown) {
+      return { _type: "ChatOpenAI", opts };
+    });
+    const MockOpenAIEmbeddings = vi.fn(function (this: unknown, opts: unknown) {
+      return { _type: "OpenAIEmbeddings", opts };
+    });
+    const MockLangfuseCallbackHandler = vi.fn(function (
+      this: unknown,
+      opts: unknown,
+    ) {
+      return { _type: "LangfuseCallbackHandler", opts };
+    });
+    return {
+      MockChatOpenAI,
+      MockOpenAIEmbeddings,
+      MockLangfuseCallbackHandler,
+    };
   });
-  const MockOpenAIEmbeddings = vi.fn(function (this: unknown, opts: unknown) {
-    return { _type: "OpenAIEmbeddings", opts };
-  });
-  return { MockChatOpenAI, MockOpenAIEmbeddings };
-});
 
 vi.mock("@langchain/openai", () => ({
   ChatOpenAI: MockChatOpenAI,
   OpenAIEmbeddings: MockOpenAIEmbeddings,
+}));
+
+vi.mock("@langfuse/langchain", () => ({
+  CallbackHandler: MockLangfuseCallbackHandler,
 }));
 
 import {
@@ -38,6 +53,12 @@ describe("langchain-factories", () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.GEMINI_MODEL;
     delete process.env.GEMINI_EMBEDDING_MODEL;
+    delete process.env.LANGFUSE_PUBLIC_KEY;
+    delete process.env.LANGFUSE_SECRET_KEY;
+    delete process.env.LANGFUSE_ENABLED;
+    delete process.env.LANGFUSE_RELEASE;
+    delete process.env.VERCEL_GIT_COMMIT_SHA;
+    delete process.env.GIT_COMMIT_SHA;
   });
 
   afterEach(() => {
@@ -55,6 +76,12 @@ describe("langchain-factories", () => {
       "GEMINI_API_KEY",
       "GEMINI_MODEL",
       "GEMINI_EMBEDDING_MODEL",
+      "LANGFUSE_PUBLIC_KEY",
+      "LANGFUSE_SECRET_KEY",
+      "LANGFUSE_ENABLED",
+      "LANGFUSE_RELEASE",
+      "VERCEL_GIT_COMMIT_SHA",
+      "GIT_COMMIT_SHA",
     ]) {
       if (savedEnv[key] !== undefined) {
         process.env[key] = savedEnv[key];
@@ -152,6 +179,44 @@ describe("langchain-factories", () => {
         unknown
       >;
       expect(callArg.model).toBe("gpt-4o");
+    });
+
+    it("registers Langfuse callbacks when Langfuse credentials are configured", () => {
+      process.env.OPENAI_API_KEY = "sk-test";
+      process.env.LANGFUSE_PUBLIC_KEY = "pk-lf-test";
+      process.env.LANGFUSE_SECRET_KEY = "sk-lf-test";
+      process.env.LANGFUSE_RELEASE = "release-123";
+
+      createLangChainChatModel({
+        tracing: {
+          userId: "user-1",
+          sessionId: "session-1",
+          tags: ["chat-api"],
+          metadata: { feature: "chat" },
+        },
+      });
+
+      expect(MockLangfuseCallbackHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "user-1",
+          sessionId: "session-1",
+          version: "release-123",
+          tags: expect.arrayContaining(["langchain", "openai", "chat-api"]),
+          traceMetadata: expect.objectContaining({
+            feature: "chat",
+            providerId: "openai",
+            model: "gpt-4o-mini",
+          }),
+        }),
+      );
+
+      const callArg = MockChatOpenAI.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      expect(callArg.callbacks).toEqual([
+        expect.objectContaining({ _type: "LangfuseCallbackHandler" }),
+      ]);
     });
   });
 

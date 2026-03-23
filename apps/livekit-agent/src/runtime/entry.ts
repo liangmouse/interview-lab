@@ -145,11 +145,22 @@ export async function runAgentSession(
     `[STT Init] Profile-specific keywords (${profileKeywords.length}):`,
     profileKeywords,
   );
+  const llmTraceContext = {
+    userId: participant.identity,
+    sessionId: room.name,
+    traceName: "livekit-agent-session",
+    tags: ["livekit-agent", "voice-session"],
+    metadata: {
+      roomName: room.name,
+      participantIdentity: participant.identity,
+      locale,
+    },
+  };
 
   // 定义Agent如何处理音频输入和输出
   const session = new voice.AgentSession({
     stt: createDeepgramSTT(combinedVocabulary, locale),
-    llm: await createConfiguredLLM(participant.identity),
+    llm: await createConfiguredLLM(participant.identity, llmTraceContext),
     tts: createConfiguredTTS(locale),
     vad: vad,
     // 使用 Turn Detector 多语言模型，基于语义理解判断用户是否说完

@@ -8,6 +8,7 @@ const {
   mockEq,
   mockSingle,
   mockInvoke,
+  mockCreateLangChainChatModelForUseCase,
 } = vi.hoisted(() => {
   const mockRpc = vi.fn();
   const mockSingle = vi.fn();
@@ -19,6 +20,9 @@ const {
     from: mockFrom,
   }));
   const mockInvoke = vi.fn();
+  const mockCreateLangChainChatModelForUseCase = vi.fn(() => ({
+    invoke: mockInvoke,
+  }));
 
   return {
     mockCreateClient,
@@ -28,6 +32,7 @@ const {
     mockEq,
     mockSingle,
     mockInvoke,
+    mockCreateLangChainChatModelForUseCase,
   };
 });
 
@@ -40,6 +45,7 @@ vi.mock("@interviewclaw/ai-runtime", () => ({
   createLangChainChatModel: vi.fn(function MockCreateLangChainChatModel() {
     return { invoke: mockInvoke };
   }),
+  createLangChainChatModelForUseCase: mockCreateLangChainChatModelForUseCase,
 }));
 
 import { processInterviewSpeech } from "./interview";
@@ -120,6 +126,10 @@ describe("processInterviewSpeech", () => {
     expect(mockRpc).toHaveBeenNthCalledWith(1, "add_user_message", {
       p_interview_id: "interview-1",
       p_content: "我做过一个高并发秒杀项目。",
+    });
+    expect(mockCreateLangChainChatModelForUseCase).toHaveBeenCalledWith({
+      useCase: "interview-core",
+      temperature: 0.7,
     });
     expect(mockInvoke).toHaveBeenCalledTimes(1);
     expect(mockRpc).toHaveBeenNthCalledWith(2, "add_ai_message", {
