@@ -58,6 +58,7 @@ describe("getQuestioningReportById", () => {
         createdAt: "2026-02-26 21:00",
         highlights: [],
         summary: "summary",
+        questions: [],
       },
     ]);
 

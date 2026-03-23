@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { QuestioningJob } from "@interviewclaw/domain";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Sparkles } from "lucide-react";
@@ -23,8 +24,15 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  questioningReportHistory,
-  questioningResumeLibrary,
+  getResumeLibrary,
+  type ResumeLibraryItem,
+} from "@/action/get-resume-library";
+import {
+  createQuestioningJob,
+  getQuestioningJob,
+  listQuestioningJobs,
+} from "@/lib/llm-jobs-client";
+import {
   validateQuestioningForm,
   type QuestioningFormErrors,
   type QuestioningFormValues,
@@ -40,12 +48,17 @@ const SOCIAL_EXPERIENCE_OPTIONS = [
   { value: "8+", label: "8 年以上" },
 ] as const;
 
-const GENERATION_DURATION = 1800;
-
 export function QuestioningCenterPanel() {
   const t = useTranslations("dashboard.questioning");
-  const hasResumeLibrary = questioningResumeLibrary.length > 0;
-  const hasHistoryReports = questioningReportHistory.length > 0;
+  const [resumeLibrary, setResumeLibrary] = useState<ResumeLibraryItem[]>([]);
+  const [jobs, setJobs] = useState<QuestioningJob[]>([]);
+  const [activeJob, setActiveJob] = useState<QuestioningJob | null>(null);
+  const [jobError, setJobError] = useState("");
+  const hasResumeLibrary = resumeLibrary.length > 0;
+  const historyReports = jobs
+    .filter((job) => job.status === "succeeded" && job.result)
+    .map((job) => job.result!);
+  const hasHistoryReports = historyReports.length > 0;
 
   const [formValues, setFormValues] = useState<QuestioningFormValues>({
     resumeId: "",
@@ -58,6 +71,74 @@ export function QuestioningCenterPanel() {
   const [errors, setErrors] = useState<QuestioningFormErrors>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null);
+  const [pollCount, setPollCount] = useState(0);
+  const [jobStartedAt, setJobStartedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    void Promise.all([getResumeLibrary(), listQuestioningJobs()])
+      .then(([resumes, questioningJobs]) => {
+        setResumeLibrary(resumes);
+        setJobs(questioningJobs);
+        console.info("[questioning-center] initial data loaded", {
+          resumeCount: resumes.length,
+          jobCount: questioningJobs.length,
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load questioning center data:", error);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (
+      !activeJob ||
+      activeJob.status === "succeeded" ||
+      activeJob.status === "failed"
+    ) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void getQuestioningJob(activeJob.id)
+        .then((job) => {
+          const waitSeconds = jobStartedAt
+            ? Math.round((Date.now() - jobStartedAt) / 1000)
+            : null;
+          setPollCount((prev) => {
+            const next = prev + 1;
+            console.info("[questioning-center] poll result", {
+              jobId: activeJob.id,
+              pollCount: next,
+              status: job.status,
+              waitSeconds,
+              attemptCount: job.attemptCount,
+              startedAt: job.startedAt,
+              completedAt: job.completedAt,
+            });
+            return next;
+          });
+          setActiveJob(job);
+          if (job.status === "succeeded") {
+            setIsGenerating(false);
+            setLastGeneratedAt(job.completedAt || job.updatedAt);
+            setJobError("");
+            return listQuestioningJobs().then(setJobs);
+          }
+          if (job.status === "failed") {
+            setIsGenerating(false);
+            setJobError(job.errorMessage || "押题任务生成失败，请稍后重试");
+          }
+          return undefined;
+        })
+        .catch((error) => {
+          console.error("Failed to poll questioning job:", error);
+        });
+    }, 3000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [activeJob, jobStartedAt]);
 
   const generationSummary = useMemo(() => {
     if (!lastGeneratedAt) return null;
@@ -118,16 +199,45 @@ export function QuestioningCenterPanel() {
     }
 
     setIsGenerating(true);
-
-    await new Promise((resolve) => {
-      window.setTimeout(resolve, GENERATION_DURATION);
+    setJobError("");
+    setPollCount(0);
+    setJobStartedAt(Date.now());
+    console.info("[questioning-center] create job start", {
+      resumeId: formValues.resumeId,
+      targetRole: formValues.targetRole,
+      track: formValues.track,
+      hasTargetCompany: !!formValues.targetCompany,
+      hasJobDescription: !!formValues.jobDescription.trim(),
     });
 
-    const now = new Date();
-    const generatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-
-    setLastGeneratedAt(generatedAt);
-    setIsGenerating(false);
+    try {
+      const job = await createQuestioningJob({
+        resumeId: formValues.resumeId,
+        targetRole: formValues.targetRole,
+        track: formValues.track,
+        ...(formValues.workExperience
+          ? { workExperience: formValues.workExperience }
+          : {}),
+        ...(formValues.targetCompany
+          ? { targetCompany: formValues.targetCompany }
+          : {}),
+        ...(formValues.jobDescription
+          ? { jobDescription: formValues.jobDescription }
+          : {}),
+      });
+      console.info("[questioning-center] create job success", {
+        jobId: job.id,
+        status: job.status,
+        createdAt: job.createdAt,
+      });
+      setActiveJob(job);
+      setJobs((prev) => [job, ...prev]);
+    } catch (error) {
+      console.error("Failed to create questioning job:", error);
+      setIsGenerating(false);
+      setJobStartedAt(null);
+      setJobError(error instanceof Error ? error.message : "押题任务创建失败");
+    }
   };
 
   return (
@@ -154,9 +264,9 @@ export function QuestioningCenterPanel() {
                   <SelectValue placeholder={t("form.resumePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {questioningResumeLibrary.map((resume) => (
-                    <SelectItem key={resume.id} value={resume.id}>
-                      {resume.name} · {resume.createdAt}
+                  {resumeLibrary.map((resume) => (
+                    <SelectItem key={resume.id} value={resume.filePath}>
+                      {resume.defaultName} · {resume.uploadedAt.slice(0, 10)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -297,13 +407,21 @@ export function QuestioningCenterPanel() {
             <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
               <div className="flex items-center gap-2 text-sm text-primary">
                 <Sparkles className="h-4 w-4 animate-pulse" />
-                {t("loading")}
+                {activeJob?.status === "running"
+                  ? "正在结合简历与题库生成押题报告..."
+                  : "任务已提交，正在加紧处理，您可以稍后回来查看结果..."}
               </div>
               <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-primary/10">
                 <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
               </div>
             </div>
           )}
+
+          {jobError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {jobError}
+            </div>
+          ) : null}
 
           {generationSummary && (
             <div className="rounded-lg border border-[#E5E5E5] bg-[#F9FBFA] p-4">
@@ -327,7 +445,7 @@ export function QuestioningCenterPanel() {
         </CardHeader>
         <CardContent className="space-y-3">
           {hasHistoryReports ? (
-            questioningReportHistory.map((report) => (
+            historyReports.map((report) => (
               <details
                 key={report.id}
                 className="group rounded-lg border border-[#E5E5E5] bg-white p-4"

@@ -1,4 +1,7 @@
-export type QuestioningTrack = "social" | "campus";
+import type {
+  QuestioningReport,
+  QuestioningTrack,
+} from "@interviewclaw/domain";
 
 export interface ResumeLibraryItem {
   id: string;
@@ -6,15 +9,11 @@ export interface ResumeLibraryItem {
   createdAt: string;
 }
 
-export interface QuestioningReport {
-  id: string;
-  title: string;
-  targetRole: string;
-  track: QuestioningTrack;
-  createdAt: string;
-  highlights: string[];
-  summary: string;
-}
+export type {
+  QuestioningQuestion,
+  QuestioningReport,
+  QuestioningTrack,
+} from "@interviewclaw/domain";
 
 export interface QuestioningFormValues {
   resumeId: string;
@@ -28,10 +27,6 @@ export interface QuestioningFormValues {
 export type QuestioningFormErrors = Partial<
   Record<"resumeId" | "targetRole" | "workExperience", string>
 >;
-
-// TODO: 接入真实数据后替换为空数组默认值
-export const questioningResumeLibrary: ResumeLibraryItem[] = [];
-export const questioningReportHistory: QuestioningReport[] = [];
 
 export function validateQuestioningForm(
   values: QuestioningFormValues,
