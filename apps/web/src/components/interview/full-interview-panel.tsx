@@ -155,7 +155,7 @@ function TopicCard({ topic, selected, onClick }: TopicCardProps) {
 }
 
 export function FullInterviewPanel() {
-  const t = useTranslations("dashboard.simulation");
+  const tPage = useTranslations("dashboard.pages");
   const router = useRouter();
 
   const [topic, setTopic] = useState<InterviewTopic | null>(null);
@@ -213,7 +213,7 @@ export function FullInterviewPanel() {
           <div>
             <h2 className="text-xl font-semibold text-foreground">综合面试</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {t("fullInterviewDesc" as Parameters<typeof t>[0])}
+              {tPage("fullInterviewDesc")}
             </p>
           </div>
         </div>
@@ -257,7 +257,9 @@ export function FullInterviewPanel() {
                   <DiffIcon
                     className={cn(
                       "mr-1.5 h-3.5 w-3.5",
-                      difficulty === d.value ? "text-primary-foreground" : d.color,
+                      difficulty === d.value
+                        ? "text-primary-foreground"
+                        : d.color,
                     )}
                   />
                   {d.label}

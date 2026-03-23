@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useRef, useState } from "react";
+import { type AgentState } from "@livekit/components-react";
 import { useLocale } from "next-intl";
 import { AIInterviewerPanel } from "./ai-interviewer-panel";
 import { CodeWorkbench } from "./code-workbench";
@@ -108,6 +109,13 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     },
   });
   const shouldUseBrowserFallback = !isAgentSpeaking;
+  const agentState: AgentState = isConnecting
+    ? "connecting"
+    : !isConnected
+      ? "disconnected"
+      : isAgentSpeaking
+        ? "speaking"
+        : "listening";
 
   useEffect(() => {
     const nextDraftText = resolveDraftTextFromSources({
@@ -238,6 +246,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       isConnecting={isConnecting}
       isMicEnabled={isMicEnabled}
       isAgentSpeaking={isAgentSpeaking}
+      agentState={agentState}
       isUserSpeaking={isUserSpeaking}
       transcript={transcript}
       onMicToggle={handleMicToggle}
@@ -253,6 +262,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
           isConnecting={isConnecting}
           isMicEnabled={isMicEnabled}
           isAgentSpeaking={isAgentSpeaking}
+          agentState={agentState}
           isUserSpeaking={isUserSpeaking}
           transcript={transcript}
           onMicToggle={handleMicToggle}

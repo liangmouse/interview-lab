@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
-import { useAgent } from "@livekit/components-react";
+import { type AgentState } from "@livekit/components-react";
 import { AgentAudioVisualizerAura } from "@/components/agents-ui/agent-audio-visualizer-aura";
 
 interface AIInterviewerPanelProps {
@@ -22,6 +22,8 @@ interface AIInterviewerPanelProps {
   isMicEnabled: boolean;
   /** Agent 是否正在说话 */
   isAgentSpeaking: boolean;
+  /** Agent 当前可视化状态 */
+  agentState: AgentState;
   /** 用户是否正在说话 */
   isUserSpeaking: boolean;
   /** 转写内容 */
@@ -40,6 +42,7 @@ export function AIInterviewerPanel({
   isConnecting,
   isMicEnabled,
   isAgentSpeaking,
+  agentState,
   isUserSpeaking,
   transcript,
   onMicToggle,
@@ -47,7 +50,6 @@ export function AIInterviewerPanel({
   onSendMessage,
 }: AIInterviewerPanelProps) {
   const t = useTranslations("interview");
-  const { state: agentState } = useAgent();
   const { resolvedTheme } = useTheme();
   const [inputText, setInputText] = useState("");
   const [hasEditedCurrentTurn, setHasEditedCurrentTurn] = useState(false);
