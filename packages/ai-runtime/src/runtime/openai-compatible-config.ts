@@ -21,6 +21,8 @@ export interface ResolveOpenAICompatibleConfigOptions {
   defaultModel?: string;
 }
 
+export type OpenAICompatibleProviderId = "openrouter" | "openai" | "gemini";
+
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 export const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 export const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
@@ -37,6 +39,22 @@ function getOpenRouterApiKey(env: NodeJS.ProcessEnv) {
   return trimString(env.OPEN_ROUTER_API_KEY) || trimString(env.OPEN_ROUTER_API);
 }
 
+export function hasConfiguredOpenAICompatibleProvider(
+  providerId: OpenAICompatibleProviderId,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  switch (providerId) {
+    case "openrouter":
+      return Boolean(getOpenRouterApiKey(env));
+    case "openai":
+      return Boolean(trimString(env.OPENAI_API_KEY));
+    case "gemini":
+      return Boolean(trimString(env.GEMINI_API_KEY));
+    default:
+      return false;
+  }
+}
+
 function getOpenRouterHeaders(env: NodeJS.ProcessEnv) {
   const headers: Record<string, string> = {};
   const referer = trimString(env.OPEN_ROUTER_HTTP_REFERER);
@@ -51,6 +69,59 @@ function getOpenRouterHeaders(env: NodeJS.ProcessEnv) {
   }
 
   return Object.keys(headers).length > 0 ? headers : undefined;
+}
+
+export function resolveOpenAICompatibleProviderConfig(input: {
+  providerId: OpenAICompatibleProviderId;
+  defaultModel: string;
+  env?: NodeJS.ProcessEnv;
+}): OpenAICompatibleConfig {
+  const env = input.env ?? process.env;
+
+  switch (input.providerId) {
+    case "openrouter": {
+      const apiKey = getOpenRouterApiKey(env);
+      if (!apiKey) {
+        throw new Error(
+          "OpenRouter provider not configured: set OPEN_ROUTER_API_KEY or OPEN_ROUTER_API",
+        );
+      }
+
+      return {
+        providerId: "openrouter",
+        apiKey,
+        baseURL: trimString(env.OPEN_ROUTER_BASE_URL) || OPENROUTER_BASE_URL,
+        model: input.defaultModel,
+        headers: getOpenRouterHeaders(env),
+      };
+    }
+    case "openai": {
+      const apiKey = trimString(env.OPENAI_API_KEY);
+      if (!apiKey) {
+        throw new Error("OpenAI provider not configured: set OPENAI_API_KEY");
+      }
+
+      return {
+        providerId: "openai",
+        apiKey,
+        baseURL: trimString(env.OPENAI_BASE_URL),
+        model: input.defaultModel,
+      };
+    }
+    case "gemini": {
+      const apiKey = trimString(env.GEMINI_API_KEY);
+      if (!apiKey) {
+        throw new Error("Gemini provider not configured: set GEMINI_API_KEY");
+      }
+
+      return {
+        providerId: "gemini",
+        apiKey,
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+        model: input.defaultModel,
+      };
+    }
+  }
 }
 
 export function resolveDefaultEmbeddingModel(): {

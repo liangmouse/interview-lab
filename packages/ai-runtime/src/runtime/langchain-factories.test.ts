@@ -33,6 +33,8 @@ vi.mock("@langfuse/langchain", () => ({
 import {
   createLangChainChatModel,
   createLangChainEmbeddings,
+  createLangChainChatModelForUseCase,
+  createLangChainEmbeddingsForUseCase,
 } from "./langchain-factories";
 
 describe("langchain-factories", () => {
@@ -220,6 +222,28 @@ describe("langchain-factories", () => {
     });
   });
 
+  describe("createLangChainChatModelForUseCase", () => {
+    it("uses the policy-selected model instead of OPEN_ROUTER_MODEL", () => {
+      process.env.OPEN_ROUTER_API_KEY = "or-key";
+      process.env.OPEN_ROUTER_MODEL = "google/gemini-2.5-flash";
+
+      createLangChainChatModelForUseCase({
+        useCase: "interview-core",
+        userTier: "premium",
+      });
+
+      const callArg = MockChatOpenAI.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      expect(callArg.model).toBe("openai/gpt-5.4");
+      expect(callArg.apiKey).toBe("or-key");
+      expect((callArg.configuration as Record<string, unknown>).baseURL).toBe(
+        "https://openrouter.ai/api/v1",
+      );
+    });
+  });
+
   describe("createLangChainEmbeddings", () => {
     it("uses OpenRouter embeddings config when OPEN_ROUTER_API_KEY is set", () => {
       process.env.OPEN_ROUTER_API_KEY = "or-key";
@@ -272,6 +296,23 @@ describe("langchain-factories", () => {
       expect((callArg.configuration as Record<string, unknown>).baseURL).toBe(
         "https://generativelanguage.googleapis.com/v1beta/openai",
       );
+    });
+  });
+
+  describe("createLangChainEmbeddingsForUseCase", () => {
+    it("uses the dedicated embedding route for rag-embedding", () => {
+      process.env.OPENAI_API_KEY = "sk-test";
+
+      createLangChainEmbeddingsForUseCase({
+        useCase: "rag-embedding",
+      });
+
+      const callArg = MockOpenAIEmbeddings.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      expect(callArg.model).toBe("text-embedding-3-small");
+      expect(callArg.openAIApiKey).toBe("sk-test");
     });
   });
 });
