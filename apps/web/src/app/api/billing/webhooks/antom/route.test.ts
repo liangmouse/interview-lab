@@ -2,6 +2,15 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { createSign, generateKeyPairSync } from "node:crypto";
 
+const { privateKey: antomPrivateKey, publicKey: generatedAntomPublicKey } =
+  generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+  });
+const antomPublicKey = generatedAntomPublicKey.export({
+  type: "spki",
+  format: "pem",
+}) as string;
+
 const {
   mockMarkWebhookEventProcessed,
   mockStoreWebhookEvent,
@@ -45,13 +54,7 @@ describe("Antom Webhook API", () => {
   });
 
   it("rejects requests with invalid signature", async () => {
-    const { publicKey } = generateKeyPairSync("rsa", {
-      modulusLength: 2048,
-    });
-    process.env.ANTOM_WEBHOOK_PUBLIC_KEY = publicKey.export({
-      type: "spki",
-      format: "pem",
-    }) as string;
+    process.env.ANTOM_WEBHOOK_PUBLIC_KEY = antomPublicKey;
 
     const request = new NextRequest(
       "http://localhost:3000/api/billing/webhooks/antom",
@@ -73,13 +76,7 @@ describe("Antom Webhook API", () => {
   });
 
   it("accepts a correctly signed request", async () => {
-    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
-      modulusLength: 2048,
-    });
-    process.env.ANTOM_WEBHOOK_PUBLIC_KEY = publicKey.export({
-      type: "spki",
-      format: "pem",
-    }) as string;
+    process.env.ANTOM_WEBHOOK_PUBLIC_KEY = antomPublicKey;
 
     const payload = JSON.stringify({
       eventId: "evt_1",
@@ -94,7 +91,7 @@ describe("Antom Webhook API", () => {
     const signer = createSign("RSA-SHA256");
     signer.update(signingContent);
     signer.end();
-    const signature = signer.sign(privateKey).toString("base64");
+    const signature = signer.sign(antomPrivateKey).toString("base64");
 
     const request = new NextRequest(
       "http://localhost:3000/api/billing/webhooks/antom",
