@@ -25,14 +25,20 @@ ${transcript}
   `;
 
   try {
-    const summarizerLLM = await createConfiguredLLM(userId, {
-      traceName: "interview-stage-summarizer",
-      tags: ["livekit-agent", "stage-summarizer", stage],
-      metadata: {
-        stage,
-        messageCount: messages.length,
+    const summarizerLLM = await createConfiguredLLM(
+      userId,
+      {
+        traceName: "interview-stage-summarizer",
+        tags: ["livekit-agent", "stage-summarizer", stage],
+        metadata: {
+          stage,
+          messageCount: messages.length,
+        },
       },
-    });
+      {
+        useCase: "interview-summary",
+      },
+    );
     // OpenAI LLM 实现特定
     // 我们为总结任务创建一个临时的聊天上下文
     const chatCtx = new llm.ChatContext();

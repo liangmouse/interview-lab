@@ -1,6 +1,8 @@
 import * as deepgram from "@livekit/agents-plugin-deepgram";
 import * as openai from "@livekit/agents-plugin-openai";
 import {
+  type AiUseCase,
+  type AiUserTier,
   type AuthProfileStore,
   type LangfuseTracingContext,
   type OpenAICompatibleConfig,
@@ -13,8 +15,9 @@ import {
   createOpenRouterRegistryEntry,
   mergeLangfuseTracingContext,
   observeOpenAIClient,
+  resolveAiModelRoute,
   resolveModelRoute,
-  resolveOpenAICompatibleConfig,
+  resolveOpenAICompatibleProviderConfig,
 } from "@interviewclaw/ai-runtime";
 import {
   createUserScopedSupabaseAuthProfileStore,
@@ -38,6 +41,12 @@ export const DEFAULT_DEEPGRAM_SMART_FORMAT = true;
 export const DEEPGRAM_KEYTERM_LIMIT = 20;
 
 export const ROUTED_OPENAI_RUNTIME_TOKEN = "openai-codex-runtime-token";
+
+export interface CreateConfiguredLLMOptions {
+  useCase?: AiUseCase;
+  userTier?: AiUserTier;
+  model?: string;
+}
 
 type AgentRuntimeProviderConfig = {
   providerId: string;
@@ -130,15 +139,25 @@ export function createDeepgramSTT(keyterm: string[], language?: string) {
   return sttInstance;
 }
 
-export function createDefaultLLM(tracing?: LangfuseTracingContext) {
-  const config = resolveOpenAICompatibleConfig();
+export function createDefaultLLM(
+  tracing?: LangfuseTracingContext,
+  options?: CreateConfiguredLLMOptions,
+) {
+  const route = resolveAiModelRoute({
+    useCase: options?.useCase ?? "interview-core",
+    userTier: options?.userTier,
+  });
+  const config = resolveOpenAICompatibleProviderConfig({
+    providerId: route.providerId,
+    defaultModel: route.model,
+  });
   const client = createDefaultLlmClient(config, tracing);
   return new openai.LLM({
     apiKey: config.apiKey,
-    model: config.model,
+    model: route.model,
     ...(config.baseURL ? { baseURL: config.baseURL } : {}),
     ...(client ? { client } : {}),
-    temperature: DEFAULT_GEMINI_TEMPERATURE,
+    temperature: route.temperature ?? DEFAULT_GEMINI_TEMPERATURE,
   });
 }
 
@@ -169,8 +188,8 @@ function createDefaultLlmClient(
   ) as any;
 }
 
-function getAgentLlmModel(): string | null {
-  const value = process.env.AGENT_LLM_MODEL?.trim();
+function getAgentLlmModel(input?: string): string | null {
+  const value = input?.trim() || process.env.AGENT_LLM_MODEL?.trim();
   return value || null;
 }
 
@@ -203,11 +222,12 @@ function getAgentRuntimeProviderConfigs(): AgentRuntimeProviderConfig[] {
 export async function createConfiguredLLM(
   userId?: string,
   tracing?: LangfuseTracingContext,
+  options?: CreateConfiguredLLMOptions,
 ) {
   const mergedTracing = mergeLangfuseTracingContext({ userId }, tracing);
-  const configuredModel = getAgentLlmModel();
+  const configuredModel = getAgentLlmModel(options?.model);
   if (!configuredModel) {
-    return createDefaultLLM(mergedTracing);
+    return createDefaultLLM(mergedTracing, options);
   }
 
   const providerId = configuredModel.split("/", 1)[0];

@@ -1,5 +1,5 @@
 import {
-  createLangChainChatModel,
+  createLangChainChatModelForUseCase,
   validateLlmConfig,
 } from "@interviewclaw/ai-runtime";
 import {
@@ -55,7 +55,10 @@ export async function generateInterviewReply(
     throw new Error(configValidation.error || "LLM provider 配置无效");
   }
 
-  const model = createLangChainChatModel({ temperature: 0.7 });
+  const model = createLangChainChatModelForUseCase({
+    useCase: "interview-core",
+    temperature: 0.7,
+  });
 
   const response = await model.invoke([
     {

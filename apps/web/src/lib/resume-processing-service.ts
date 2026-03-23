@@ -1,6 +1,6 @@
 import { extractText } from "unpdf";
 import { z } from "zod";
-import { createLangChainChatModel } from "@interviewclaw/ai-runtime";
+import { createLangChainChatModelForUseCase } from "@interviewclaw/ai-runtime";
 import { createClient } from "@/lib/supabase/server";
 import { userProfileService } from "@/lib/user-profile-service";
 import { logResumeStage, resumeLogger } from "@/lib/resume-parsing-logger";
@@ -103,7 +103,10 @@ async function analyzeResume(
       textLength: text.length,
     });
 
-    const model = createLangChainChatModel({ temperature: 0 });
+    const model = createLangChainChatModelForUseCase({
+      useCase: "resume-parse",
+      temperature: 0,
+    });
 
     const prompt = `你是一个专业的简历解析助手。请仔细分析简历内容，提取所有关键信息，并以 JSON 格式返回。
 

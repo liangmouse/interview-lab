@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createLangChainChatModel } from "@interviewclaw/ai-runtime";
+import { createLangChainChatModelForUseCase } from "@interviewclaw/ai-runtime";
 import { extractText } from "unpdf";
 import type { JobDescriptionAnalysis } from "@/types/job-description";
 
@@ -70,7 +70,10 @@ export async function analyzeJobDescription(
   | { success: false; error: string }
 > {
   try {
-    const model = createLangChainChatModel({ temperature: 0 });
+    const model = createLangChainChatModelForUseCase({
+      useCase: "jd-parse",
+      temperature: 0,
+    });
 
     const prompt = `你是招聘JD分析助手。请从下面的岗位描述中抽取关键信息，并只返回 JSON：
 

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  createLangChainChatModel,
+  createLangChainChatModelForUseCase,
+  type AiUserTier,
   validateLlmConfig,
 } from "@interviewclaw/ai-runtime";
 import { convertToCoreMessages } from "@/lib/chat-utils";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { streamChatModelResponse, toLangChainMessages } from "./chat-llm";
 import { createClient } from "@/lib/supabase/server";
+import { resolveUserAccessForUserId } from "@/lib/billing/access";
 import {
   extractPersonalizedContext,
   generatePersonalizedInterviewPrompt,
@@ -27,6 +29,14 @@ import {
   sanitizeRAGQuery,
   detectInjectionAttempt,
 } from "@/lib/security/prompt-injection";
+
+function toAiUserTier(
+  tier?: "free" | "premium" | null,
+): AiUserTier | undefined {
+  if (tier === "free") return "free";
+  if (tier === "premium") return "premium";
+  return undefined;
+}
 /**
  * 处理聊天消息的 POST 请求
  *
@@ -217,8 +227,20 @@ export async function POST(request: NextRequest) {
     // 5. 转换 UIMessage 格式为 Core Messages 格式
     const coreMessages = convertToCoreMessages(messagesWithSystem);
 
+    let userTier: AiUserTier | undefined;
+    if (userId) {
+      try {
+        const access = await resolveUserAccessForUserId(userId);
+        userTier = toAiUserTier(access.tier);
+      } catch (accessError) {
+        console.warn("解析用户模型层级失败，回退默认策略:", accessError);
+      }
+    }
+
     // 6. 通过统一工厂初始化 LLM
-    const llm = createLangChainChatModel({
+    const llm = createLangChainChatModelForUseCase({
+      useCase: "interview-core",
+      ...(userTier ? { userTier } : {}),
       ...(model ? { model } : {}),
       temperature: 0.7,
       maxTokens: 4000,

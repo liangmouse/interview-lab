@@ -1,9 +1,9 @@
 import type { UserProfile } from "@/types/profile";
 import { createClient } from "@/lib/supabase/server";
 import {
-  createLangChainChatModel,
-  createLangChainEmbeddings,
-  resolveDefaultEmbeddingModel,
+  createLangChainChatModelForUseCase,
+  createLangChainEmbeddingsForUseCase,
+  resolveAiModelRoute,
 } from "@interviewclaw/ai-runtime";
 import { Embeddings } from "@langchain/core/embeddings";
 import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
@@ -400,7 +400,8 @@ export async function performIntelligentAnalysis(
       questionRationale: z.string().describe("为什么选择这个问题的理由"),
     });
 
-    const model = createLangChainChatModel({
+    const model = createLangChainChatModelForUseCase({
+      useCase: "question-predict",
       temperature: 0.7,
     }).withStructuredOutput(analysisSchema);
 
@@ -444,15 +445,19 @@ function getEmbeddings(): Embeddings | null {
   }
 
   try {
-    const instance = createLangChainEmbeddings();
-    // Build a cache key that includes provider + model so switching providers
-    // invalidates the singleton.
-    const { providerId: provider, model } = resolveDefaultEmbeddingModel();
-    const cacheKey = `${provider}:${model}`;
+    const route = resolveAiModelRoute({
+      useCase: "rag-embedding",
+    });
+    const cacheKey = `${route.providerId}:${route.model}`;
 
     if (!embeddingsInstance || embeddingsCacheKey !== cacheKey) {
-      console.log("🚀 [RAG] 初始化 Embedding 实例", { provider, model });
-      embeddingsInstance = instance;
+      console.log("🚀 [RAG] 初始化 Embedding 实例", {
+        provider: route.providerId,
+        model: route.model,
+      });
+      embeddingsInstance = createLangChainEmbeddingsForUseCase({
+        useCase: "rag-embedding",
+      });
       embeddingsCacheKey = cacheKey;
     }
 
