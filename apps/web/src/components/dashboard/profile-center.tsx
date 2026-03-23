@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { QuestioningJob, ResumeReviewJob } from "@interviewclaw/domain";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import {
   Check,
@@ -25,8 +26,11 @@ import {
   getProfileInterviews,
   type ProfileInterviewRecord,
 } from "@/action/get-profile-interviews";
-import { questioningReportHistory } from "@/lib/questioning-center";
 import { RADAR_DIMENSIONS, toRadarPolygonPoints } from "@/lib/interview-radar";
+import {
+  listQuestioningJobs,
+  listResumeReviewJobs,
+} from "@/lib/llm-jobs-client";
 import { useUserStore } from "@/store/user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -153,6 +157,10 @@ export function ProfileCenter() {
 
   const [resumes, setResumes] = useState<ResumeLibraryItem[]>([]);
   const [interviews, setInterviews] = useState<ProfileInterviewRecord[]>([]);
+  const [questioningJobs, setQuestioningJobs] = useState<QuestioningJob[]>([]);
+  const [resumeReviewJobs, setResumeReviewJobs] = useState<ResumeReviewJob[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [isResumeProcessing, setIsResumeProcessing] = useState(false);
@@ -176,12 +184,21 @@ export function ProfileCenter() {
   const loadProfileData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [resumeLibrary, interviewHistory] = await Promise.all([
+      const [
+        resumeLibrary,
+        interviewHistory,
+        questioningHistory,
+        reviewHistory,
+      ] = await Promise.all([
         getResumeLibrary(),
         getProfileInterviews(),
+        listQuestioningJobs(),
+        listResumeReviewJobs(),
       ]);
       setResumes(resumeLibrary);
       setInterviews(interviewHistory);
+      setQuestioningJobs(questioningHistory);
+      setResumeReviewJobs(reviewHistory);
     } catch (error) {
       console.error("Failed to load profile center data:", error);
       toast.error(t("loadFailed"));
@@ -306,13 +323,29 @@ export function ProfileCenter() {
     disabled: isUploadingResume || isResumeProcessing,
   });
 
+  const succeededResumeReviewJobs = useMemo(() => {
+    return resumeReviewJobs.filter(
+      (job) => job.status === "succeeded" && job.result,
+    );
+  }, [resumeReviewJobs]);
+
   const resumeReportItems = useMemo<ResumeReportItem[]>(() => {
-    return resumes.slice(0, 3).map((resume) => ({
-      id: resume.id,
-      title: aliases[resume.filePath] || resume.defaultName,
-      createdAt: formatDateTime(resume.uploadedAt),
+    return succeededResumeReviewJobs.slice(0, 3).map((job) => ({
+      id: job.id,
+      title: job.result?.resumeName || "简历点评",
+      createdAt: formatDateTime(job.completedAt || job.createdAt),
     }));
-  }, [aliases, resumes]);
+  }, [succeededResumeReviewJobs]);
+
+  const succeededQuestioningJobs = useMemo(() => {
+    return questioningJobs.filter(
+      (job) => job.status === "succeeded" && job.result,
+    );
+  }, [questioningJobs]);
+
+  const questioningReportItems = useMemo(() => {
+    return succeededQuestioningJobs.slice(0, 3).map((job) => job.result!);
+  }, [succeededQuestioningJobs]);
 
   const visibleInterviews = useMemo(() => {
     if (showAllInterviews) {
@@ -374,7 +407,7 @@ export function ProfileCenter() {
           <CardContent className="p-4">
             <p className="text-xs text-[#666666]">{t("stats.resumeReports")}</p>
             <p className="mt-1 text-2xl font-semibold text-[#141414]">
-              {resumeReportItems.length}
+              {succeededResumeReviewJobs.length}
             </p>
           </CardContent>
         </Card>
@@ -384,7 +417,7 @@ export function ProfileCenter() {
               {t("stats.questioningReports")}
             </p>
             <p className="mt-1 text-2xl font-semibold text-[#141414]">
-              {questioningReportHistory.length}
+              {succeededQuestioningJobs.length}
             </p>
           </CardContent>
         </Card>
@@ -638,12 +671,12 @@ export function ProfileCenter() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {questioningReportHistory.length === 0 ? (
+            {questioningReportItems.length === 0 ? (
               <p className="rounded-lg border border-[#EFEFEF] bg-[#FCFCFC] px-4 py-5 text-sm text-[#777777]">
                 {t("questioningReport.empty")}
               </p>
             ) : (
-              questioningReportHistory.slice(0, 3).map((report) => (
+              questioningReportItems.map((report) => (
                 <div
                   key={report.id}
                   className="rounded-lg border border-[#EFEFEF] px-3 py-2.5"
