@@ -10,7 +10,7 @@
     "dev:scheduler": "pnpm --filter @interviewclaw/scheduler dev",
     "dev:agent": "pnpm --filter @interviewclaw/livekit-agent dev",
     "dev:turbo": "turbo run dev --parallel --filter=@interviewclaw/web --filter=@interviewclaw/livekit-agent",
-    "build": "turbo run build",
+    "build": "turbo run build && rm -rf .next && cp -R apps/web/.next .next",
     "build:web": "pnpm --filter @interviewclaw/web build",
     "build:agent": "pnpm --filter @interviewclaw/livekit-agent build",
     "start": "pnpm --filter @interviewclaw/web start",
