@@ -1,0 +1,12 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔎 Running Vercel pre-push validation..."
+pnpm vercel:build
+
+if [ $? -ne 0 ]; then
+  echo "❌ Vercel validation failed! Push aborted."
+  exit 1
+fi
+
+echo "✅ Vercel pre-push validation passed!"
