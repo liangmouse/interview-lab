@@ -32,10 +32,14 @@ const questioningSchema = z.object({
   highlights: z.array(z.string()).min(3).max(8),
   questions: z.array(
     z.object({
-      question: z.string().describe("面试官会问的具体问题，结合简历内容自然措辞"),
+      question: z
+        .string()
+        .describe("面试官会问的具体问题，结合简历内容自然措辞"),
       category: z
         .string()
-        .describe("考察类别，如：项目经历真实性验证、技术深度、系统设计、行为面试"),
+        .describe(
+          "考察类别，如：项目经历真实性验证、技术深度、系统设计、行为面试",
+        ),
       answerGuide: z
         .string()
         .describe("回答思路，用 STAR 或其他框架拆解，标注背景/职责/挑战/成果"),
@@ -162,12 +166,14 @@ async function generateQuestioningReport(args: {
           model: explicitModel,
           temperature: 0.4,
           maxTokens: 8000,
+          timeoutMs: QUESTIONING_CONFIG.generationTimeoutMs,
           tracing,
         })
       : createLangChainChatModelForUseCase({
           useCase: "question-predict",
           temperature: 0.4,
           maxTokens: 8000,
+          timeoutMs: QUESTIONING_CONFIG.generationTimeoutMs,
           tracing,
         })
   ).withStructuredOutput(questioningSchema, {

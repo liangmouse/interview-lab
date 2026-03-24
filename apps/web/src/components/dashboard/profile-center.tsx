@@ -186,8 +186,22 @@ export function ProfileCenter() {
       ]);
       setResumes(resumeLibrary);
       setInterviews(interviewHistory);
-      setQuestioningJobs(questioningHistory);
+      setQuestioningJobs((prev) => {
+        if (
+          questioningHistory.warning &&
+          questioningHistory.jobs.length === 0
+        ) {
+          return prev;
+        }
+        return questioningHistory.jobs;
+      });
       setResumeReviewJobs(reviewHistory);
+      if (questioningHistory.warning) {
+        console.warn(
+          "[profile-center] questioning jobs loaded with warning:",
+          questioningHistory.warning,
+        );
+      }
     } catch (error) {
       console.error("Failed to load profile center data:", error);
       toast.error(t("loadFailed"));

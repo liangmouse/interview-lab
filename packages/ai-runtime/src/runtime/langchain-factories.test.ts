@@ -183,6 +183,18 @@ describe("langchain-factories", () => {
       expect(callArg.model).toBe("gpt-4o");
     });
 
+    it("passes through a custom timeout when provided", () => {
+      process.env.OPENAI_API_KEY = "sk-test";
+
+      createLangChainChatModel({ timeoutMs: 600_000 });
+
+      const callArg = MockChatOpenAI.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      expect(callArg.timeout).toBe(600_000);
+    });
+
     it("registers Langfuse callbacks when Langfuse credentials are configured", () => {
       process.env.OPENAI_API_KEY = "sk-test";
       process.env.LANGFUSE_PUBLIC_KEY = "pk-lf-test";

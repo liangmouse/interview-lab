@@ -139,6 +139,11 @@ describe("llm-apps/questioning", () => {
 
     await runOneQuestioningJob();
 
+    expect(createLangChainChatModelForUseCase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutMs: QUESTIONING_CONFIG.generationTimeoutMs,
+      }),
+    );
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(consoleInfoSpy).toHaveBeenCalledWith(
       "[questioning-worker] llm invoke start",

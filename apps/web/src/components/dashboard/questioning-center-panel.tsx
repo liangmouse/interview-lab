@@ -65,13 +65,38 @@ interface BillingAccessResponse {
   access: UserAccessState;
 }
 
+function isPendingQuestioningJob(job: QuestioningJob) {
+  return job.status === "queued" || job.status === "running";
+}
+
+function mergeQuestioningJobs(
+  currentJobs: QuestioningJob[],
+  nextJobs: QuestioningJob[],
+) {
+  if (nextJobs.length === 0) {
+    return currentJobs;
+  }
+
+  const nextJobMap = new Map(nextJobs.map((job) => [job.id, job]));
+  const merged = currentJobs.map((job) => nextJobMap.get(job.id) ?? job);
+  const existingIds = new Set(currentJobs.map((job) => job.id));
+
+  for (const job of nextJobs) {
+    if (!existingIds.has(job.id)) {
+      merged.push(job);
+    }
+  }
+
+  return merged;
+}
+
 export function QuestioningCenterPanel() {
   const t = useTranslations("dashboard.questioning");
   const [resumeLibrary, setResumeLibrary] = useState<ResumeLibraryItem[]>([]);
   const [jobs, setJobs] = useState<QuestioningJob[]>([]);
-  const [activeJob, setActiveJob] = useState<QuestioningJob | null>(null);
   const [access, setAccess] = useState<UserAccessState | null>(null);
   const [jobError, setJobError] = useState("");
+  const [jobWarning, setJobWarning] = useState("");
   const hasResumeLibrary = resumeLibrary.length > 0;
   const historyReports = jobs
     .filter((job) => job.status === "succeeded" && job.result)
@@ -92,13 +117,11 @@ export function QuestioningCenterPanel() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState(0);
-  const [jobStartedAt, setJobStartedAt] = useState<number | null>(null);
-  const activePendingJob =
-    activeJob &&
-    activeJob.status !== "succeeded" &&
-    activeJob.status !== "failed"
-      ? activeJob
-      : null;
+  const pendingJobs = useMemo(
+    () => jobs.filter(isPendingQuestioningJob),
+    [jobs],
+  );
+  const activePendingJob = pendingJobs[0] ?? null;
   const hasPendingJob = !!activePendingJob;
   const isTrialExhausted =
     access?.tier !== "premium" &&
@@ -128,83 +151,101 @@ export function QuestioningCenterPanel() {
     }
   }, []);
 
+  const applyQuestioningJobList = useCallback(
+    (result: Awaited<ReturnType<typeof listQuestioningJobs>>) => {
+      setJobWarning(result.warning || "");
+      setJobs((prev) => {
+        if (result.warning && result.jobs.length === 0 && prev.length > 0) {
+          return prev;
+        }
+        return result.jobs;
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
     void Promise.all([getResumeLibrary(), listQuestioningJobs()])
-      .then(([resumes, questioningJobs]) => {
-        const latestPendingJob =
-          questioningJobs.find(
-            (job) => job.status === "queued" || job.status === "running",
-          ) ?? null;
+      .then(([resumes, questioningResult]) => {
         setResumeLibrary(resumes);
-        setJobs(questioningJobs);
-        setActiveJob(latestPendingJob);
-        setJobStartedAt(
-          latestPendingJob?.startedAt
-            ? new Date(latestPendingJob.startedAt).getTime()
-            : null,
-        );
+        applyQuestioningJobList(questioningResult);
         console.info("[questioning-center] initial data loaded", {
           resumeCount: resumes.length,
-          jobCount: questioningJobs.length,
+          jobCount: questioningResult.jobs.length,
+          hasWarning: !!questioningResult.warning,
         });
       })
       .catch((error) => {
         console.error("Failed to load questioning center data:", error);
       });
     void loadAccess();
-  }, [loadAccess]);
+  }, [applyQuestioningJobList, loadAccess]);
 
   useEffect(() => {
-    if (
-      !activeJob ||
-      activeJob.status === "succeeded" ||
-      activeJob.status === "failed"
-    ) {
+    if (pendingJobs.length === 0) {
       return;
     }
 
     const timer = window.setInterval(() => {
-      void getQuestioningJob(activeJob.id)
-        .then((job) => {
-          const waitSeconds = jobStartedAt
-            ? Math.round((Date.now() - jobStartedAt) / 1000)
-            : null;
-          setPollCount((prev) => {
-            const next = prev + 1;
+      void Promise.all(
+        pendingJobs.map(async (job) => {
+          try {
+            const refreshedJob = await getQuestioningJob(job.id);
+            const waitSeconds = Math.round(
+              (Date.now() -
+                new Date(job.startedAt || job.createdAt).getTime()) /
+                1000,
+            );
             console.info("[questioning-center] poll result", {
-              jobId: activeJob.id,
-              pollCount: next,
-              status: job.status,
+              jobId: job.id,
+              status: refreshedJob.status,
               waitSeconds,
-              attemptCount: job.attemptCount,
-              startedAt: job.startedAt,
-              completedAt: job.completedAt,
+              attemptCount: refreshedJob.attemptCount,
+              startedAt: refreshedJob.startedAt,
+              completedAt: refreshedJob.completedAt,
             });
-            return next;
-          });
-          setActiveJob(job);
-          if (job.status === "succeeded") {
-            setJobStartedAt(null);
-            setLastGeneratedAt(job.completedAt || job.updatedAt);
-            setJobError("");
-            void loadAccess();
-            return listQuestioningJobs().then(setJobs);
+            return refreshedJob;
+          } catch (error) {
+            console.error("Failed to poll questioning job:", error);
+            return null;
           }
-          if (job.status === "failed") {
-            setJobStartedAt(null);
-            setJobError(job.errorMessage || "押题任务生成失败，请稍后重试");
-          }
-          return undefined;
-        })
-        .catch((error) => {
-          console.error("Failed to poll questioning job:", error);
-        });
+        }),
+      ).then((results) => {
+        const refreshedJobs = results.filter(Boolean) as QuestioningJob[];
+        if (refreshedJobs.length === 0) {
+          return;
+        }
+
+        setPollCount((prev) => prev + 1);
+        setJobs((prev) => mergeQuestioningJobs(prev, refreshedJobs));
+
+        const latestSucceededJob = refreshedJobs.find(
+          (job) => job.status === "succeeded",
+        );
+        if (latestSucceededJob) {
+          setLastGeneratedAt(
+            latestSucceededJob.completedAt || latestSucceededJob.updatedAt,
+          );
+          setJobError("");
+          setJobWarning("");
+          void loadAccess();
+        }
+
+        const latestFailedJob = refreshedJobs.find(
+          (job) => job.status === "failed",
+        );
+        if (latestFailedJob) {
+          setJobError(
+            latestFailedJob.errorMessage || "押题任务生成失败，请稍后重试",
+          );
+        }
+      });
     }, QUESTIONING_POLL_INTERVAL_MS);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [activeJob, jobStartedAt, loadAccess]);
+  }, [loadAccess, pendingJobs]);
 
   const generationSummary = useMemo(() => {
     if (!lastGeneratedAt) return null;
@@ -266,8 +307,8 @@ export function QuestioningCenterPanel() {
     setIsSubmitting(true);
     setConfirmOpen(false);
     setJobError("");
+    setJobWarning("");
     setPollCount(0);
-    setJobStartedAt(Date.now());
     console.info("[questioning-center] create job start", {
       resumeId: formValues.resumeId,
       targetRole: formValues.targetRole,
@@ -296,12 +337,10 @@ export function QuestioningCenterPanel() {
         status: job.status,
         createdAt: job.createdAt,
       });
-      setActiveJob(job);
       setJobs((prev) => [job, ...prev]);
       void loadAccess();
     } catch (error) {
       console.error("Failed to create questioning job:", error);
-      setJobStartedAt(null);
       setJobError(error instanceof Error ? error.message : "押题任务创建失败");
     } finally {
       setIsSubmitting(false);
@@ -539,6 +578,12 @@ export function QuestioningCenterPanel() {
             </div>
           ) : null}
 
+          {jobWarning ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              {jobWarning}
+            </div>
+          ) : null}
+
           {generationSummary && (
             <div className="rounded-lg border border-[#E5E5E5] bg-[#F9FBFA] p-4">
               <p className="font-medium text-[#141414]">
@@ -564,7 +609,10 @@ export function QuestioningCenterPanel() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer" disabled={isSubmitting}>
+            <AlertDialogCancel
+              className="cursor-pointer"
+              disabled={isSubmitting}
+            >
               取消
             </AlertDialogCancel>
             <Button

@@ -1,5 +1,10 @@
 import type { QuestioningJob, ResumeReviewJob } from "@interviewclaw/domain";
 
+export interface QuestioningJobListResult {
+  jobs: QuestioningJob[];
+  warning?: string;
+}
+
 async function fetchJsonWithTiming(
   label: string,
   input: RequestInfo | URL,
@@ -102,6 +107,12 @@ export async function listQuestioningJobs() {
     "listQuestioningJobs",
     "/api/questioning/jobs",
   );
-  const payload = await readJson<{ data: QuestioningJob[] }>(response);
-  return payload.data;
+  const payload = await readJson<{
+    data: QuestioningJob[];
+    warning?: string;
+  }>(response);
+  return {
+    jobs: payload.data,
+    warning: payload.warning,
+  } satisfies QuestioningJobListResult;
 }

@@ -20,6 +20,7 @@ export interface CreateLangChainChatModelOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  timeoutMs?: number;
   tracing?: LangfuseTracingContext;
 }
 
@@ -53,7 +54,7 @@ function createChatModelFromConfig(
     ...(options?.maxTokens !== undefined
       ? { maxTokens: options.maxTokens }
       : {}),
-    timeout: 120_000,
+    timeout: options?.timeoutMs ?? 120_000,
     apiKey: config.apiKey,
     ...(callbacks ? { callbacks } : {}),
     ...(config.baseURL || config.headers
