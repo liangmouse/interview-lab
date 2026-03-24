@@ -1,4 +1,4 @@
-# Repository Guidelines
+# Claude Code Configuration
 
 ## Agent Working Rules
 
@@ -41,7 +41,7 @@
 
 ## Project Structure & Monorepo Organization
 
-This is a **pnpm + Turbo monorepo** named `interviewclaw`.
+This is a **pnpm + Turbo monorepo** named `interviewclaw` — an AI-powered mock interview platform with real-time voice sessions (LiveKit), LLM-driven interviewers, and Stripe subscriptions.
 
 ### Apps (`apps/`)
 - `apps/web` — Next.js 15 frontend (main user-facing app)
@@ -80,7 +80,7 @@ Run from the **repo root** unless noted:
 - `pnpm dev` — start all services together (web + agent, via `scripts/dev-with-agent.mjs`)
 - `pnpm dev:web` — start only the Next.js web app
 - `pnpm dev:gateway` — start only the gateway
-- `pnpm dev:agent` — start only the LiveKit agent (`@interviewclaw/livekit-agent`)
+- `pnpm dev:agent` — start only the LiveKit agent
 - `pnpm dev:scheduler` — start only the scheduler
 - `pnpm dev:turbo` — run web + agent in parallel via Turbopack
 - `pnpm build` — production build for all packages (via turbo)
@@ -91,14 +91,13 @@ Run from the **repo root** unless noted:
 - `pnpm format` — Prettier formatting across the repo
 - `pnpm test` — run Vitest in CI mode
 - `pnpm test:packages` — run tests under `packages/` only
-- `pnpm agent:dev` — alias for `dev:agent`
 - `pnpm agent:kill` — stop the agent process
 
 ## Coding Style & Naming Conventions
 
 - TypeScript + Next.js 15; prefer functional React components.
 - Use Prettier for formatting and ESLint for lint rules; run `pnpm format` before commits.
-- Typical naming: `PascalCase` for components, `camelCase` for functions/vars, `use*` for hooks.
+- Naming: `PascalCase` for components, `camelCase` for functions/vars, `use*` for hooks.
 - Paths are aliased via `@/` to `src/` within each app/package.
 - 新增 API、工具函数、hooks、store 前，先搜索对应目录是否已有同类实现。
 
@@ -128,3 +127,37 @@ Run from the **repo root** unless noted:
 
 - Copy `.env.example` to `.env.local` and fill Supabase/LiveKit credentials before running locally.
 - Do not commit secrets; prefer local environment overrides.
+
+## gstack
+
+Use the `/agent-browser` skill from gstack for all web browsing tasks. Never use `mcp__claude-in-chrome__*` tools directly.
+
+### Available gstack skills
+
+- `/office-hours` — YC-style product assumption challenges
+- `/plan-ceo-review` — CEO/founder-mode plan review
+- `/plan-eng-review` — Eng manager architecture review
+- `/plan-design-review` — Designer's eye plan review
+- `/design-consultation` — Full design system proposal
+- `/review` — Pre-landing PR code review
+- `/ship` — Ship workflow: tests, changelog, PR creation
+- `/land-and-deploy` — Merge PR, wait for CI, verify prod
+- `/canary` — Post-deploy canary monitoring
+- `/benchmark` — Performance regression detection
+- `/browse` — Fast headless browser for QA
+- `/qa` — QA test and fix bugs
+- `/qa-only` — QA report only, no fixes
+- `/design-review` — Visual audit and fix UI issues
+- `/setup-browser-cookies` — Import browser cookies for auth testing
+- `/setup-deploy` — Configure deployment settings
+- `/retro` — Weekly engineering retrospective
+- `/investigate` — Systematic root cause debugging
+- `/document-release` — Post-ship docs update
+- `/codex` — OpenAI Codex independent code review
+- `/cso` — Chief Security Officer security audit
+- `/autoplan` — Auto-run CEO + design + eng reviews
+- `/careful` — Warn before destructive commands
+- `/freeze` — Restrict edits to a specific directory
+- `/guard` — Full safety mode (careful + freeze)
+- `/unfreeze` — Clear freeze boundary
+- `/gstack-upgrade` — Upgrade gstack to latest version
