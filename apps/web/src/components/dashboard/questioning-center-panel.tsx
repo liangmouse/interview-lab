@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { QuestioningJob } from "@interviewclaw/domain";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import type { UserAccessState } from "@/types/billing";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,6 +16,15 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -39,6 +49,7 @@ import {
   type QuestioningTrack,
 } from "@/lib/questioning-center";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
 
 const SOCIAL_EXPERIENCE_OPTIONS = [
   { value: "0-1", label: "0-1 年" },
@@ -48,11 +59,18 @@ const SOCIAL_EXPERIENCE_OPTIONS = [
   { value: "8+", label: "8 年以上" },
 ] as const;
 
+const QUESTIONING_POLL_INTERVAL_MS = 6000;
+
+interface BillingAccessResponse {
+  access: UserAccessState;
+}
+
 export function QuestioningCenterPanel() {
   const t = useTranslations("dashboard.questioning");
   const [resumeLibrary, setResumeLibrary] = useState<ResumeLibraryItem[]>([]);
   const [jobs, setJobs] = useState<QuestioningJob[]>([]);
   const [activeJob, setActiveJob] = useState<QuestioningJob | null>(null);
+  const [access, setAccess] = useState<UserAccessState | null>(null);
   const [jobError, setJobError] = useState("");
   const hasResumeLibrary = resumeLibrary.length > 0;
   const historyReports = jobs
@@ -69,16 +87,62 @@ export function QuestioningCenterPanel() {
     jobDescription: "",
   });
   const [errors, setErrors] = useState<QuestioningFormErrors>({});
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAccessLoading, setIsAccessLoading] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState(0);
   const [jobStartedAt, setJobStartedAt] = useState<number | null>(null);
+  const activePendingJob =
+    activeJob &&
+    activeJob.status !== "succeeded" &&
+    activeJob.status !== "failed"
+      ? activeJob
+      : null;
+  const hasPendingJob = !!activePendingJob;
+  const isTrialExhausted =
+    access?.tier !== "premium" &&
+    typeof access?.trialRemaining === "number" &&
+    access.trialRemaining <= 0;
+  const isGenerateDisabled =
+    isSubmitting || isAccessLoading || !hasResumeLibrary || isTrialExhausted;
+
+  const loadAccess = useCallback(async () => {
+    setIsAccessLoading(true);
+    try {
+      const response = await fetch("/api/billing/access", {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = (await response.json()) as BillingAccessResponse;
+      setAccess(payload.access);
+      return payload.access;
+    } catch (error) {
+      console.error("[questioning-center] failed to load access:", error);
+      return null;
+    } finally {
+      setIsAccessLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     void Promise.all([getResumeLibrary(), listQuestioningJobs()])
       .then(([resumes, questioningJobs]) => {
+        const latestPendingJob =
+          questioningJobs.find(
+            (job) => job.status === "queued" || job.status === "running",
+          ) ?? null;
         setResumeLibrary(resumes);
         setJobs(questioningJobs);
+        setActiveJob(latestPendingJob);
+        setJobStartedAt(
+          latestPendingJob?.startedAt
+            ? new Date(latestPendingJob.startedAt).getTime()
+            : null,
+        );
         console.info("[questioning-center] initial data loaded", {
           resumeCount: resumes.length,
           jobCount: questioningJobs.length,
@@ -87,7 +151,8 @@ export function QuestioningCenterPanel() {
       .catch((error) => {
         console.error("Failed to load questioning center data:", error);
       });
-  }, []);
+    void loadAccess();
+  }, [loadAccess]);
 
   useEffect(() => {
     if (
@@ -119,13 +184,14 @@ export function QuestioningCenterPanel() {
           });
           setActiveJob(job);
           if (job.status === "succeeded") {
-            setIsGenerating(false);
+            setJobStartedAt(null);
             setLastGeneratedAt(job.completedAt || job.updatedAt);
             setJobError("");
+            void loadAccess();
             return listQuestioningJobs().then(setJobs);
           }
           if (job.status === "failed") {
-            setIsGenerating(false);
+            setJobStartedAt(null);
             setJobError(job.errorMessage || "押题任务生成失败，请稍后重试");
           }
           return undefined;
@@ -133,12 +199,12 @@ export function QuestioningCenterPanel() {
         .catch((error) => {
           console.error("Failed to poll questioning job:", error);
         });
-    }, 3000);
+    }, QUESTIONING_POLL_INTERVAL_MS);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [activeJob, jobStartedAt]);
+  }, [activeJob, jobStartedAt, loadAccess]);
 
   const generationSummary = useMemo(() => {
     if (!lastGeneratedAt) return null;
@@ -190,15 +256,15 @@ export function QuestioningCenterPanel() {
     });
   };
 
-  const handleGenerate = async () => {
-    const formErrors = validateQuestioningForm(formValues);
-    setErrors(formErrors);
-
-    if (Object.keys(formErrors).length > 0) {
+  const submitQuestioningJob = async () => {
+    if (isTrialExhausted) {
+      setConfirmOpen(false);
+      setJobError("押题次数已用完，请升级会员后继续");
       return;
     }
 
-    setIsGenerating(true);
+    setIsSubmitting(true);
+    setConfirmOpen(false);
     setJobError("");
     setPollCount(0);
     setJobStartedAt(Date.now());
@@ -232,12 +298,41 @@ export function QuestioningCenterPanel() {
       });
       setActiveJob(job);
       setJobs((prev) => [job, ...prev]);
+      void loadAccess();
     } catch (error) {
       console.error("Failed to create questioning job:", error);
-      setIsGenerating(false);
       setJobStartedAt(null);
       setJobError(error instanceof Error ? error.message : "押题任务创建失败");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleGenerate = async () => {
+    const formErrors = validateQuestioningForm(formValues);
+    setErrors(formErrors);
+
+    if (Object.keys(formErrors).length > 0) {
+      return;
+    }
+
+    const currentAccess = access ?? (await loadAccess());
+    const isCurrentTrialExhausted =
+      currentAccess?.tier !== "premium" &&
+      typeof currentAccess?.trialRemaining === "number" &&
+      currentAccess.trialRemaining <= 0;
+
+    if (isCurrentTrialExhausted) {
+      setJobError("押题次数已用完，请升级会员后继续");
+      return;
+    }
+
+    if (currentAccess?.tier === "premium") {
+      await submitQuestioningJob();
+      return;
+    }
+
+    setConfirmOpen(true);
   };
 
   return (
@@ -389,27 +484,48 @@ export function QuestioningCenterPanel() {
           </div>
 
           <Button
-            onClick={handleGenerate}
-            disabled={isGenerating || !hasResumeLibrary}
+            onClick={() => void handleGenerate()}
+            loading={isSubmitting}
+            disabled={isGenerateDisabled}
             className="h-11 w-full cursor-pointer md:w-auto"
           >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("form.generating")}
-              </>
-            ) : (
-              t("form.generate")
-            )}
+            {isTrialExhausted
+              ? "押题次数已用完"
+              : isSubmitting
+                ? t("form.generating")
+                : t("form.generate")}
           </Button>
 
-          {isGenerating && (
+          {!access || access.tier !== "premium" ? (
+            isTrialExhausted ? (
+              <p className="text-sm text-amber-600">
+                押题次数已用完，请前往
+                <Link
+                  href="/dashboard/profile"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  会员中心
+                </Link>
+                充值后继续。
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {typeof access?.trialRemaining === "number"
+                  ? `当前剩余押题次数 ${access.trialRemaining} 次，确认生成后将扣除 1 次。`
+                  : "确认生成后将扣除 1 次押题次数。"}
+              </p>
+            )
+          ) : null}
+
+          {hasPendingJob && (
             <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
               <div className="flex items-center gap-2 text-sm text-primary">
                 <Sparkles className="h-4 w-4 animate-pulse" />
-                {activeJob?.status === "running"
-                  ? "正在结合简历与题库生成押题报告..."
-                  : "任务已提交，正在加紧处理，您可以稍后回来查看结果..."}
+                {activePendingJob.status === "running"
+                  ? "当前有任务正在生成中，您仍可继续提交新的押题任务。"
+                  : activePendingJob.attemptCount > 0
+                    ? "上一个任务生成失败，正在等待系统自动重试，您仍可继续提交新的押题任务。"
+                    : "任务已提交，正在排队处理中，您仍可继续提交新的押题任务。"}
               </div>
               <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-primary/10">
                 <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
@@ -435,6 +551,33 @@ export function QuestioningCenterPanel() {
           )}
         </CardContent>
       </Card>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认生成押题报告？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {access?.tier === "premium"
+                ? "会员用户生成押题报告不扣次数，确认后将开始创建任务。"
+                : isTrialExhausted
+                  ? "押题次数已用完，请前往会员中心充值后继续。"
+                  : `本次将扣除 1 次押题次数${typeof access?.trialRemaining === "number" ? `，当前剩余 ${access.trialRemaining} 次` : ""}。确认后将开始创建任务。`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer" disabled={isSubmitting}>
+              取消
+            </AlertDialogCancel>
+            <Button
+              onClick={() => void submitQuestioningJob()}
+              loading={isSubmitting}
+              disabled={isTrialExhausted}
+              className="cursor-pointer"
+            >
+              确认并生成
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card className="border-[#E5E5E5] bg-white">
         <CardHeader>
@@ -457,7 +600,7 @@ export function QuestioningCenterPanel() {
                         {report.title}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {report.createdAt}
+                        {formatDateTime(report.createdAt)}
                       </p>
                     </div>
                     <Badge variant="secondary">

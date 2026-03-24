@@ -298,6 +298,14 @@ export type QuestioningQuestion = {
   expectedSignals: string[];
   reason: string;
   preparationAdvice: string;
+  /** 考察类别，如"项目经历真实性验证"、"技术深度" */
+  category?: string;
+  /** 回答思路/框架（STAR 结构拆解） */
+  answerGuide?: string;
+  /** 参考答案（结合简历中的具体信息） */
+  referenceAnswer?: string;
+  /** 面试官可能追问的方向 */
+  followUps?: string[];
 };
 
 export type QuestioningTrack = "social" | "campus";

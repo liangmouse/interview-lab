@@ -85,7 +85,9 @@ async function generateResumeReview(args: {
           maxTokens: 5000,
           tracing,
         })
-  ).withStructuredOutput(resumeReviewSchema);
+  ).withStructuredOutput(resumeReviewSchema, {
+    method: "functionCalling",
+  });
 
   return model.invoke([
     {

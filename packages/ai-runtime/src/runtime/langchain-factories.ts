@@ -53,6 +53,7 @@ function createChatModelFromConfig(
     ...(options?.maxTokens !== undefined
       ? { maxTokens: options.maxTokens }
       : {}),
+    timeout: 120_000,
     apiKey: config.apiKey,
     ...(callbacks ? { callbacks } : {}),
     ...(config.baseURL || config.headers

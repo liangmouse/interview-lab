@@ -41,6 +41,19 @@ describe("runtime/model-policy", () => {
     expect(route.model).toBe("deepseek/deepseek-v3.2");
   });
 
+  it("uses Claude Sonnet 4.6 as the premium question prediction default", () => {
+    const route = resolveAiModelRoute({
+      useCase: "question-predict",
+      userTier: "premium",
+      env: {
+        OPEN_ROUTER_API_KEY: "or-key",
+      } as NodeJS.ProcessEnv,
+    });
+
+    expect(route.providerId).toBe("openrouter");
+    expect(route.model).toBe("anthropic/claude-sonnet-4.6");
+  });
+
   it("resolves embeddings through the dedicated embedding route", () => {
     const route = resolveAiModelRoute({
       useCase: "rag-embedding",

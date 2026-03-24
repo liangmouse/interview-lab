@@ -1,5 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
-import { sanitizeDatabaseValue, upsertResumeRecord } from "./llm-job-data";
+
+const { getSupabaseAdminClient } = vi.hoisted(() => ({
+  getSupabaseAdminClient: vi.fn(),
+}));
+
+vi.mock("./supabase-admin", () => ({
+  getSupabaseAdminClient,
+}));
+
+import {
+  claimNextQuestioningJob,
+  sanitizeDatabaseValue,
+  upsertResumeRecord,
+} from "./llm-job-data";
 
 describe("sanitizeDatabaseValue", () => {
   it("removes NUL characters and replaces lone surrogate code units", () => {
@@ -81,5 +94,49 @@ describe("upsertResumeRecord", () => {
       }),
       { onConflict: "storage_path" },
     );
+  });
+});
+
+describe("claimNextQuestioningJob", () => {
+  it("only claims queued jobs and never reclaims failed jobs", async () => {
+    const staleLt = vi.fn().mockResolvedValue({ error: null });
+    const staleEq = vi.fn(() => ({
+      lt: staleLt,
+    }));
+    const staleUpdate = vi.fn(() => ({
+      eq: staleEq,
+    }));
+
+    const limit = vi.fn().mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    const order = vi.fn(() => ({
+      limit,
+    }));
+    const lte = vi.fn(() => ({
+      order,
+    }));
+    const inStatus = vi.fn(() => ({
+      lte,
+    }));
+    const select = vi.fn(() => ({
+      in: inStatus,
+    }));
+
+    getSupabaseAdminClient.mockReturnValue({
+      from: vi
+        .fn()
+        .mockReturnValueOnce({
+          update: staleUpdate,
+        })
+        .mockReturnValueOnce({
+          select,
+        }),
+    });
+
+    await claimNextQuestioningJob();
+
+    expect(inStatus).toHaveBeenCalledWith("status", ["queued"]);
   });
 });

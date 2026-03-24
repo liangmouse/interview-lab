@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getQuestioningJobForUser } from "@interviewclaw/data-access";
 import { getTranslations } from "next-intl/server";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { FormattedDate } from "@/components/formatted-date";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -53,7 +54,7 @@ export default async function QuestioningReportDetailPage({
                     : t("tracks.campus")}
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  {report.createdAt}
+                  <FormattedDate value={report.createdAt} />
                 </span>
               </div>
               <CardTitle className="mt-2 text-2xl text-[#141414]">

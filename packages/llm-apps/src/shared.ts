@@ -65,9 +65,64 @@ export const resumeSnapshotSchema = z.object({
       }),
     )
     .nullish(),
-});
+}).strict();
 
 export type ResumeSnapshot = z.infer<typeof resumeSnapshotSchema>;
+
+function hasNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasMeaningfulEducation(snapshot: ResumeSnapshot) {
+  return Boolean(
+    snapshot.education &&
+      [snapshot.education.school, snapshot.education.major, snapshot.education.degree].some(
+        hasNonEmptyString,
+      ),
+  );
+}
+
+function hasMeaningfulWorkExperiences(snapshot: ResumeSnapshot) {
+  return Boolean(
+    snapshot.workExperiences?.some(
+      (item) =>
+        hasNonEmptyString(item.company) ||
+        hasNonEmptyString(item.position) ||
+        hasNonEmptyString(item.description),
+    ),
+  );
+}
+
+function hasMeaningfulProjectExperiences(snapshot: ResumeSnapshot) {
+  return Boolean(
+    snapshot.projectExperiences?.some(
+      (item) =>
+        hasNonEmptyString(item.projectName) ||
+        hasNonEmptyString(item.role) ||
+        hasNonEmptyString(item.description) ||
+        Boolean(item.techStack?.length),
+    ),
+  );
+}
+
+export function hasUsableResumeSnapshot(snapshot: ResumeSnapshot) {
+  return Boolean(
+    hasMeaningfulEducation(snapshot) ||
+      hasMeaningfulWorkExperiences(snapshot) ||
+      hasMeaningfulProjectExperiences(snapshot) ||
+      Boolean(snapshot.skills?.length) ||
+      hasNonEmptyString(snapshot.jobIntention),
+  );
+}
+
+function parseCachedResumeSnapshot(raw: unknown) {
+  const parsed = resumeSnapshotSchema.safeParse(raw);
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data;
+}
 
 function getModelConfig(input?: {
   envModelKey?: string;
@@ -163,7 +218,9 @@ export async function analyzeResumeSnapshot(
       },
       tracing,
     ),
-  }).withStructuredOutput(resumeSnapshotSchema);
+  }).withStructuredOutput(resumeSnapshotSchema, {
+    method: "functionCalling",
+  });
   logLlmStep("resume-snapshot", "start structured snapshot analysis", {
     textLength: text.length,
   });
@@ -181,7 +238,7 @@ export async function analyzeResumeSnapshot(
   logLlmStep("resume-snapshot", "structured snapshot analysis completed", {
     durationMs: Date.now() - startedAt,
   });
-  return result;
+  return resumeSnapshotSchema.parse(result);
 }
 
 export function buildJobTracingContext(input: {
@@ -212,23 +269,44 @@ export async function ensureResumeSnapshot(
   const startedAt = Date.now();
   const existing = await getResumeRecordByStoragePath(userId, storagePath);
   if (existing?.parsedText && existing.parsedJson) {
-    logLlmStep("resume-snapshot", "reuse cached snapshot", {
+    const cachedSnapshot = parseCachedResumeSnapshot(existing.parsedJson);
+    if (cachedSnapshot && hasUsableResumeSnapshot(cachedSnapshot)) {
+      logLlmStep("resume-snapshot", "reuse cached snapshot", {
+        userId,
+        storagePath,
+        durationMs: Date.now() - startedAt,
+      });
+      return {
+        record: existing,
+        snapshot: cachedSnapshot,
+      };
+    }
+
+    logLlmStep("resume-snapshot", "cached snapshot invalid, rebuilding", {
       userId,
       storagePath,
-      durationMs: Date.now() - startedAt,
+      hasParsedText: true,
+      parsedJsonKeys:
+        existing.parsedJson && typeof existing.parsedJson === "object"
+          ? Object.keys(existing.parsedJson)
+          : [],
     });
-    return {
-      record: existing,
-      snapshot: resumeSnapshotSchema.parse(existing.parsedJson),
-    };
   }
 
-  logLlmStep("resume-snapshot", "cache miss, rebuilding snapshot", {
-    userId,
-    storagePath,
-  });
+  let text = existing?.parsedText?.trim();
+  let fileName = existing?.fileName ?? storagePath.split("/").pop() ?? "resume.pdf";
 
-  const { text, fileName } = await extractResumeTextFromStorage(storagePath);
+  if (!text) {
+    logLlmStep("resume-snapshot", "cache miss, rebuilding snapshot", {
+      userId,
+      storagePath,
+    });
+
+    const extracted = await extractResumeTextFromStorage(storagePath);
+    text = extracted.text;
+    fileName = extracted.fileName;
+  }
+
   const snapshot = await analyzeResumeSnapshot(
     text,
     mergeLangfuseTracingContext(
@@ -240,6 +318,11 @@ export async function ensureResumeSnapshot(
       tracing,
     ),
   );
+
+  if (!hasUsableResumeSnapshot(snapshot)) {
+    throw new Error("简历解析结果为空，无法生成个性化押题");
+  }
+
   const supabase = getSupabaseAdminClient();
   const {
     data: { publicUrl },

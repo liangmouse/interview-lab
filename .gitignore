@@ -42,6 +42,7 @@ yarn-error.log*
 
 # cache
 .next
+.next-dev
 # typescript
 *.tsbuildinfo
 next-env.d.ts

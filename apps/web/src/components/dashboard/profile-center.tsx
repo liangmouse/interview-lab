@@ -51,6 +51,7 @@ import {
   triggerResumeProcessing,
   waitForProcessedProfile,
 } from "@/lib/resume-processing-client";
+import { formatDateTime } from "@/lib/format";
 
 const ALIAS_STORAGE_KEY = "profile_resume_aliases_v1";
 
@@ -60,18 +61,6 @@ interface ResumeReportItem {
   id: string;
   title: string;
   createdAt: string;
-}
-
-function formatDateTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
 }
 
 function formatStatus(
@@ -685,7 +674,7 @@ export function ProfileCenter() {
                     {report.title}
                   </p>
                   <p className="mt-1 text-xs text-[#777777]">
-                    {report.createdAt}
+                    {formatDateTime(report.createdAt)}
                   </p>
                 </div>
               ))

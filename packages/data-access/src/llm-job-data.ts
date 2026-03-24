@@ -334,6 +334,20 @@ export async function listResumeReviewJobsForUser(
 export async function claimNextResumeReviewJob() {
   const client = getSupabaseAdminClient();
   const now = new Date().toISOString();
+  const staleThreshold = new Date(Date.now() - 10 * 60_000).toISOString(); // 10 min
+
+  // Reset stale running jobs (scheduler crash recovery)
+  await client
+    .from("resume_review_jobs")
+    .update({
+      status: "queued",
+      started_at: null,
+      error_message: "reset: stale running job recovered",
+      updated_at: now,
+    })
+    .eq("status", "running")
+    .lt("updated_at", staleThreshold);
+
   const { data, error } = await client
     .from("resume_review_jobs")
     .select("*")
@@ -520,10 +534,24 @@ export async function listQuestioningJobsForUser(
 export async function claimNextQuestioningJob() {
   const client = getSupabaseAdminClient();
   const now = new Date().toISOString();
+  const staleThreshold = new Date(Date.now() - 10 * 60_000).toISOString(); // 10 min
+
+  // Reset stale running jobs (scheduler crash recovery)
+  await client
+    .from("questioning_jobs")
+    .update({
+      status: "queued",
+      started_at: null,
+      error_message: "reset: stale running job recovered",
+      updated_at: now,
+    })
+    .eq("status", "running")
+    .lt("updated_at", staleThreshold);
+
   const { data, error } = await client
     .from("questioning_jobs")
     .select("*")
-    .in("status", ["queued", "failed"])
+    .in("status", ["queued"])
     .lte("available_at", now)
     .order("created_at", { ascending: true })
     .limit(10);
@@ -588,6 +616,7 @@ export async function failQuestioningJob(input: {
   errorMessage: string;
   providerId?: string;
   model?: string;
+  terminal?: boolean;
 }) {
   const client = getSupabaseAdminClient();
   const { data: current, error: loadError } = await client
@@ -607,7 +636,8 @@ export async function failQuestioningJob(input: {
   const availableAt = new Date(
     Date.now() + JOB_RETRY_DELAY_MINUTES * 60_000,
   ).toISOString();
-  const status: LlmJobStatus = nextAttempt >= 3 ? "failed" : "queued";
+  const status: LlmJobStatus =
+    input.terminal || nextAttempt >= 3 ? "failed" : "queued";
 
   const { error } = await client
     .from("questioning_jobs")

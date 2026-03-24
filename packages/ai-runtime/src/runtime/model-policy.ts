@@ -87,11 +87,11 @@ const QUESTION_PREDICT_PREMIUM_FALLBACKS: RouteCandidate[] = [
   },
   {
     providerId: "openrouter",
-    model: "deepseek/deepseek-v3.2",
+    model: "minimax/minimax-m2.7",
   },
   {
-    providerId: "openai",
-    model: "gpt-5.4",
+    providerId: "openrouter",
+    model: "deepseek/deepseek-v3.2",
   },
   GEMINI_CHAT_FALLBACK,
 ];

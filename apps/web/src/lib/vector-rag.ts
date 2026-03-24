@@ -403,7 +403,9 @@ export async function performIntelligentAnalysis(
     const model = createLangChainChatModelForUseCase({
       useCase: "question-predict",
       temperature: 0.7,
-    }).withStructuredOutput(analysisSchema);
+    }).withStructuredOutput(analysisSchema, {
+      method: "functionCalling",
+    });
 
     const result = await model.invoke([
       {
