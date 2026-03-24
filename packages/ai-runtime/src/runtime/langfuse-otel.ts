@@ -1,4 +1,4 @@
-import type { NodeSDK } from "@opentelemetry/sdk-node";
+import type { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import {
   applyLegacyLangfuseEnvAliases,
   getLangfuseRelease,
@@ -12,7 +12,7 @@ export interface LangfuseTelemetryBootstrapOptions {
 }
 
 interface LangfuseTelemetryState {
-  sdk?: NodeSDK;
+  provider?: NodeTracerProvider;
   started: boolean;
   shutdownRegistered: boolean;
   serviceName?: string;
@@ -24,17 +24,16 @@ interface LangfuseTelemetryState {
 const STATE_KEY = "__interviewclawLangfuseTelemetry";
 
 type TelemetryRuntimeModules = {
-  NodeSDK: typeof import("@opentelemetry/sdk-node").NodeSDK;
+  NodeTracerProvider: typeof import("@opentelemetry/sdk-trace-node").NodeTracerProvider;
   LangfuseSpanProcessor: typeof import("@langfuse/otel").LangfuseSpanProcessor;
 };
 
 async function loadTelemetryRuntimeModules(): Promise<TelemetryRuntimeModules> {
   return {
-    NodeSDK: (await import(/* webpackIgnore: true */ "@opentelemetry/sdk-node"))
-      .NodeSDK as TelemetryRuntimeModules["NodeSDK"],
-    LangfuseSpanProcessor: (
-      await import(/* webpackIgnore: true */ "@langfuse/otel")
-    ).LangfuseSpanProcessor as TelemetryRuntimeModules["LangfuseSpanProcessor"],
+    NodeTracerProvider: (await import("@opentelemetry/sdk-trace-node"))
+      .NodeTracerProvider as TelemetryRuntimeModules["NodeTracerProvider"],
+    LangfuseSpanProcessor: (await import("@langfuse/otel"))
+      .LangfuseSpanProcessor as TelemetryRuntimeModules["LangfuseSpanProcessor"],
   };
 }
 
@@ -44,6 +43,10 @@ export function __setTelemetryRuntimeModulesLoaderForTests(
   loader?: typeof loadTelemetryRuntimeModules,
 ) {
   telemetryRuntimeModulesLoader = loader ?? loadTelemetryRuntimeModules;
+}
+
+export function __loadTelemetryRuntimeModulesForTests() {
+  return loadTelemetryRuntimeModules();
 }
 
 function getState(): LangfuseTelemetryState {
@@ -82,11 +85,10 @@ export async function initializeLangfuseTelemetry(
   }
 
   state.initializingPromise = (async () => {
-    const { NodeSDK, LangfuseSpanProcessor } =
+    const { NodeTracerProvider, LangfuseSpanProcessor } =
       await telemetryRuntimeModulesLoader();
 
-    const sdk = new NodeSDK({
-      serviceName: options.serviceName,
+    const provider = new NodeTracerProvider({
       spanProcessors: [
         new LangfuseSpanProcessor({
           publicKey: env.LANGFUSE_PUBLIC_KEY,
@@ -103,9 +105,9 @@ export async function initializeLangfuseTelemetry(
       ],
     });
 
-    sdk.start();
+    provider.register();
 
-    state.sdk = sdk;
+    state.provider = provider;
     state.started = true;
     state.serviceName = options.serviceName;
     state.exportMode = options.exportMode ?? "batched";
@@ -128,14 +130,14 @@ export async function initializeLangfuseTelemetry(
 
 export async function shutdownLangfuseTelemetry() {
   const state = getState();
-  if (!state.started || !state.sdk || state.shuttingDown) {
+  if (!state.started || !state.provider || state.shuttingDown) {
     return;
   }
 
   state.shuttingDown = true;
 
   try {
-    await state.sdk.shutdown();
+    await state.provider.shutdown();
     console.info("[langfuse] telemetry shutdown completed", {
       serviceName: state.serviceName,
     });
@@ -143,7 +145,7 @@ export async function shutdownLangfuseTelemetry() {
     console.error("[langfuse] telemetry shutdown failed", error);
   } finally {
     state.started = false;
-    state.sdk = undefined;
+    state.provider = undefined;
     state.shuttingDown = false;
   }
 }

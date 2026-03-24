@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { MockNodeSDK, MockLangfuseSpanProcessor } = vi.hoisted(() => {
-  const MockNodeSDK = vi.fn(function (this: unknown, opts: unknown) {
+const { MockNodeTracerProvider, MockLangfuseSpanProcessor } = vi.hoisted(() => {
+  const MockNodeTracerProvider = vi.fn(function (this: unknown, opts: unknown) {
     return {
       opts,
-      start: vi.fn(),
+      register: vi.fn(),
       shutdown: vi.fn().mockResolvedValue(undefined),
     };
   });
@@ -17,12 +17,13 @@ const { MockNodeSDK, MockLangfuseSpanProcessor } = vi.hoisted(() => {
   });
 
   return {
-    MockNodeSDK,
+    MockNodeTracerProvider,
     MockLangfuseSpanProcessor,
   };
 });
 
 import {
+  __loadTelemetryRuntimeModulesForTests,
   __setTelemetryRuntimeModulesLoaderForTests,
   initializeLangfuseTelemetry,
   shutdownLangfuseTelemetry,
@@ -34,7 +35,7 @@ describe("langfuse-otel", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     __setTelemetryRuntimeModulesLoaderForTests(() => ({
-      NodeSDK: MockNodeSDK as never,
+      NodeTracerProvider: MockNodeTracerProvider as never,
       LangfuseSpanProcessor: MockLangfuseSpanProcessor as never,
     }));
     delete process.env.LANGFUSE_PUBLIC_KEY;
@@ -72,7 +73,7 @@ describe("langfuse-otel", () => {
     });
 
     expect(initialized).toBe(false);
-    expect(MockNodeSDK).not.toHaveBeenCalled();
+    expect(MockNodeTracerProvider).not.toHaveBeenCalled();
   });
 
   it("initializes telemetry once with legacy host fallback", async () => {
@@ -105,8 +106,10 @@ describe("langfuse-otel", () => {
         exportMode: "immediate",
       }),
     );
-    expect(MockNodeSDK).toHaveBeenCalledTimes(1);
-    expect(MockNodeSDK.mock.results[0]?.value.start).toHaveBeenCalledTimes(1);
+    expect(MockNodeTracerProvider).toHaveBeenCalledTimes(1);
+    expect(
+      MockNodeTracerProvider.mock.results[0]?.value.register,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it("deduplicates concurrent initialization", async () => {
@@ -115,12 +118,12 @@ describe("langfuse-otel", () => {
 
     let resolveLoader:
       | ((value: {
-          NodeSDK: typeof MockNodeSDK;
+          NodeTracerProvider: typeof MockNodeTracerProvider;
           LangfuseSpanProcessor: typeof MockLangfuseSpanProcessor;
         }) => void)
       | undefined;
     const loaderPromise = new Promise<{
-      NodeSDK: typeof MockNodeSDK;
+      NodeTracerProvider: typeof MockNodeTracerProvider;
       LangfuseSpanProcessor: typeof MockLangfuseSpanProcessor;
     }>((resolve) => {
       resolveLoader = resolve;
@@ -136,13 +139,23 @@ describe("langfuse-otel", () => {
     });
 
     resolveLoader?.({
-      NodeSDK: MockNodeSDK,
+      NodeTracerProvider: MockNodeTracerProvider,
       LangfuseSpanProcessor: MockLangfuseSpanProcessor,
     });
 
     await expect(initA).resolves.toBe(true);
     await expect(initB).resolves.toBe(true);
-    expect(MockNodeSDK).toHaveBeenCalledTimes(1);
+    expect(MockNodeTracerProvider).toHaveBeenCalledTimes(1);
     expect(MockLangfuseSpanProcessor).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads telemetry runtime modules with the default resolver", async () => {
+    __setTelemetryRuntimeModulesLoaderForTests();
+
+    const { NodeTracerProvider, LangfuseSpanProcessor } =
+      await __loadTelemetryRuntimeModulesForTests();
+
+    expect(NodeTracerProvider).toBeTypeOf("function");
+    expect(LangfuseSpanProcessor).toBeTypeOf("function");
   });
 });
