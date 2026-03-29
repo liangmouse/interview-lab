@@ -107,11 +107,11 @@ const QUESTION_PREDICT_FREE_FALLBACKS: RouteCandidate[] = [
 const EMBEDDING_FALLBACKS: RouteCandidate[] = [
   {
     providerId: "openrouter",
-    model: "openai/text-embedding-3-small",
+    model: "openai/text-embedding-3-large",
   },
   {
     providerId: "openai",
-    model: "text-embedding-3-small",
+    model: "text-embedding-3-large",
   },
   {
     providerId: "gemini",

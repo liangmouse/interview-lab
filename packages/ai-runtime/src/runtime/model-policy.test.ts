@@ -63,6 +63,6 @@ describe("runtime/model-policy", () => {
     });
 
     expect(route.providerId).toBe("openai");
-    expect(route.model).toBe("text-embedding-3-small");
+    expect(route.model).toBe("text-embedding-3-large");
   });
 });

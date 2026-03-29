@@ -24,11 +24,11 @@ export interface ResolveOpenAICompatibleConfigOptions {
 export type OpenAICompatibleProviderId = "openrouter" | "openai" | "gemini";
 
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-export const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+export const DEFAULT_OPENAI_MODEL = "gpt-5.2-mini";
 export const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 export const DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash";
 export const DEFAULT_OPENROUTER_EMBEDDING_MODEL =
-  "openai/text-embedding-3-small";
+  "openai/text-embedding-3-large";
 
 function trimString(value: string | undefined) {
   const trimmed = value?.trim();
@@ -142,7 +142,7 @@ export function resolveDefaultEmbeddingModel(): {
   if (trimString(env.OPENAI_API_KEY)) {
     return {
       providerId: "openai",
-      model: "text-embedding-3-small",
+      model: "text-embedding-3-large",
     };
   }
 

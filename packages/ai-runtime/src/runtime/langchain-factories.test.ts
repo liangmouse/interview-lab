@@ -221,7 +221,7 @@ describe("langchain-factories", () => {
           traceMetadata: expect.objectContaining({
             feature: "chat",
             providerId: "openai",
-            model: "gpt-4o-mini",
+            model: "gpt-5.2-mini",
           }),
         }),
       );
@@ -325,7 +325,7 @@ describe("langchain-factories", () => {
         string,
         unknown
       >;
-      expect(callArg.model).toBe("text-embedding-3-small");
+      expect(callArg.model).toBe("text-embedding-3-large");
       expect(callArg.openAIApiKey).toBe("sk-test");
     });
   });
