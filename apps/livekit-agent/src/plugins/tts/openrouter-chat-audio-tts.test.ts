@@ -235,7 +235,7 @@ describe("plugins/tts/openrouter-chat-audio-tts", () => {
         voice: "alloy",
         format: "pcm",
       },
-      stream: false,
+      stream: true,
     });
     expect(chunks.length).toBeGreaterThan(0);
     expect(chunks.at(-1)?.final).toBe(true);

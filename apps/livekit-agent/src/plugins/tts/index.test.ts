@@ -43,7 +43,7 @@ describe("plugins/tts.resolveTtsConfig", () => {
       baseURL: DEFAULT_TTS_BASE_URL,
       voice: "alloy",
       sampleRate: 24000,
-      audioFormat: "pcm",
+      audioFormat: "pcm16",
       headers: {
         "HTTP-Referer": "https://example.com",
         "X-Title": "InterviewClaw",

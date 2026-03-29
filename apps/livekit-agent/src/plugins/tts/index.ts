@@ -24,7 +24,7 @@ export const DEFAULT_TTS_PROVIDER: TtsProviderId = "openrouter";
 export const DEFAULT_TTS_MODEL = "openai/gpt-audio-mini";
 export const DEFAULT_TTS_BASE_URL = "https://openrouter.ai/api/v1";
 export const DEFAULT_TTS_SAMPLE_RATE = 24000;
-export const DEFAULT_TTS_AUDIO_FORMAT: TtsAudioFormat = "pcm";
+export const DEFAULT_TTS_AUDIO_FORMAT: TtsAudioFormat = "pcm16";
 export const DEFAULT_TTS_VOICE = "alloy";
 
 const providerFactories: Record<TtsProviderId, TtsProviderFactory> = {
@@ -88,7 +88,8 @@ export function isTtsProviderConfigured(
 }
 
 function resolveAudioFormat(value: TtsAudioFormat | undefined): TtsAudioFormat {
-  return value === "wav" ? "wav" : DEFAULT_TTS_AUDIO_FORMAT;
+  if (value === "wav" || value === "pcm16") return value;
+  return DEFAULT_TTS_AUDIO_FORMAT;
 }
 
 function resolveSampleRate(value: number | undefined) {

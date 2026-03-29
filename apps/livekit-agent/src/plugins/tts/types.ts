@@ -1,7 +1,7 @@
 import type { tts } from "@livekit/agents";
 
 export type TtsProviderId = "openrouter";
-export type TtsAudioFormat = "pcm" | "wav";
+export type TtsAudioFormat = "pcm" | "pcm16" | "wav";
 
 export interface TtsRuntimeOverrides {
   voice?: string;

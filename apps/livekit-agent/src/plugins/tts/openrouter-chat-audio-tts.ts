@@ -104,7 +104,8 @@ class OpenRouterChatAudioChunkedStream extends tts.ChunkedStream {
           voice: this.opts.voice,
           format: this.opts.audioFormat,
         },
-        stream: false,
+        // OpenRouter requires stream: true for audio output
+        stream: true,
       }),
     });
 
@@ -117,8 +118,9 @@ class OpenRouterChatAudioChunkedStream extends tts.ChunkedStream {
       );
     }
 
-    const payload = (await response.json()) as OpenRouterAudioResponse;
-    const audio = extractChatCompletionAudio(payload);
+    const body = await response.text();
+    const audio = extractAudioFromResponseBody(body);
+
     if (!audio) {
       throw new Error("[OpenRouter TTS] Missing audio in chat completion");
     }
@@ -144,10 +146,55 @@ class OpenRouterChatAudioChunkedStream extends tts.ChunkedStream {
   }
 }
 
+function extractAudioFromResponseBody(
+  body: string,
+): { data: string; format?: string } | null {
+  const directPayload = tryParseJson(body);
+  const directAudio = directPayload
+    ? extractChatCompletionAudio(directPayload)
+    : null;
+  if (directAudio) {
+    return directAudio;
+  }
+
+  let audioDataAccumulated = "";
+  let audioFormatFromStream: string | undefined;
+
+  for (const line of body.split("\n")) {
+    if (!line.startsWith("data: ")) continue;
+    const data = line.slice(6).trim();
+    if (data === "[DONE]") break;
+    const chunk = tryParseJson(data) as OpenRouterAudioResponse | null;
+    if (!chunk) continue;
+
+    for (const choice of chunk.choices ?? []) {
+      const audio = (choice as any)?.delta?.audio ?? choice?.message?.audio;
+      if (audio && typeof audio.data === "string" && audio.data.length > 0) {
+        audioDataAccumulated += audio.data;
+        if (typeof audio.format === "string" && audio.format.trim()) {
+          audioFormatFromStream = audio.format.trim();
+        }
+      }
+    }
+  }
+
+  return audioDataAccumulated
+    ? { data: audioDataAccumulated, format: audioFormatFromStream }
+    : null;
+}
+
+function tryParseJson(value: string): unknown | null {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 function normalizeAudioFormat(value?: string): TtsAudioFormat | null {
   const normalized = value?.trim().toLowerCase();
-  if (normalized === "pcm" || normalized === "wav") {
-    return normalized;
+  if (normalized === "pcm" || normalized === "pcm16" || normalized === "wav") {
+    return normalized as TtsAudioFormat;
   }
   return null;
 }
