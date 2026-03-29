@@ -8,6 +8,7 @@ import { InterviewStage } from "./fsm/types";
 import { createTools } from "./tools";
 import { summarizeStage } from "./fsm/summarizer";
 import { InterviewOrchestrator } from "./interview-orchestrator";
+import { createLLMForStage } from "../config/providers";
 
 export function createInterviewApplier(args: {
   session: voice.AgentSession;
@@ -91,7 +92,10 @@ export function createInterviewApplier(args: {
     }
 
     // 3. 定义 Agent 更新逻辑 (随阶段变化)
-    const updateAgentForStage = (stage: InterviewStage) => {
+    // 功能3: 按阶段动态切换 LLM —— 为新 Agent 实例注入阶段专属 LLM
+    // LiveKit SDK 解析 LLM 时优先使用 agent.llm，其次 session.llm；
+    // 因此直接在 voice.Agent 构造时传入 llm 即可完成切换，无需额外 API。
+    const updateAgentForStage = async (stage: InterviewStage) => {
       const summaries = currentStageManager?.getStageSummaries();
       const newPrompt = buildStagePrompt(
         stage,
@@ -102,17 +106,28 @@ export function createInterviewApplier(args: {
       );
       console.log(`[面试] 更新 Agent 阶段: ${stage}`);
 
+      // 为当前阶段创建专属 LLM（INTRO/CLOSING: 轻量快速, MAIN_TECHNICAL: 强推理）
+      let stageLLM: Awaited<ReturnType<typeof createLLMForStage>> | undefined;
+      try {
+        stageLLM = await createLLMForStage(stage, userId);
+      } catch (err) {
+        console.warn(`[面试] 阶段 ${stage} LLM 创建失败，保持当前模型:`, err);
+      }
+
       const updatedAgent = new voice.Agent({
         instructions: newPrompt,
         chatCtx, // 注意: 共享同一个 chatCtx 引用 (保持记忆连续)
         tools, // 注入工具能力
+        // 功能3: 阶段专属 LLM —— 若创建失败则 undefined，SDK 自动回退到 session.llm
+        ...(stageLLM ? { llm: stageLLM } : {}),
       });
       session.updateAgent(updatedAgent);
     };
 
     // 4. 启动第一阶段 (自我介绍/Intro)
+    // 功能3: await 确保初始阶段 LLM 切换完成后再发送开场白
     const initialStage = currentStageManager.getCurrentStage();
-    updateAgentForStage(initialStage);
+    await updateAgentForStage(initialStage);
 
     // 5. 启动监控循环 (V1: 基于时间的自动流转)
     stageMonitorTimer = setInterval(() => {
@@ -162,7 +177,10 @@ export function createInterviewApplier(args: {
             }
           })();
 
-          updateAgentForStage(next);
+          // 功能3: 阶段切换时异步切换 LLM（不阻塞 setInterval，错误已在内部捕获）
+          updateAgentForStage(next).catch((err) => {
+            console.error(`[面试] 阶段 ${next} updateAgentForStage 失败:`, err);
+          });
         } else {
           // 面试全流程结束
           console.log("[面试] 所有阶段均已完成。");
@@ -186,16 +204,18 @@ export function createInterviewApplier(args: {
         if (setGreeted) setGreeted();
 
         const candidateName = getCandidateName(userProfile);
+        // 功能2: 主动开场白 —— 邀请候选人进行自我介绍，包含教育背景、工作经历和技术栈
         const greeting = candidateName
-          ? `您好${candidateName},我是今天的面试官,如果你已经准备好,就请做个简单的自我介绍吧`
-          : "您好,我是今天的面试官,如果你已经准备好,就请做个简单的自我介绍吧";
+          ? `你好${candidateName}，欢迎参加本次面试！请先做一个简短的自我介绍，包括你的教育背景、工作经历和技术栈。`
+          : "你好，欢迎参加本次面试！请先做一个简短的自我介绍，包括你的教育背景、工作经历和技术栈。";
 
         // 稍作延迟以确保 Agent 就绪
         setTimeout(() => {
           session.generateReply({
             userInput: "系统：面试开场",
             instructions: `只输出这句固定开场白，不要添加或修改任何内容：${greeting}`,
-            allowInterruptions: false,
+            // 开场白期间允许用户随时打断（与 Barge-in 配合）
+            allowInterruptions: true,
           });
         }, 500);
       }

@@ -25,7 +25,7 @@ import { createInterviewApplier } from "./interview";
 import { createUserTextResponder } from "./responders";
 import { TurnCoordinator } from "./turn-coordinator";
 import {
-  createDeepgramSTT,
+  createConfiguredSTT,
   createConfiguredLLM,
   createConfiguredTTS,
 } from "../config/providers";
@@ -159,7 +159,7 @@ export async function runAgentSession(
 
   // 定义Agent如何处理音频输入和输出
   const session = new voice.AgentSession({
-    stt: createDeepgramSTT(combinedVocabulary, locale),
+    stt: createConfiguredSTT(combinedVocabulary, locale),
     llm: await createConfiguredLLM(participant.identity, llmTraceContext),
     tts: createConfiguredTTS(locale),
     vad: vad,
@@ -167,8 +167,11 @@ export async function runAgentSession(
     // 可以理解"让我想想..."这类语句，不会在用户思考时打断
     turnDetection: new livekit.turnDetector.MultilingualModel(),
     voiceOptions: {
-      allowInterruptions: false,
-      minInterruptionDuration: 500,
+      // 功能1: Barge-in 打断支持 —— 用户开口时 Agent 自动停止当前 TTS 播放
+      // minInterruptionDuration: 用户至少持续说话 300ms 才触发打断，避免环境噪音误触
+      // minInterruptionWords: 不限制字数，说话即打断
+      allowInterruptions: true,
+      minInterruptionDuration: 300,
       minInterruptionWords: 0,
       minEndpointingDelay: 1000,
       // 面试场景：允许候选人最长 25 秒的思考时间
@@ -194,7 +197,18 @@ export async function runAgentSession(
 
       const text = newMessage?.textContent?.trim();
       if (text) {
-        turnCoordinator.handleUserTurnEnd(text);
+        const msSinceAgentStopped = Date.now() - agentLastStopSpeakingAt;
+        // barge-in：用户在 Agent 说话时已有语音活动，Agent 停止后立即处理
+        // 回声：Agent 自然说完，冷却期内的输入是 TTS 余音，丢弃
+        const isBargein = userSpokeWhileAgentSpeaking;
+        const isEcho = !isBargein && msSinceAgentStopped < ECHO_COOLDOWN_MS;
+        if (!isEcho) {
+          turnCoordinator.handleUserTurnEnd(text);
+        } else {
+          console.log(
+            `[EchoCooldown] Ignoring echo input ${msSinceAgentStopped}ms after agent stopped (no prior user speech)`,
+          );
+        }
       }
       throw new voice.StopResponse();
     }
@@ -218,6 +232,10 @@ export async function runAgentSession(
   session.on(voice.AgentSessionEventTypes.UserInputTranscribed, (ev) => {
     if (turnMode === "manual") return;
     if (ev.transcript?.trim()) {
+      // 如果 Agent 正在说话时检测到用户语音，记录为 barge-in 信号
+      if (isAgentCurrentlySpeaking) {
+        userSpokeWhileAgentSpeaking = true;
+      }
       turnCoordinator.markVoiceActivity();
     }
   });
@@ -231,13 +249,19 @@ export async function runAgentSession(
     if (!text) return;
 
     if (item.role === "user") {
-      if (turnMode === "manual") {
-        return;
-      }
       // 过滤掉以"系统："开头的内部指令，不发送到前端
       if (text.startsWith("系统：") || text.startsWith("系统:")) {
         return;
       }
+
+      if (turnMode === "manual") {
+        // Manual 模式：前端已在本地显示消息，无需 republish；但仍需写库
+        if (latestInterview && typeof latestInterview.id === "string") {
+          saveUserMessage(latestInterview.id, text);
+        }
+        return;
+      }
+
       if (!turnCoordinator.shouldPublishUserMessage(item)) {
         return;
       }
@@ -267,6 +291,26 @@ export async function runAgentSession(
       if (latestInterview && typeof latestInterview.id === "string") {
         saveAiMessage(latestInterview.id, text);
       }
+    }
+  });
+
+  // 回声抑制（Echo Suppression）
+  // 区分"用户主动打断（barge-in）"和"Agent 自然停止后麦克风拾到的 TTS 余音（回声）"：
+  // - barge-in：Agent 说话期间用户有语音活动 → Agent 停止后立即允许输入
+  // - 回声：Agent 说话期间无用户语音活动 → Agent 停止后加短冷却，丢弃余音
+  const ECHO_COOLDOWN_MS = 800;
+  let agentLastStopSpeakingAt = 0;
+  let isAgentCurrentlySpeaking = false;
+  let userSpokeWhileAgentSpeaking = false;
+
+  session.on(voice.AgentSessionEventTypes.AgentStateChanged, (ev) => {
+    if (ev.newState === "speaking") {
+      isAgentCurrentlySpeaking = true;
+      userSpokeWhileAgentSpeaking = false; // 每次 Agent 开口重置
+    }
+    if (ev.oldState === "speaking" && ev.newState !== "speaking") {
+      isAgentCurrentlySpeaking = false;
+      agentLastStopSpeakingAt = Date.now();
     }
   });
 
@@ -353,6 +397,10 @@ export async function runAgentSession(
       const startPayload = getStartInterviewPayload(msg);
       if (startPayload) {
         turnMode = startPayload.turnMode;
+        // 重连场景：重置 hasGreeted，允许重新发送开场白
+        if (startInterviewHandled) {
+          hasGreeted = false;
+        }
         const interview = (await loadInterviewContext(
           startPayload.interviewId,
         )) as InterviewContext | null;

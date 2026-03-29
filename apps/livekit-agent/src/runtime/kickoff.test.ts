@@ -22,7 +22,9 @@ describe("runtime/kickoff.sendKickoffWithRetry", () => {
     expect(generateReply).toHaveBeenCalledTimes(2);
     const lastCallArg = generateReply.mock.calls[1][0];
     expect(lastCallArg.userInput).toBe("系统：面试开场");
-    expect(String(lastCallArg.instructions)).toContain("您好梁爽");
+    expect(String(lastCallArg.instructions)).toContain(
+      "你好梁爽，欢迎参加本次面试！",
+    );
   });
 
   it("throws immediately for non-retryable errors", async () => {

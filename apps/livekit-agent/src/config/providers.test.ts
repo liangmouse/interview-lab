@@ -179,6 +179,13 @@ vi.mock("../plugins/tts", () => {
   };
 });
 
+const createSTT = vi.fn(() => ({ kind: "volcengine-stt" }));
+vi.mock("../plugins/stt", () => {
+  return {
+    createSTT,
+  };
+});
+
 describe("config/providers.createConfiguredLLM", () => {
   beforeEach(() => {
     vi.resetModules();

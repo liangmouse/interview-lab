@@ -1,4 +1,3 @@
-import * as deepgram from "@livekit/agents-plugin-deepgram";
 import * as openai from "@livekit/agents-plugin-openai";
 import {
   type AiUseCase,
@@ -28,17 +27,16 @@ import {
   resolveTtsConfig,
   type TtsRuntimeOverrides,
 } from "../plugins/tts";
+import { createSTT, type SttProviderId } from "../plugins/stt";
+import { InterviewStage } from "../runtime/fsm/types";
 
 export const GEMINI_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai";
 export const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 export const DEFAULT_GEMINI_TEMPERATURE = 0.4;
 
-// 默认使用 Deepgram 的高精度通用模型（多语言）
-export const DEFAULT_DEEPGRAM_MODEL = "nova-3-general";
-export const DEFAULT_DEEPGRAM_LANGUAGE = "zh";
-export const DEFAULT_DEEPGRAM_SMART_FORMAT = true;
-export const DEEPGRAM_KEYTERM_LIMIT = 20;
+// STT Provider 选择：在此切换默认 Provider（"volcengine" | "deepgram"）
+export const DEFAULT_STT_PROVIDER: SttProviderId = "volcengine";
 
 export const ROUTED_OPENAI_RUNTIME_TOKEN = "openai-codex-runtime-token";
 
@@ -66,77 +64,23 @@ function requireEnv(name: string): string {
   return resolved;
 }
 
-export function getDeepgramApiKey(): string {
-  return requireEnv("DEEPGRAM_API_KEY");
-}
-
 export function getGeminiModel(): string {
   const v = process.env.GEMINI_MODEL;
   const resolved = typeof v === "string" ? v.trim() : "";
   return resolved || DEFAULT_GEMINI_MODEL;
 }
 
-export function getDeepgramModel(): string {
-  const v = process.env.DEEPGRAM_MODEL;
-  const resolved = typeof v === "string" ? v.trim() : "";
-  return resolved || DEFAULT_DEEPGRAM_MODEL;
-}
-
-export function getDeepgramLanguage(): string {
-  const v = process.env.DEEPGRAM_LANGUAGE;
-  const resolved = typeof v === "string" ? v.trim() : "";
-  if (!resolved) return DEFAULT_DEEPGRAM_LANGUAGE;
-
-  const normalized = resolved.toLowerCase();
-  if (normalized === "en-us" || normalized === "en") return "en-US";
-  if (normalized === "zh-cn" || normalized === "zh_cn" || normalized === "zh")
-    return "zh";
-  return resolved;
-}
-
-function resolveDeepgramModel(language: string): string {
-  const model = getDeepgramModel();
-  const lang = language.toLowerCase();
-  const isEnglish = lang === "en-us" || lang === "en";
-
-  // nova-3 系列目前仅支持英文，非英文时提前回退，避免 400
-  if (!isEnglish && model.startsWith("nova-3")) {
-    return "nova-2-general";
-  }
-
-  return model;
-}
-
-export function createDeepgramSTT(keyterm: string[], language?: string) {
-  const cleanedKeyterms = Array.isArray(keyterm)
-    ? keyterm
-        .filter((k) => typeof k === "string" && k.trim())
-        .slice(0, DEEPGRAM_KEYTERM_LIMIT)
-    : [];
-  const resolvedLanguage = language || getDeepgramLanguage();
-  const resolvedModel = resolveDeepgramModel(resolvedLanguage);
-  const normalizedLanguage = resolvedLanguage.toLowerCase();
-  const isEnglish =
-    normalizedLanguage === "en" || normalizedLanguage === "en-us";
-
-  // Deepgram 对非英文场景的 keyword boost 支持有限，且 SDK 会对 keywords 进行双重编码导致 400，
-  // 因此仅保留 keyterm 作为提示词，keywords 置空。
-  const keywords: [string, number][] = [];
-
-  // keyterm 在非英文场景下容易触发 Deepgram 400（尤其包含中文词汇时），仅在英文启用
-  const resolvedKeyterms = isEnglish ? cleanedKeyterms : [];
-
-  const sttInstance = new deepgram.STT({
-    apiKey: getDeepgramApiKey(),
-    // 使用 as any 绕过类型检查，最新模型在类型定义中可能缺失
-    model: resolvedModel as any,
-    language: resolvedLanguage,
-    smartFormat: DEFAULT_DEEPGRAM_SMART_FORMAT,
-    keywords,
-    keyterm: resolvedKeyterms,
-  });
-
-  return sttInstance;
+/**
+ * 创建 STT 实例，通过 DEFAULT_STT_PROVIDER 常量选择 Provider。
+ *
+ * @param keywords  热词/关键词列表（技术术语、人名等）
+ * @param language  语言代码，默认 "zh"
+ */
+export function createConfiguredSTT(
+  keywords: string[] = [],
+  language?: string,
+) {
+  return createSTT(DEFAULT_STT_PROVIDER, keywords, language);
 }
 
 export function createDefaultLLM(
@@ -284,6 +228,121 @@ export async function createConfiguredLLM(
     client: observedClient as any,
   });
 }
+
+// ─── 功能3: 按面试阶段动态切换 LLM 模型 ───────────────────────────────────────
+//
+// 模型映射优先从环境变量读取，格式：STAGE_LLM_<STAGE>=<provider>/<model>
+// 例如：
+//   STAGE_LLM_INTRO=openrouter/google/gemini-3.1-flash-lite-preview
+//   STAGE_LLM_MAIN_TECHNICAL=openrouter/google/gemini-3.1-pro-preview
+//   STAGE_LLM_SOFT_SKILLS=openrouter/anthropic/claude-haiku-4.5
+//   STAGE_LLM_CLOSING=openrouter/deepseek/deepseek-v3.2
+//
+// 若未配置则沿用各阶段的内置默认值。
+
+/** 各阶段的内置默认模型（openai-compatible 格式，与 AGENT_LLM_MODEL 相同风格）
+ *
+ * 选型依据（2026-03-26 OpenRouter 验证）：
+ *   INTRO        — gemini-3.1-flash-lite-preview：最低延迟，开场对话无需强推理，$0.25/$1.50 per M
+ *   MAIN_TECHNICAL — gemini-3.1-pro-preview：Intelligence Index 第一，强制深度推理，$2/$12 per M
+ *   SOFT_SKILLS  — claude-haiku-4.5：Claude 系列自然对话/共情表达最优，$1/$5 per M
+ *   CLOSING      — deepseek-v3.2：长文总结极强，$0.26/$0.38 per M（本阶段输出 token 最多）
+ */
+const STAGE_DEFAULT_MODELS: Record<InterviewStage, string> = {
+  // INTRO: 最快响应，开场自我介绍轻量场景
+  [InterviewStage.INTRO]: "openrouter/google/gemini-3.1-flash-lite-preview",
+  // MAIN_TECHNICAL: 全球智能排行第一，强推理处理复杂技术题
+  [InterviewStage.MAIN_TECHNICAL]: "openrouter/google/gemini-3.1-pro-preview",
+  // SOFT_SKILLS: Sonnet 4.6 理解深度和追问灵活度远超 Haiku，行为面试需要读懂潜台词
+  [InterviewStage.SOFT_SKILLS]: "openrouter/anthropic/claude-sonnet-4.6",
+  // CLOSING: DeepSeek V3.2 长文归纳极强，output 成本最低
+  [InterviewStage.CLOSING]: "openrouter/deepseek/deepseek-v3.2",
+};
+
+/** 环境变量名称映射 */
+const STAGE_ENV_KEYS: Record<InterviewStage, string> = {
+  [InterviewStage.INTRO]: "STAGE_LLM_INTRO",
+  [InterviewStage.MAIN_TECHNICAL]: "STAGE_LLM_MAIN_TECHNICAL",
+  [InterviewStage.SOFT_SKILLS]: "STAGE_LLM_SOFT_SKILLS",
+  [InterviewStage.CLOSING]: "STAGE_LLM_CLOSING",
+};
+
+/**
+ * 获取指定面试阶段应使用的模型标识符。
+ * 优先读取环境变量，其次使用内置默认值。
+ */
+export function getStageModel(stage: InterviewStage): string {
+  const envKey = STAGE_ENV_KEYS[stage];
+  const envValue = process.env[envKey]?.trim();
+  if (envValue) {
+    return envValue;
+  }
+  return STAGE_DEFAULT_MODELS[stage];
+}
+
+/**
+ * 为指定面试阶段创建对应的 LLM 实例。
+ * 当阶段模型与全局 AGENT_LLM_MODEL 相同（或未配置全局模型）时，
+ * 优先使用阶段专属模型。
+ *
+ * @param stage  当前面试阶段
+ * @param userId 用户 ID（部分 provider 需要）
+ */
+export async function createLLMForStage(
+  stage: InterviewStage,
+  userId?: string,
+): Promise<openai.LLM> {
+  const stageModel = getStageModel(stage);
+  console.log(`[LLM] 阶段 ${stage} 使用模型: ${stageModel}`);
+
+  const providerId = stageModel.split("/", 1)[0];
+  const providerConfigs = getAgentRuntimeProviderConfigs();
+  const providerConfig = providerConfigs.find(
+    (item) => item.providerId === providerId,
+  );
+
+  // 若 provider 不在注册表中（例如直接写 gemini/xxx），回退到默认 LLM
+  if (!providerConfig) {
+    console.warn(
+      `[LLM] 阶段 ${stage} 的 provider "${providerId}" 未在注册表中，回退到默认 LLM`,
+    );
+    return createDefaultLLM();
+  }
+
+  if (providerConfig.requiresUserId && !userId) {
+    console.warn(
+      `[LLM] 阶段 ${stage} 的 provider "${providerId}" 需要 userId，回退到默认 LLM`,
+    );
+    return createDefaultLLM();
+  }
+
+  const profileStore = providerConfig.useUserScopedProfileStore
+    ? createUserScopedSupabaseAuthProfileStore({
+        userId: userId as string,
+        supabase: getSupabaseAdminClient() as any,
+      })
+    : createAuthProfileStore();
+
+  const registry = await buildProviderRegistry({
+    env: process.env,
+    entries: providerConfigs.map((item) =>
+      item.createRegistryEntry({ profileStore }),
+    ),
+  });
+
+  const route = await resolveModelRoute(stageModel, registry);
+
+  return new openai.LLM({
+    apiKey: ROUTED_OPENAI_RUNTIME_TOKEN,
+    baseURL: route.provider.baseURL,
+    model: route.model,
+    temperature: DEFAULT_GEMINI_TEMPERATURE,
+    client: route.provider.createOpenAIClient(
+      ROUTED_OPENAI_RUNTIME_TOKEN,
+    ) as any,
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export { resolveTtsConfig } from "../plugins/tts";
 

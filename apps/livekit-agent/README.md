@@ -30,8 +30,16 @@ LIVEKIT_API_SECRET=your-api-secret
 GEMINI_API_KEY=your-gemini-key
 GEMINI_MODEL=gemini-3-flash-preview
 
-# Deepgram 配置（用于 STT）
-DEEPGRAM_API_KEY=your-deepgram-key
+# 火山引擎 BigASR 2.0 配置（默认 STT）
+VOLCENGINE_STT_APP_ID=your-volcengine-app-id
+VOLCENGINE_STT_ACCESS_TOKEN=your-volcengine-access-token
+VOLCENGINE_STT_RESOURCE_ID=volc.bigasr.sauc.duration
+
+# 可选：控制台热词表 ID
+# VOLCENGINE_STT_BOOSTING_TABLE_ID=your-boosting-table-id
+
+# Deepgram（备用 STT）
+# DEEPGRAM_API_KEY=your-deepgram-key
 
 # 开发模式（可选）
 DEV_ROOM_NAME=test-room  # 设置后自动进入开发模式
@@ -77,7 +85,7 @@ Agent 将自动连接到指定房间，等待用户加入。
 │    │   └─ instructions + tools          │
 │    │                                    │
 │    └─ voice.AgentSession                │
-│        ├─ STT: Deepgram                 │
+│        ├─ STT: VolcEngine BigASR 2.0    │
 │        ├─ LLM: OpenAI (Gemini)          │
 │        ├─ TTS: OpenAI (Gemini)          │
 │        └─ VAD: Silero                   │
@@ -149,12 +157,7 @@ const agent = new voice.Agent({
 ```typescript
 const session = new voice.AgentSession({
   // STT 配置
-  stt: new deepgram.STT({
-    model: 'nova-2-general',
-    language: 'zh',              // 中文识别
-    smartFormat: true,           // 智能格式化
-    keyterms: TECH_VOCABULARY,   // 技术词汇
-  }),
+  stt: createConfiguredSTT(TECH_VOCABULARY, 'zh'),
 
   // LLM 配置
   llm: new openai.LLM({

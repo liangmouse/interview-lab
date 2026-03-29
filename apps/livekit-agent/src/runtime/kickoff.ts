@@ -10,14 +10,16 @@ interface SendKickoffOptions {
 
 function buildKickoffInstructions(userProfile: unknown) {
   const candidateName = getCandidateName(userProfile);
+  // 功能2: 主动开场白 —— 用户加入房间后 Agent 立即邀请自我介绍，包含教育背景、工作经历和技术栈
   const greeting = candidateName
-    ? `您好${candidateName},我是今天的面试官,如果你已经准备好,就请做个简单的自我介绍吧`
-    : "您好,我是今天的面试官,如果你已经准备好,就请做个简单的自我介绍吧";
+    ? `你好${candidateName}，欢迎参加本次面试！请先做一个简短的自我介绍，包括你的教育背景、工作经历和技术栈。`
+    : "你好，欢迎参加本次面试！请先做一个简短的自我介绍，包括你的教育背景、工作经历和技术栈。";
 
   return {
     userInput: "系统：面试开场",
     instructions: `只输出这句固定开场白，不要添加或修改任何内容：${greeting}`,
-    allowInterruptions: false,
+    // 开场白期间允许用户随时打断（与 Barge-in 配合）
+    allowInterruptions: true,
   };
 }
 

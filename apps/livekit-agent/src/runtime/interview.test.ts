@@ -10,6 +10,31 @@ vi.mock("../services/context-loader", () => {
 
 // Mock @livekit/agents voice.Agent so we can control the handoff-wait loop
 vi.mock("@livekit/agents", () => {
+  class STT {
+    constructor() {}
+  }
+
+  class SpeechStream {
+    static readonly FLUSH_SENTINEL = Symbol("flush");
+    constructor() {}
+  }
+
+  class AudioByteStream {
+    constructor() {}
+    write() {
+      return [];
+    }
+    flush() {
+      return [];
+    }
+  }
+
+  class AudioEnergyFilter {
+    pushFrame() {
+      return true;
+    }
+  }
+
   class Agent {
     public _ready = false;
     public _instructions: string;
@@ -40,10 +65,28 @@ vi.mock("@livekit/agents", () => {
   }
 
   return {
+    AudioByteStream,
+    AudioEnergyFilter,
+    log: () => ({
+      warn: vi.fn(),
+      error: vi.fn(),
+    }),
+    shortuuid: vi.fn(() => "request-1"),
     voice: { Agent },
     llm: {
       ChatContext,
       tool: vi.fn((opts) => opts),
+    },
+    stt: {
+      STT,
+      SpeechStream,
+      SpeechEventType: {
+        START_OF_SPEECH: 0,
+        INTERIM_TRANSCRIPT: 1,
+        FINAL_TRANSCRIPT: 2,
+        END_OF_SPEECH: 3,
+        RECOGNITION_USAGE: 4,
+      },
     },
     tts: { TTS, ChunkedStream },
   };
@@ -114,7 +157,7 @@ describe("runtime/interview.createInterviewApplier", () => {
     const arg = (session.generateReply.mock.calls[0] as any)[0];
     expect(arg.userInput).toBe("系统：面试开场");
     expect(String(arg.instructions)).toContain(
-      "只输出这句固定开场白，不要添加或修改任何内容：您好梁爽,我是今天的面试官,如果你已经准备好,就请做个简单的自我介绍吧",
+      "只输出这句固定开场白，不要添加或修改任何内容：你好梁爽，欢迎参加本次面试！请先做一个简短的自我介绍，包括你的教育背景、工作经历和技术栈。",
     );
   });
 
@@ -146,6 +189,7 @@ describe("runtime/interview.createInterviewApplier", () => {
     // but NOT enough to trigger stage transitions (which default to 30 mins)
     await vi.advanceTimersByTimeAsync(2000);
     await Promise.all([p1, p2]);
+    await vi.advanceTimersByTimeAsync(1000);
 
     expect(session.updateAgent).toHaveBeenCalledTimes(2);
     expect(session.generateReply).toHaveBeenCalledTimes(2);

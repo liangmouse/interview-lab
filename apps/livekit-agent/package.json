@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm run kill && dotenv -e ../../.env.local -- tsx watch cli.ts dev",
+    "dev": "nodemon",
     "kill": "pkill -9 -f 'tsx.*cli.ts dev' 2>/dev/null; pkill -9 -f 'job_proc_lazy_main.*main' 2>/dev/null; pkill -9 -f 'inference_proc_lazy_main' 2>/dev/null; sleep 1; echo 'All agent processes killed' || true",
     "download-files": "tsx cli.ts download-files",
     "build": "tsc -p tsconfig.json"
@@ -11,6 +11,11 @@
   "dependencies": {
     "@interviewclaw/ai-runtime": "workspace:*",
     "@interviewclaw/agent-core": "workspace:*",
-    "@interviewclaw/data-access": "workspace:*"
+    "@interviewclaw/data-access": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.0",
+    "nodemon": "^3.1.10"
   }
 }
