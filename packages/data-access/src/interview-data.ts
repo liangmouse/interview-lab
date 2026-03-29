@@ -74,13 +74,12 @@ export function createInterviewDataAccess(client: SupabaseLikeClient) {
         .from("user_profiles")
         .select("*")
         .eq("user_id", userId);
-      const execute = query.single;
 
-      if (!execute) {
+      if (!query.single) {
         throw new Error("single() is not available for user profile query");
       }
 
-      const { data, error } = await execute();
+      const { data, error } = await query.single();
 
       if (error) {
         console.warn(
@@ -95,13 +94,12 @@ export function createInterviewDataAccess(client: SupabaseLikeClient) {
 
     async loadInterview(interviewId: string) {
       const query = client.from("interviews").select("*").eq("id", interviewId);
-      const execute = query.single;
 
-      if (!execute) {
+      if (!query.single) {
         throw new Error("single() is not available for interview query");
       }
 
-      const { data, error } = await execute();
+      const { data, error } = await query.single();
 
       if (error) {
         console.warn(
@@ -119,15 +117,14 @@ export function createInterviewDataAccess(client: SupabaseLikeClient) {
         .from("interviews")
         .select("user_messages, ai_messages")
         .eq("id", interviewId);
-      const execute = query.single;
 
-      if (!execute) {
+      if (!query.single) {
         throw new Error(
           "single() is not available for interview messages query",
         );
       }
 
-      const { data, error } = await execute();
+      const { data, error } = await query.single();
 
       if (error) {
         console.warn(
@@ -146,16 +143,13 @@ export function createInterviewDataAccess(client: SupabaseLikeClient) {
         .from("messages")
         .select("*")
         .eq("interview_id", interviewId);
-      const loadLegacy = legacyQuery.order;
 
-      if (!loadLegacy) {
+      if (!legacyQuery.order) {
         throw new Error("order() is not available for legacy messages query");
       }
 
-      const { data: legacyMessages, error: legacyError } = await loadLegacy(
-        "created_at",
-        { ascending: true },
-      );
+      const { data: legacyMessages, error: legacyError } =
+        await legacyQuery.order("created_at", { ascending: true });
 
       if (legacyError) {
         console.warn(
