@@ -4,12 +4,13 @@ import { TranscriptStream, type TranscriptItemData } from "./transcript-stream";
 import { ControlDock } from "./control-dock";
 import { resolveInputTextFromTranscription } from "./transcription-input-sync";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mic, MicOff } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { type AgentState } from "@livekit/components-react";
 import { AgentAudioVisualizerAura } from "@/components/agents-ui/agent-audio-visualizer-aura";
+import { Button } from "@/components/ui/button";
 
 interface AIInterviewerPanelProps {
   /** 回合模式 */
@@ -26,6 +27,8 @@ interface AIInterviewerPanelProps {
   agentState: AgentState;
   /** 用户是否正在说话 */
   isUserSpeaking: boolean;
+  /** 浏览器是否拦截了 Agent 语音播放 */
+  isAudioPlaybackBlocked: boolean;
   /** 转写内容 */
   transcript: TranscriptItemData[];
   /** 切换麦克风回调 */
@@ -44,6 +47,7 @@ export function AIInterviewerPanel({
   isAgentSpeaking,
   agentState,
   isUserSpeaking,
+  isAudioPlaybackBlocked,
   transcript,
   onMicToggle,
   manualDraftText,
@@ -115,9 +119,34 @@ export function AIInterviewerPanel({
             >
               {getStatusText()}
             </span>
+            {isAudioPlaybackBlocked ? (
+              <p className="text-sm text-[#B45309]">
+                浏览器拦截了语音播放，请点击页面任意位置开启音频。
+              </p>
+            ) : null}
           </div>
 
-          <div className="flex items-center justify-center md:justify-end">
+          <div className="flex items-center gap-4 justify-center md:justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onMicToggle}
+              disabled={!isConnected}
+              title={isMicEnabled ? "关闭麦克风" : "开启麦克风"}
+              className={cn(
+                "h-12 w-12 rounded-full p-0 transition-all",
+                isMicEnabled && isConnected
+                  ? "bg-[#10B981] text-white shadow-md hover:bg-[#10B981]/90"
+                  : "bg-[#F3F4F6] text-[#9CA3AF] hover:bg-[#ECF3EF] hover:text-[#6B7280]",
+                !isConnected && "cursor-not-allowed opacity-40",
+              )}
+            >
+              {isMicEnabled && isConnected ? (
+                <Mic className="h-5 w-5" />
+              ) : (
+                <MicOff className="h-5 w-5" />
+              )}
+            </Button>
             {isConnecting ? (
               <div className="flex h-[140px] w-[180px] flex-col items-center justify-center gap-3">
                 <Loader2 className="h-10 w-10 animate-spin text-[#10B981]" />
@@ -149,7 +178,6 @@ export function AIInterviewerPanel({
           <ControlDock
             turnMode={turnMode}
             isMicActive={isMicEnabled && isConnected}
-            onMicToggle={onMicToggle}
             inputText={inputText}
             onInputTextChange={handleInputTextChange}
             onSendMessage={handleSendMessage}

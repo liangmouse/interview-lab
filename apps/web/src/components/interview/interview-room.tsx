@@ -31,6 +31,10 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
   const hasResumeUrl = Boolean(resumeUrl);
   const hasConnectedRef = useRef(false);
   const hasManuallyToggledResumePanelRef = useRef(false);
+  const agentEchoCooldownTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const prevIsAgentSpeakingRef = useRef(false);
   const [turnMode] = useState<"manual" | "vad">(() => {
     if (typeof window === "undefined") return "manual";
     const saved = window.localStorage.getItem(TURN_MODE_STORAGE_KEY);
@@ -43,6 +47,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
   const [isResumePanelOpen, setIsResumePanelOpen] = useState(
     () => hasResumeUrl,
   );
+  const [isInAgentEchoCooldown, setIsInAgentEchoCooldown] = useState(false);
   const [livekitDraftUpdatedAt, setLivekitDraftUpdatedAt] = useState<
     number | null
   >(null);
@@ -75,6 +80,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     isMicEnabled,
     isAgentSpeaking,
     isUserSpeaking,
+    isAudioPlaybackBlocked,
     transcript,
     error,
     connect,
@@ -108,7 +114,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       console.error("[InterviewRoom] LiveKit error:", err);
     },
   });
-  const shouldUseBrowserFallback = !isAgentSpeaking;
+  const shouldUseBrowserFallback = !isAgentSpeaking && !isInAgentEchoCooldown;
   const agentState: AgentState = isConnecting
     ? "connecting"
     : !isConnected
@@ -202,17 +208,52 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       stopListening();
       return;
     }
+    if (isInAgentEchoCooldown) {
+      stopListening();
+      return;
+    }
     if (isBrowserSpeechSupported) {
       startListening();
     }
   }, [
     isBrowserSpeechSupported,
+    isInAgentEchoCooldown,
     isAgentSpeaking,
     isConnected,
     isMicEnabled,
     startListening,
     stopListening,
   ]);
+
+  useEffect(() => {
+    if (!isConnected) {
+      if (agentEchoCooldownTimerRef.current) {
+        clearTimeout(agentEchoCooldownTimerRef.current);
+        agentEchoCooldownTimerRef.current = null;
+      }
+      setIsInAgentEchoCooldown(false);
+      prevIsAgentSpeakingRef.current = false;
+      return;
+    }
+
+    if (isAgentSpeaking) {
+      if (agentEchoCooldownTimerRef.current) {
+        clearTimeout(agentEchoCooldownTimerRef.current);
+        agentEchoCooldownTimerRef.current = null;
+      }
+      setIsInAgentEchoCooldown(true);
+    } else if (prevIsAgentSpeakingRef.current) {
+      if (agentEchoCooldownTimerRef.current) {
+        clearTimeout(agentEchoCooldownTimerRef.current);
+      }
+      agentEchoCooldownTimerRef.current = setTimeout(() => {
+        setIsInAgentEchoCooldown(false);
+        agentEchoCooldownTimerRef.current = null;
+      }, 1500);
+    }
+
+    prevIsAgentSpeakingRef.current = isAgentSpeaking;
+  }, [isAgentSpeaking, isConnected]);
 
   useEffect(() => {
     if (!isAgentSpeaking) return;
@@ -224,6 +265,14 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       setIsResumePanelOpen(true);
     }
   }, [hasResumeUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (agentEchoCooldownTimerRef.current) {
+        clearTimeout(agentEchoCooldownTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleToggleResumePanel = useCallback(() => {
     hasManuallyToggledResumePanelRef.current = true;
@@ -248,6 +297,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       isAgentSpeaking={isAgentSpeaking}
       agentState={agentState}
       isUserSpeaking={isUserSpeaking}
+      isAudioPlaybackBlocked={isAudioPlaybackBlocked}
       transcript={transcript}
       onMicToggle={handleMicToggle}
       manualDraftText={manualDraftText}
@@ -264,6 +314,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
           isAgentSpeaking={isAgentSpeaking}
           agentState={agentState}
           isUserSpeaking={isUserSpeaking}
+          isAudioPlaybackBlocked={isAudioPlaybackBlocked}
           transcript={transcript}
           onMicToggle={handleMicToggle}
           manualDraftText={manualDraftText}

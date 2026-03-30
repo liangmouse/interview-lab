@@ -35,6 +35,8 @@ export interface LiveKitRoomState {
   isAgentSpeaking: boolean;
   /** 用户是否正在说话 */
   isUserSpeaking: boolean;
+  /** 浏览器是否拦截了 Agent 语音播放 */
+  isAudioPlaybackBlocked: boolean;
   /** 最新的转写文本 */
   transcript: TranscriptItem[];
   /** 错误信息 */
@@ -79,6 +81,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
   const onDataMessageRef = useRef(onDataMessage);
   // Track the first connected agent to filter duplicates (hot-reload issue)
   const primaryAgentRef = useRef<string | null>(null);
+  const audioUnlockCleanupRef = useRef<(() => void) | null>(null);
 
   /**
    * Segment Map for User Transcription
@@ -107,6 +110,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
     isMicEnabled: true,
     isAgentSpeaking: false,
     isUserSpeaking: false,
+    isAudioPlaybackBlocked: false,
     transcript: [],
     error: null,
   });
@@ -183,6 +187,48 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
     onDataMessageRef.current = onDataMessage;
   }, [onDataMessage]);
 
+  const clearAudioUnlockListeners = useCallback(() => {
+    audioUnlockCleanupRef.current?.();
+    audioUnlockCleanupRef.current = null;
+  }, []);
+
+  const registerAudioUnlockListeners = useCallback(
+    (room: Room) => {
+      if (typeof window === "undefined") return;
+      clearAudioUnlockListeners();
+
+      const startAudio = (room as Room & { startAudio?: () => Promise<void> })
+        .startAudio;
+      if (!startAudio) return;
+
+      const tryResumeAudio = () => {
+        void startAudio
+          .call(room)
+          .then(() => {
+            setState((prev) => ({
+              ...prev,
+              isAudioPlaybackBlocked: false,
+            }));
+            clearAudioUnlockListeners();
+          })
+          .catch((error) => {
+            console.warn(
+              "[useLiveKitRoom] Audio resume still blocked after user gesture:",
+              error,
+            );
+          });
+      };
+
+      window.addEventListener("pointerdown", tryResumeAudio, { once: true });
+      window.addEventListener("keydown", tryResumeAudio, { once: true });
+      audioUnlockCleanupRef.current = () => {
+        window.removeEventListener("pointerdown", tryResumeAudio);
+        window.removeEventListener("keydown", tryResumeAudio);
+      };
+    },
+    [clearAudioUnlockListeners],
+  );
+
   /**
    * 获取 LiveKit token
    */
@@ -233,11 +279,14 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
 
       const startAudio = (room as Room & { startAudio?: () => Promise<void> })
         .startAudio;
+      let isAudioPlaybackBlocked = false;
       if (startAudio) {
         try {
           await startAudio.call(room);
         } catch (error) {
+          isAudioPlaybackBlocked = true;
           console.warn("[useLiveKitRoom] Failed to start audio:", error);
+          registerAudioUnlockListeners(room);
         }
       }
 
@@ -250,6 +299,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
         isConnected: true,
         isConnecting: false,
         isMicEnabled: true,
+        isAudioPlaybackBlocked,
       }));
 
       onConnected?.();
@@ -267,7 +317,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
     // setupRoomEventListeners is declared later in this hook; referencing it in deps
     // triggers TDZ at initialization time in browser bundles.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchToken, onConnected, onError]);
+  }, [fetchToken, onConnected, onError, registerAudioUnlockListeners]);
 
   /**
    * 断开连接
@@ -412,6 +462,11 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
         if (playPromise && typeof playPromise.catch === "function") {
           playPromise.catch((error) => {
             console.warn("[useLiveKitRoom] Audio play blocked:", error);
+            setState((prev) => ({
+              ...prev,
+              isAudioPlaybackBlocked: true,
+            }));
+            registerAudioUnlockListeners(room);
           });
         }
       };
@@ -868,25 +923,28 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
       // 断开连接
       room.on(RoomEvent.Disconnected, () => {
         primaryAgentRef.current = null;
+        clearAudioUnlockListeners();
         setState((prev) => ({
           ...prev,
           connectionState: ConnectionState.Disconnected,
           isConnected: false,
+          isAudioPlaybackBlocked: false,
         }));
         onDisconnected?.();
       });
     },
-    [onDisconnected],
+    [clearAudioUnlockListeners, onDisconnected, registerAudioUnlockListeners],
   );
 
   // 组件卸载时断开连接
   useEffect(() => {
     return () => {
+      clearAudioUnlockListeners();
       if (roomRef.current) {
         roomRef.current.disconnect();
       }
     };
-  }, []);
+  }, [clearAudioUnlockListeners]);
 
   return {
     ...state,

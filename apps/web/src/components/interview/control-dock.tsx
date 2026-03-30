@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useCallback, KeyboardEvent } from "react";
-import { Mic, MicOff, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -10,10 +10,8 @@ import { useTranslations } from "next-intl";
 interface ControlDockProps {
   /** 回合模式 */
   turnMode: "manual" | "vad";
-  /** 麦克风是否激活 */
+  /** 麦克风是否激活（仅用于状态指示点） */
   isMicActive: boolean;
-  /** 切换麦克风 */
-  onMicToggle: () => void;
   /** 输入框文本 */
   inputText: string;
   /** 输入框变更 */
@@ -27,7 +25,6 @@ interface ControlDockProps {
 export function ControlDock({
   turnMode,
   isMicActive,
-  onMicToggle,
   inputText,
   onInputTextChange,
   onSendMessage,
@@ -85,25 +82,6 @@ export function ControlDock({
         </div>
 
         <div className="flex items-center justify-end gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onMicToggle}
-            disabled={disabled}
-            className={cn(
-              "h-11 w-11 rounded-full p-0 transition-all",
-              isMicActive && !disabled
-                ? "bg-[#10B981] text-white shadow-md hover:bg-[#10B981]/90"
-                : "text-[#6B7280] hover:bg-[#ECF3EF] hover:text-[#1F2937]",
-              disabled && "cursor-not-allowed opacity-50",
-            )}
-          >
-            {isMicActive && !disabled ? (
-              <Mic className="h-5 w-5" />
-            ) : (
-              <MicOff className="h-5 w-5" />
-            )}
-          </Button>
           <Button
             variant="ghost"
             size="sm"
