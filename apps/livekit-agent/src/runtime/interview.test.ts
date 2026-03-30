@@ -131,13 +131,11 @@ describe("runtime/interview.createInterviewApplier", () => {
     vi.useRealTimers();
   });
 
-  it("updates agent and generates a natural kickoff that includes candidate name", async () => {
-    vi.useFakeTimers();
+  it("updates agent for intro stage without sending kickoff directly", async () => {
     const session = {
       updateAgent: vi.fn((agent: any) => {
         agent._ready = true;
       }),
-      generateReply: vi.fn(async () => {}),
     };
 
     const apply = createInterviewApplier({
@@ -147,18 +145,10 @@ describe("runtime/interview.createInterviewApplier", () => {
     });
 
     await apply({ type: "frontend:beginner", duration: 10 });
-    await vi.advanceTimersByTimeAsync(1000);
 
     expect(session.updateAgent).toHaveBeenCalledTimes(1);
     const agentInstance = (session.updateAgent.mock.calls[0] as any)[0];
     expect(agentInstance._instructions).toBe("PROMPT_FROM_BUILD");
-
-    expect(session.generateReply).toHaveBeenCalledTimes(1);
-    const arg = (session.generateReply.mock.calls[0] as any)[0];
-    expect(arg.userInput).toBe("系统：面试开场");
-    expect(String(arg.instructions)).toContain(
-      "只输出这句固定开场白，不要添加或修改任何内容：你好梁爽，欢迎参加本次面试！请先做一个简短的自我介绍，包括你的教育背景、工作经历和技术栈。",
-    );
   });
 
   it("queues concurrent apply calls and runs them sequentially", async () => {
@@ -169,10 +159,6 @@ describe("runtime/interview.createInterviewApplier", () => {
       updateAgent: vi.fn((agent: any) => {
         events.push("update");
         agent._ready = true;
-      }),
-      generateReply: vi.fn(async () => {
-        events.push("reply");
-        await new Promise((r) => setTimeout(r, 10));
       }),
     };
 
@@ -192,13 +178,10 @@ describe("runtime/interview.createInterviewApplier", () => {
     await vi.advanceTimersByTimeAsync(1000);
 
     expect(session.updateAgent).toHaveBeenCalledTimes(2);
-    expect(session.generateReply).toHaveBeenCalledTimes(2);
     expect(events.filter((e) => e === "update").length).toBe(2);
-    expect(events.filter((e) => e === "reply").length).toBe(2);
   });
 
-  it("still sends kickoff when history only contains system messages", async () => {
-    vi.useFakeTimers();
+  it("still applies intro stage when history only contains system messages", async () => {
     vi.mocked(contextLoader.loadInterviewMessages).mockResolvedValue([
       {
         role: "system",
@@ -211,7 +194,6 @@ describe("runtime/interview.createInterviewApplier", () => {
       updateAgent: vi.fn((agent: any) => {
         agent._ready = true;
       }),
-      generateReply: vi.fn(async () => {}),
     };
 
     const apply = createInterviewApplier({
@@ -225,8 +207,7 @@ describe("runtime/interview.createInterviewApplier", () => {
       type: "frontend:beginner",
       duration: 10,
     });
-    await vi.advanceTimersByTimeAsync(1000);
 
-    expect(session.generateReply).toHaveBeenCalledTimes(1);
+    expect(session.updateAgent).toHaveBeenCalledTimes(1);
   });
 });

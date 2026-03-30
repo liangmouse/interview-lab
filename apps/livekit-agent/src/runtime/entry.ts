@@ -11,6 +11,7 @@ import * as livekit from "@livekit/agents-plugin-livekit";
 import { RoomServiceClient } from "livekit-server-sdk";
 import {
   loadInterviewContext,
+  loadInterviewMessages,
   loadUserContext,
   buildSystemPrompt,
 } from "../services/context-loader";
@@ -34,7 +35,11 @@ import {
   saveAiMessage,
 } from "../services/message-persistence";
 import { extractKeywordsFromProfile } from "../services/keyword-extractor";
-import { sendKickoffWithRetry } from "./kickoff";
+import {
+  createKickoffGate,
+  hasVisibleConversationMessages,
+  sendKickoffWithRetry,
+} from "./kickoff";
 
 type TurnMode = "manual" | "vad";
 
@@ -318,24 +323,16 @@ export async function runAgentSession(
   let sessionRunning = false;
   let pendingInterview: InterviewContext | null = null;
   const pendingUserTexts: string[] = [];
-  let startInterviewHandled = false;
   let latestInterview: InterviewContext | null = null;
   let applyInterviewScheduled = false;
-  let hasGreeted = false; // 防止双重开场白的状态锁
-  let resolveStartInterview: ((v: InterviewContext) => void) | null = null;
-  const startInterviewPromise = new Promise<InterviewContext>((resolve) => {
-    resolveStartInterview = resolve;
-  });
+  const kickoffGate = createKickoffGate();
+  const startInterviewLoadStates = new Map<string, "loading" | "loaded">();
 
   const applyInterview = createInterviewApplier({
     session,
     userId: participant.identity,
     userProfile,
     onToolEvent: (payload) => publishDataToRoom(room, payload),
-    hasGreeted: () => hasGreeted,
-    setGreeted: () => {
-      hasGreeted = true;
-    },
   });
   const respondToUserText = createUserTextResponder({ session });
   let turnMode: TurnMode = "manual";
@@ -359,16 +356,56 @@ export async function runAgentSession(
     }
   };
 
+  const maybeKickoffInterview = async (interview: InterviewContext) => {
+    const interviewId =
+      typeof interview.id === "string"
+        ? interview.id
+        : String(interview.id || "");
+
+    if (!interviewId) {
+      return;
+    }
+
+    if (!kickoffGate.begin(interviewId)) {
+      console.log(`[Kickoff] Skip duplicate kickoff for ${interviewId}`);
+      return;
+    }
+
+    try {
+      const historyMessages = await loadInterviewMessages(interviewId);
+      if (hasVisibleConversationMessages(historyMessages as any)) {
+        console.log(
+          `[Kickoff] Skip kickoff for ${interviewId} because visible history already exists`,
+        );
+        kickoffGate.complete(interviewId);
+        return;
+      }
+
+      await sendKickoffWithRetry({
+        session,
+        userProfile,
+      });
+      kickoffGate.complete(interviewId);
+    } catch (error) {
+      kickoffGate.fail(interviewId);
+      console.error(
+        `[Kickoff] Failed to send kickoff for ${interviewId}:`,
+        error,
+      );
+    }
+  };
+
   const scheduleApplyLatestInterview = () => {
     if (!sessionRunning) return;
     if (!latestInterview) return;
     if (applyInterviewScheduled) return;
+    const interviewToApply = latestInterview;
     applyInterviewScheduled = true;
     setTimeout(async () => {
       applyInterviewScheduled = false;
-      if (!sessionRunning || !latestInterview) return;
-      startInterviewHandled = true;
-      await applyInterview(latestInterview);
+      if (!sessionRunning || !interviewToApply) return;
+      await applyInterview(interviewToApply);
+      await maybeKickoffInterview(interviewToApply);
     }, 0);
   };
 
@@ -397,34 +434,32 @@ export async function runAgentSession(
       const startPayload = getStartInterviewPayload(msg);
       if (startPayload) {
         turnMode = startPayload.turnMode;
-        // 重连场景：重置 hasGreeted，允许重新发送开场白
-        if (startInterviewHandled) {
-          hasGreeted = false;
-        }
-        const interview = (await loadInterviewContext(
+        const currentState = startInterviewLoadStates.get(
           startPayload.interviewId,
-        )) as InterviewContext | null;
-        if (interview) {
-          latestInterview = interview;
-          if (!sessionRunning) pendingInterview = interview;
-          resolveStartInterview?.(interview);
-          resolveStartInterview = null;
-          scheduleApplyLatestInterview();
+        );
+        if (currentState) {
+          console.log(
+            `[RPC] Ignoring duplicate start_interview for ${startPayload.interviewId} (${currentState})`,
+          );
           return;
         }
 
-        // interview 记录不存在或无权限时，立即走通用开场白兜底
-        console.warn(
-          `[RPC] Interview context not found for ${startPayload.interviewId}, fallback to generic kickoff`,
-        );
-        if (!hasGreeted) {
-          hasGreeted = true;
-          startInterviewHandled = true;
-          await sendKickoffWithRetry({
-            session,
-            userProfile,
-          });
+        startInterviewLoadStates.set(startPayload.interviewId, "loading");
+        const interview = (await loadInterviewContext(
+          startPayload.interviewId,
+        )) as InterviewContext | null;
+        if (!interview) {
+          startInterviewLoadStates.delete(startPayload.interviewId);
+          console.warn(
+            `[RPC] Interview context not found for ${startPayload.interviewId}, skip kickoff/apply`,
+          );
+          return;
         }
+
+        startInterviewLoadStates.set(startPayload.interviewId, "loaded");
+        latestInterview = interview;
+        if (!sessionRunning) pendingInterview = interview;
+        scheduleApplyLatestInterview();
         return;
       }
 
@@ -465,27 +500,5 @@ export async function runAgentSession(
     latestInterview = pendingInterview;
     pendingInterview = null;
     scheduleApplyLatestInterview();
-  }
-
-  if (!startInterviewHandled) {
-    const interviewOrNull = await Promise.race([
-      startInterviewPromise,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
-    ]);
-
-    if (interviewOrNull) {
-      latestInterview = interviewOrNull;
-      scheduleApplyLatestInterview();
-    } else {
-      // 超时兜底：发送通用开场白
-      if (!hasGreeted) {
-        hasGreeted = true;
-        startInterviewHandled = true;
-        await sendKickoffWithRetry({
-          session,
-          userProfile,
-        });
-      }
-    }
   }
 }

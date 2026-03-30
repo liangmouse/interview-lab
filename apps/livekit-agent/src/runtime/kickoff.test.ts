@@ -1,16 +1,23 @@
 import { describe, it, expect, vi } from "vitest";
-import { sendKickoffWithRetry } from "./kickoff";
+import {
+  buildKickoffText,
+  createKickoffGate,
+  hasVisibleConversationMessages,
+  sendKickoffWithRetry,
+} from "./kickoff";
 
 describe("runtime/kickoff.sendKickoffWithRetry", () => {
   it("retries when agent activity is not ready and then succeeds", async () => {
     vi.useFakeTimers();
-    const generateReply = vi
+    const say = vi
       .fn()
-      .mockRejectedValueOnce(new Error("Agent activity not found"))
-      .mockResolvedValueOnce(undefined);
+      .mockImplementationOnce(() => {
+        throw new Error("Agent activity not found");
+      })
+      .mockReturnValueOnce(undefined);
 
     const p = sendKickoffWithRetry({
-      session: { generateReply } as any,
+      session: { say } as any,
       userProfile: { nickname: "梁爽" },
       retryDelayMs: 100,
       maxAttempts: 2,
@@ -19,28 +26,59 @@ describe("runtime/kickoff.sendKickoffWithRetry", () => {
     await vi.advanceTimersByTimeAsync(100);
     await p;
 
-    expect(generateReply).toHaveBeenCalledTimes(2);
-    const lastCallArg = generateReply.mock.calls[1][0];
-    expect(lastCallArg.userInput).toBe("系统：面试开场");
-    expect(String(lastCallArg.instructions)).toContain(
-      "你好梁爽，欢迎参加本次面试！",
+    expect(say).toHaveBeenCalledTimes(2);
+    expect(say).toHaveBeenLastCalledWith(
+      buildKickoffText({ nickname: "梁爽" }),
+      expect.objectContaining({
+        allowInterruptions: true,
+        addToChatCtx: true,
+      }),
     );
   });
 
   it("throws immediately for non-retryable errors", async () => {
-    const generateReply = vi
-      .fn()
-      .mockRejectedValue(new Error("quota exceeded"));
+    const say = vi.fn().mockImplementation(() => {
+      throw new Error("quota exceeded");
+    });
 
     await expect(
       sendKickoffWithRetry({
-        session: { generateReply } as any,
+        session: { say } as any,
         userProfile: null,
         retryDelayMs: 10,
         maxAttempts: 3,
       }),
     ).rejects.toThrow("quota exceeded");
 
-    expect(generateReply).toHaveBeenCalledTimes(1);
+    expect(say).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats only user and assistant messages as visible history", () => {
+    expect(
+      hasVisibleConversationMessages([
+        { role: "system", content: "internal setup" },
+        { role: "assistant", content: "你好" },
+      ]),
+    ).toBe(true);
+
+    expect(
+      hasVisibleConversationMessages([
+        { role: "system", content: "internal setup" },
+      ]),
+    ).toBe(false);
+  });
+
+  it("allows kickoff only once per interview id unless the attempt fails", () => {
+    const gate = createKickoffGate();
+
+    expect(gate.begin("interview-1")).toBe(true);
+    expect(gate.begin("interview-1")).toBe(false);
+
+    gate.fail("interview-1");
+    expect(gate.begin("interview-1")).toBe(true);
+
+    gate.complete("interview-1");
+    expect(gate.begin("interview-1")).toBe(false);
+    expect(gate.has("interview-1")).toBe(true);
   });
 });

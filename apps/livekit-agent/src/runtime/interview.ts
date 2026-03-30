@@ -1,6 +1,5 @@
 import { voice, llm } from "@livekit/agents";
 import { loadInterviewMessages } from "../services/context-loader";
-import { getCandidateName } from "./profile";
 import type { InterviewContext } from "./types";
 import { StageManager } from "./fsm/stage-manager";
 import { buildStagePrompt } from "./fsm/prompt-builder";
@@ -9,17 +8,15 @@ import { createTools } from "./tools";
 import { summarizeStage } from "./fsm/summarizer";
 import { InterviewOrchestrator } from "./interview-orchestrator";
 import { createLLMForStage } from "../config/providers";
+import { getVisibleConversationMessages } from "./kickoff";
 
 export function createInterviewApplier(args: {
   session: voice.AgentSession;
   userId: string;
   userProfile: unknown;
   onToolEvent?: (payload: Record<string, unknown>) => void;
-  hasGreeted?: () => boolean;
-  setGreeted?: () => void;
 }) {
-  const { session, userId, userProfile, onToolEvent, hasGreeted, setGreeted } =
-    args;
+  const { session, userId, userProfile, onToolEvent } = args;
 
   let applying: Promise<void> | null = null;
   let queued: InterviewContext | null = null;
@@ -69,15 +66,8 @@ export function createInterviewApplier(args: {
     }
 
     const chatCtx = new llm.ChatContext();
-    const visibleHistoryMessages = historyMessages.filter((msg) => {
-      const role = msg?.role;
-      const content = msg?.content;
-      return (
-        (role === "user" || role === "assistant") &&
-        typeof content === "string" &&
-        content.trim().length > 0
-      );
-    });
+    const visibleHistoryMessages =
+      getVisibleConversationMessages(historyMessages);
 
     if (visibleHistoryMessages.length > 0) {
       for (const msg of visibleHistoryMessages) {
@@ -189,37 +179,7 @@ export function createInterviewApplier(args: {
       }
     }, 5000); // Check every 5 seconds
 
-    // 6. 等待移交 (遗留逻辑, 确保 session 就绪)
-    // 在新架构中，updateAgentForStage 已经执行，
-    // 但我们可能希望确保第一个 Agent 在问候前已经是 "active" 状态。
-    // FSM 的 updateAgent 调用是立即开始的。
-
-    // 构造并发送开场白
-    if (visibleHistoryMessages.length === 0) {
-      // 检查是否已经在 entry.ts 的超时兜底逻辑中发送过开场白
-      if (hasGreeted && hasGreeted()) {
-        console.log("[Interview] 检测到已发送过开场白，跳过重复发送。");
-      } else {
-        // 标记已发送开场白
-        if (setGreeted) setGreeted();
-
-        const candidateName = getCandidateName(userProfile);
-        // 功能2: 主动开场白 —— 邀请候选人进行自我介绍，包含教育背景、工作经历和技术栈
-        const greeting = candidateName
-          ? `你好${candidateName}，欢迎参加本次面试！请先做一个简短的自我介绍，包括你的教育背景、工作经历和技术栈。`
-          : "你好，欢迎参加本次面试！请先做一个简短的自我介绍，包括你的教育背景、工作经历和技术栈。";
-
-        // 稍作延迟以确保 Agent 就绪
-        setTimeout(() => {
-          session.generateReply({
-            userInput: "系统：面试开场",
-            instructions: `只输出这句固定开场白，不要添加或修改任何内容：${greeting}`,
-            // 开场白期间允许用户随时打断（与 Barge-in 配合）
-            allowInterruptions: true,
-          });
-        }, 500);
-      }
-    } else {
+    if (visibleHistoryMessages.length > 0) {
       console.log(
         `[Interview] 检测到已有历史记录(${visibleHistoryMessages.length}条)，跳过开场白。`,
       );
