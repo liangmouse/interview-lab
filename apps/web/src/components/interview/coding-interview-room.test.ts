@@ -41,6 +41,14 @@ vi.mock("./code-editor", () => ({
     }),
 }));
 
+vi.mock("@/components/ui/resizable", () => ({
+  ResizableHandle: () =>
+    React.createElement("div", { "data-testid": "resize-handle" }),
+  ResizablePanel: ({ children }: { children?: React.ReactNode }) => children,
+  ResizablePanelGroup: ({ children }: { children?: React.ReactNode }) =>
+    children,
+}));
+
 const problems = [
   {
     id: "problem-1",

@@ -19,6 +19,11 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { CodeEditor } from "./code-editor";
 import {
@@ -415,166 +420,192 @@ export function CodingInterviewRoom({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[42%] min-w-[360px] flex-col border-r border-[#E5E7EB] bg-white">
-          <div
-            ref={detailScrollRef}
-            className="min-h-0 flex-1 overflow-y-auto px-6 py-6"
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+          <ResizablePanel
+            defaultSize={42}
+            minSize={28}
+            maxSize={68}
+            className="flex min-w-0 flex-col bg-white"
           >
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-1 text-xs font-semibold",
-                  difficultyClassName(activeProblem.difficulty),
-                )}
-              >
-                {difficultyLabel(activeProblem.difficulty)}
-              </span>
-              <span className="rounded-full bg-[#EFF6FF] px-2.5 py-1 text-xs font-medium text-[#2563EB]">
-                {sourceLabel(activeProblem.sourceKind)}
-              </span>
-            </div>
+            <div
+              ref={detailScrollRef}
+              className="min-h-0 flex-1 overflow-y-auto px-6 py-6"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-semibold",
+                    difficultyClassName(activeProblem.difficulty),
+                  )}
+                >
+                  {difficultyLabel(activeProblem.difficulty)}
+                </span>
+                <span className="rounded-full bg-[#EFF6FF] px-2.5 py-1 text-xs font-medium text-[#2563EB]">
+                  {sourceLabel(activeProblem.sourceKind)}
+                </span>
+              </div>
 
-            <h1 className="mt-4 text-2xl font-semibold leading-tight text-[#0F172A]">
-              {activeProblem.title}
-            </h1>
+              <h1 className="mt-4 text-2xl font-semibold leading-tight text-[#0F172A]">
+                {activeProblem.title}
+              </h1>
 
-            <div className="mt-6 space-y-6">
-              <section>
-                <div className="flex items-center gap-2 text-sm font-semibold text-[#0F172A]">
-                  <Code2 className="h-4 w-4 text-[#0F3E2E]" />
-                  题目描述
-                </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#334155]">
-                  {activeProblem.description}
-                </p>
-              </section>
-
-              {activeProblem.examples && activeProblem.examples.length > 0 ? (
+              <div className="mt-6 space-y-6">
                 <section>
-                  <div className="text-sm font-semibold text-[#0F172A]">
-                    示例
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[#0F172A]">
+                    <Code2 className="h-4 w-4 text-[#0F3E2E]" />
+                    题目描述
                   </div>
-                  <div className="mt-3 space-y-3">
-                    {activeProblem.examples.map((example, index) => (
-                      <div
-                        key={`${activeProblem.id}-example-${index}`}
-                        className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-sm text-[#334155]"
-                      >
-                        <div className="font-medium text-[#0F172A]">
-                          示例 {index + 1}
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#334155]">
+                    {activeProblem.description}
+                  </p>
+                </section>
+
+                {activeProblem.examples && activeProblem.examples.length > 0 ? (
+                  <section>
+                    <div className="text-sm font-semibold text-[#0F172A]">
+                      示例
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {activeProblem.examples.map((example, index) => (
+                        <div
+                          key={`${activeProblem.id}-example-${index}`}
+                          className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-sm text-[#334155]"
+                        >
+                          <div className="font-medium text-[#0F172A]">
+                            示例 {index + 1}
+                          </div>
+                          <div className="mt-2 whitespace-pre-wrap">
+                            输入：{example.input}
+                          </div>
+                          <div className="mt-1 whitespace-pre-wrap">
+                            输出：{example.output}
+                          </div>
+                          {example.explanation ? (
+                            <div className="mt-1 whitespace-pre-wrap text-[#64748B]">
+                              解释：{example.explanation}
+                            </div>
+                          ) : null}
                         </div>
-                        <div className="mt-2 whitespace-pre-wrap">
-                          输入：{example.input}
-                        </div>
-                        <div className="mt-1 whitespace-pre-wrap">
-                          输出：{example.output}
-                        </div>
-                        {example.explanation ? (
-                          <div className="mt-1 whitespace-pre-wrap text-[#64748B]">
-                            解释：{example.explanation}
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {activeProblem.constraints &&
+                activeProblem.constraints.length > 0 ? (
+                  <section>
+                    <div className="text-sm font-semibold text-[#0F172A]">
+                      约束条件
+                    </div>
+                    <ul className="mt-3 space-y-2 text-sm text-[#334155]">
+                      {activeProblem.constraints.map((constraint) => (
+                        <li
+                          key={`${activeProblem.id}-${constraint}`}
+                          className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2"
+                        >
+                          {constraint}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </div>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle
+            withHandle
+            className="bg-[#E5E7EB] after:w-2 hover:bg-[#CBD5E1]"
+          />
+
+          <ResizablePanel defaultSize={58} minSize={32} className="min-w-0">
+            <ResizablePanelGroup direction="vertical" className="h-full w-full">
+              <ResizablePanel defaultSize={68} minSize={35} className="min-h-0">
+                <section className="flex h-full min-h-0 flex-1 flex-col bg-[#0B1220]">
+                  <div className="flex items-center justify-between border-b border-[#1F2937] bg-[#111827] px-4 py-3">
+                    <div>
+                      <div className="text-sm font-semibold text-[#F8FAFC]">
+                        {activeProblem.title}
+                      </div>
+                      <div className="mt-1 text-xs text-[#94A3B8]">
+                        当前作答：第 {activeProblemIndex + 1} 题 /{" "}
+                        {safeProblems.length}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleRun}
+                      disabled={isRunning}
+                      className="h-8 gap-1.5 bg-[#10B981] px-3 text-xs font-medium text-white hover:bg-[#059669] disabled:opacity-60"
+                    >
+                      {isRunning ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                      )}
+                      {isRunning ? "运行中..." : "运行代码"}
+                    </Button>
+                  </div>
+
+                  <div className="min-h-0 flex-1">
+                    <CodeEditor
+                      files={activeFiles}
+                      activeTab={activeTab}
+                      language={activeProblem.language}
+                      onTabChange={setActiveTab}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </section>
+              </ResizablePanel>
+
+              <ResizableHandle
+                withHandle
+                className="bg-[#1F2937] after:h-2 hover:bg-[#334155] [&>div]:border-[#334155] [&>div]:bg-[#0F172A] [&>div]:text-[#CBD5E1]"
+              />
+
+              <ResizablePanel defaultSize={32} minSize={18} className="min-h-0">
+                <div className="flex h-full min-h-[180px] flex-col bg-[#020617]">
+                  <div className="flex items-center gap-2 border-b border-[#1F2937] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#CBD5E1]">
+                    <Terminal className="h-3.5 w-3.5" />
+                    运行结果
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-xs">
+                    {isRunning ? (
+                      <div className="flex items-center gap-2 text-[#94A3B8]">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        正在执行测试...
+                      </div>
+                    ) : activeResult ? (
+                      <>
+                        <div className="text-[#10B981]">$ node test.js</div>
+                        {activeResult.lines.map((line, index) => (
+                          <OutputLineView
+                            key={`${activeProblem.id}-line-${index}`}
+                            line={line}
+                          />
+                        ))}
+                        {activeResult.error ? (
+                          <div className="mt-1 text-[#F87171]">
+                            ✗ Uncaught Error: {activeResult.error}
                           </div>
                         ) : null}
+                        <div className="mt-3 text-[#64748B]">
+                          本次执行耗时 {activeResult.duration}ms
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-[#64748B]">
+                        点击右上角“运行代码”查看当前题目的测试结果。
                       </div>
-                    ))}
+                    )}
                   </div>
-                </section>
-              ) : null}
-
-              {activeProblem.constraints &&
-              activeProblem.constraints.length > 0 ? (
-                <section>
-                  <div className="text-sm font-semibold text-[#0F172A]">
-                    约束条件
-                  </div>
-                  <ul className="mt-3 space-y-2 text-sm text-[#334155]">
-                    {activeProblem.constraints.map((constraint) => (
-                      <li
-                        key={`${activeProblem.id}-${constraint}`}
-                        className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2"
-                      >
-                        {constraint}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-            </div>
-          </div>
-        </aside>
-
-        <section className="flex min-w-0 flex-1 flex-col bg-[#0B1220]">
-          <div className="flex items-center justify-between border-b border-[#1F2937] bg-[#111827] px-4 py-3">
-            <div>
-              <div className="text-sm font-semibold text-[#F8FAFC]">
-                {activeProblem.title}
-              </div>
-              <div className="mt-1 text-xs text-[#94A3B8]">
-                当前作答：第 {activeProblemIndex + 1} 题 / {safeProblems.length}
-              </div>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleRun}
-              disabled={isRunning}
-              className="h-8 gap-1.5 bg-[#10B981] px-3 text-xs font-medium text-white hover:bg-[#059669] disabled:opacity-60"
-            >
-              {isRunning ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Play className="h-3.5 w-3.5 fill-current" />
-              )}
-              {isRunning ? "运行中..." : "运行代码"}
-            </Button>
-          </div>
-
-          <div className="min-h-0 flex-1">
-            <CodeEditor
-              files={activeFiles}
-              activeTab={activeTab}
-              language={activeProblem.language}
-              onTabChange={setActiveTab}
-              onChange={handleChange}
-            />
-          </div>
-
-          <div className="flex h-[32%] min-h-[220px] flex-col border-t border-[#1F2937] bg-[#020617]">
-            <div className="flex items-center gap-2 border-b border-[#1F2937] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#CBD5E1]">
-              <Terminal className="h-3.5 w-3.5" />
-              运行结果
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-xs">
-              {isRunning ? (
-                <div className="flex items-center gap-2 text-[#94A3B8]">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  正在执行测试...
                 </div>
-              ) : activeResult ? (
-                <>
-                  <div className="text-[#10B981]">$ node test.js</div>
-                  {activeResult.lines.map((line, index) => (
-                    <OutputLineView
-                      key={`${activeProblem.id}-line-${index}`}
-                      line={line}
-                    />
-                  ))}
-                  {activeResult.error ? (
-                    <div className="mt-1 text-[#F87171]">
-                      ✗ Uncaught Error: {activeResult.error}
-                    </div>
-                  ) : null}
-                  <div className="mt-3 text-[#64748B]">
-                    本次执行耗时 {activeResult.duration}ms
-                  </div>
-                </>
-              ) : (
-                <div className="text-[#64748B]">
-                  点击右上角“运行代码”查看当前题目的测试结果。
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </div>
   );
