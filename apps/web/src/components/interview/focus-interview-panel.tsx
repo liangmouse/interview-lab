@@ -23,6 +23,11 @@ import {
   type InterviewTopic,
   type InterviewDifficulty,
 } from "@/action/create-interview";
+import {
+  CODING_INTERVIEW_DEFAULT_DURATION_MINUTES,
+  CODING_INTERVIEW_QUESTION_COUNT,
+  FOCUS_CODING_TOPIC,
+} from "@/lib/interview-session";
 import { toast } from "sonner";
 
 const FOCUS_AREAS: {
@@ -93,7 +98,12 @@ interface SelectPillProps {
   className?: string;
 }
 
-function SelectPill({ selected, onClick, children, className }: SelectPillProps) {
+function SelectPill({
+  selected,
+  onClick,
+  children,
+  className,
+}: SelectPillProps) {
   return (
     <button
       type="button"
@@ -188,11 +198,14 @@ export function FocusInterviewPanel() {
   const router = useRouter();
 
   const [focusArea, setFocusArea] = useState<InterviewTopic | null>(null);
-  const [difficulty, setDifficulty] = useState<InterviewDifficulty | null>(null);
+  const [difficulty, setDifficulty] = useState<InterviewDifficulty | null>(
+    null,
+  );
   const [duration, setDuration] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const isBusy = isLoading || isPending;
+  const isCodingFocus = focusArea === FOCUS_CODING_TOPIC;
 
   const handleStart = useCallback(async () => {
     if (!focusArea) {
@@ -203,7 +216,7 @@ export function FocusInterviewPanel() {
       toast.error("请选择面试难度");
       return;
     }
-    if (!duration) {
+    if (!isCodingFocus && !duration) {
       toast.error("请选择面试时长");
       return;
     }
@@ -213,7 +226,10 @@ export function FocusInterviewPanel() {
       const result = await createInterview({
         topic: focusArea,
         difficulty,
-        duration,
+        duration: isCodingFocus
+          ? CODING_INTERVIEW_DEFAULT_DURATION_MINUTES
+          : (duration ?? CODING_INTERVIEW_DEFAULT_DURATION_MINUTES),
+        variant: isCodingFocus ? "coding" : "standard",
       });
       if (result.error) {
         toast.error(result.error);
@@ -229,9 +245,9 @@ export function FocusInterviewPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, [focusArea, difficulty, duration, router]);
+  }, [difficulty, duration, focusArea, isCodingFocus, router]);
 
-  const isReady = !!focusArea && !!difficulty && !!duration;
+  const isReady = !!focusArea && !!difficulty && (isCodingFocus || !!duration);
 
   return (
     <div className="space-y-6">
@@ -288,7 +304,9 @@ export function FocusInterviewPanel() {
                   <DiffIcon
                     className={cn(
                       "mr-1.5 h-3.5 w-3.5",
-                      difficulty === d.value ? "text-primary-foreground" : d.color,
+                      difficulty === d.value
+                        ? "text-primary-foreground"
+                        : d.color,
                     )}
                   />
                   {d.label}
@@ -298,46 +316,57 @@ export function FocusInterviewPanel() {
           </div>
         </div>
 
-        <div className="mx-6 border-t border-border/60" />
+        {!isCodingFocus ? (
+          <>
+            <div className="mx-6 border-t border-border/60" />
 
-        {/* Duration */}
-        <div className="p-6">
-          <label className="mb-3 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            面试时长
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {DURATIONS.map((d) => (
-              <SelectPill
-                key={d.value}
-                selected={duration === d.value}
-                onClick={() => setDuration(d.value)}
-                className="flex-col gap-0"
-              >
-                <span className="flex items-center gap-1">
-                  <Clock
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      duration === d.value
-                        ? "text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                  {d.label}
-                </span>
-                <span
-                  className={cn(
-                    "text-[10px]",
-                    duration === d.value
-                      ? "text-primary-foreground/70"
-                      : "text-muted-foreground/70",
-                  )}
-                >
-                  {d.desc}
-                </span>
-              </SelectPill>
-            ))}
+            {/* Duration */}
+            <div className="p-6">
+              <label className="mb-3 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                面试时长
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {DURATIONS.map((d) => (
+                  <SelectPill
+                    key={d.value}
+                    selected={duration === d.value}
+                    onClick={() => setDuration(d.value)}
+                    className="flex-col gap-0"
+                  >
+                    <span className="flex items-center gap-1">
+                      <Clock
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          duration === d.value
+                            ? "text-primary-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      />
+                      {d.label}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[10px]",
+                        duration === d.value
+                          ? "text-primary-foreground/70"
+                          : "text-muted-foreground/70",
+                      )}
+                    >
+                      {d.desc}
+                    </span>
+                  </SelectPill>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="mx-6 border-t border-border/60 p-6">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-900">
+              代码编程模式默认生成 {CODING_INTERVIEW_QUESTION_COUNT}{" "}
+              道题，进入后直接使用专项编码界面作答。
+            </div>
           </div>
-        </div>
+        )}
 
         {/* CTA */}
         <div className="border-t border-border/60 bg-secondary/30 px-6 py-4">
@@ -366,7 +395,9 @@ export function FocusInterviewPanel() {
           </Button>
           {!isReady && (
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              请完成上方所有配置后开始
+              {isCodingFocus
+                ? "请先选择专项方向和面试难度"
+                : "请完成上方所有配置后开始"}
             </p>
           )}
         </div>

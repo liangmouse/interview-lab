@@ -1,13 +1,39 @@
 export type CodeTabId = "solution" | "test";
 
 export interface CodeProblem {
+  id?: string;
   title: string;
   description: string;
   difficulty: "easy" | "medium" | "hard";
   language: "javascript" | "typescript" | "python";
+  sourceKind?: "resume" | "leetcode";
+  examples?: Array<{
+    input: string;
+    output: string;
+    explanation?: string;
+  }>;
+  constraints?: string[];
   solutionTemplate: string;
   testTemplate: string;
 }
+
+export type OutputLine = {
+  type: "log" | "error" | "warn" | "info";
+  text: string;
+};
+
+export type CodeRunResult = {
+  lines: OutputLine[];
+  duration: number;
+  error?: string;
+};
+
+export type CodingInterviewDraftState = {
+  activeProblemIndex: number;
+  activeTab: CodeTabId;
+  filesByProblem: Record<string, Record<CodeTabId, string>>;
+  resultsByProblem: Record<string, CodeRunResult | null>;
+};
 
 export const MIN_EDITOR_LINES = 14;
 
@@ -82,6 +108,21 @@ export function buildEditorFiles(
   return {
     solution: problem.solutionTemplate,
     test: problem.testTemplate,
+  };
+}
+
+export function buildDefaultCodingInterviewDraftState(
+  problems: Array<CodeProblem & { id: string }>,
+): CodingInterviewDraftState {
+  return {
+    activeProblemIndex: 0,
+    activeTab: "solution",
+    filesByProblem: Object.fromEntries(
+      problems.map((problem) => [problem.id, buildEditorFiles(problem)]),
+    ),
+    resultsByProblem: Object.fromEntries(
+      problems.map((problem) => [problem.id, null]),
+    ),
   };
 }
 

@@ -4,6 +4,7 @@ const {
   mockAuthGetUser,
   mockProfileSingle,
   mockInsertSingle,
+  mockInterviewInsert,
   mockRpc,
   mockCreateClient,
 } = vi.hoisted(() => {
@@ -11,6 +12,7 @@ const {
   const mockProfileSingle = vi.fn();
   const mockInsertSingle = vi.fn();
   const mockRpc = vi.fn();
+  const mockInterviewInsert = vi.fn();
 
   const mockCreateClient = vi.fn(async () => ({
     auth: {
@@ -29,7 +31,7 @@ const {
 
       if (table === "interviews") {
         return {
-          insert: vi.fn(() => ({
+          insert: mockInterviewInsert.mockImplementation(() => ({
             select: vi.fn(() => ({
               single: mockInsertSingle,
             })),
@@ -48,6 +50,7 @@ const {
     mockInsertSingle,
     mockRpc,
     mockCreateClient,
+    mockInterviewInsert,
   };
 });
 
@@ -148,5 +151,21 @@ describe("createInterview", () => {
 
     expect(result).toEqual({ interviewId: "interview-1" });
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("stores coding interviews with the coding variant in type", async () => {
+    await createInterview({
+      topic: "fullstack",
+      difficulty: "advanced",
+      duration: 60,
+      variant: "coding",
+    });
+
+    expect(mockInterviewInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        type: "fullstack:advanced:coding",
+        duration: "60",
+      }),
+    ]);
   });
 });

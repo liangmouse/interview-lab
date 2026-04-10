@@ -16,11 +16,18 @@ const MonacoEditor = dynamic(
 type Props = {
   files: Record<CodeTabId, string>;
   activeTab: CodeTabId;
+  language?: "javascript" | "typescript" | "python";
   onTabChange: (tab: CodeTabId) => void;
   onChange: (tab: CodeTabId, value: string) => void;
 };
 
-export function CodeEditor({ files, activeTab, onTabChange, onChange }: Props) {
+export function CodeEditor({
+  files,
+  activeTab,
+  language = "javascript",
+  onTabChange,
+  onChange,
+}: Props) {
   return (
     <div className="flex h-full flex-col bg-[#0B1220]">
       {/* Tab Bar */}
@@ -45,7 +52,7 @@ export function CodeEditor({ files, activeTab, onTabChange, onChange }: Props) {
       <div className="flex-1 overflow-hidden">
         <MonacoEditor
           height="100%"
-          language="javascript"
+          language={language}
           theme="vs-dark"
           value={files[activeTab]}
           path={activeTab}

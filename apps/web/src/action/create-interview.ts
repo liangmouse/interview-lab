@@ -4,16 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { resolveUserAccessForUserId } from "@/lib/billing/access";
 import type { PersonalizationMode } from "@/types/billing";
+import {
+  buildInterviewType,
+  type InterviewDifficulty,
+  type InterviewSessionVariant,
+  type InterviewTopic,
+} from "@/lib/interview-session";
 
-/** 面试主题类型 */
-export type InterviewTopic = "frontend" | "backend" | "fullstack" | "mobile";
-
-/** 面试难度类型 */
-export type InterviewDifficulty =
-  | "beginner"
-  | "intermediate"
-  | "advanced"
-  | "expert";
+export type { InterviewTopic, InterviewDifficulty, InterviewSessionVariant };
 
 /** 创建面试的参数 */
 export interface CreateInterviewParams {
@@ -25,6 +23,8 @@ export interface CreateInterviewParams {
   duration: number;
   /** 面试个性化模式 */
   personalizationMode?: PersonalizationMode;
+  /** 面试变体 */
+  variant?: InterviewSessionVariant;
 }
 
 /**
@@ -38,6 +38,7 @@ export async function createInterview(params: CreateInterviewParams) {
     difficulty,
     duration,
     personalizationMode = "generic",
+    variant = "standard",
   } = params;
 
   const supabase = await createClient();
@@ -102,8 +103,7 @@ export async function createInterview(params: CreateInterviewParams) {
     .insert([
       {
         user_id: profile.id,
-        // 将难度拼接到 type 字段：topic:difficulty
-        type: `${topic}:${difficulty}`,
+        type: buildInterviewType({ topic, difficulty, variant }),
         status: "pending",
         // duration 字段存储实际时长
         duration: duration.toString(),

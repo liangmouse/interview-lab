@@ -1,17 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import type { CodeRunResult, OutputLine } from "./code-editor-utils";
 
-export type OutputLine = {
-  type: "log" | "error" | "warn" | "info";
-  text: string;
-};
-
-export type RunResult = {
-  lines: OutputLine[];
-  duration: number;
-  error?: string;
-};
+export type RunResult = CodeRunResult;
+export type { OutputLine };
 
 // Runs inside an isolated Web Worker — no DOM access, captures console output
 const WORKER_SCRIPT = `
@@ -60,14 +53,12 @@ self.onmessage = function (e) {
 
 const TIMEOUT_MS = 5000;
 
-export function useCodeRunner() {
-  const [result, setResult] = useState<RunResult | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-
-  const run = useCallback((solution: string, test: string) => {
-    setIsRunning(true);
-    setResult(null);
-
+export function executeCodeRun(
+  solution: string,
+  test: string,
+  timeoutMs: number = TIMEOUT_MS,
+) {
+  return new Promise<CodeRunResult>((resolve) => {
     const blob = new Blob([WORKER_SCRIPT], { type: "application/javascript" });
     const url = URL.createObjectURL(blob);
     const worker = new Worker(url);
@@ -75,36 +66,46 @@ export function useCodeRunner() {
     const timer = setTimeout(() => {
       worker.terminate();
       URL.revokeObjectURL(url);
-      setResult({
+      resolve({
         lines: [
           {
             type: "error",
-            text: `Execution timed out after ${TIMEOUT_MS / 1000}s`,
+            text: `Execution timed out after ${timeoutMs / 1000}s`,
           },
         ],
-        duration: TIMEOUT_MS,
+        duration: timeoutMs,
         error: "Timeout",
       });
-      setIsRunning(false);
-    }, TIMEOUT_MS);
+    }, timeoutMs);
 
-    worker.onmessage = (e: MessageEvent<RunResult>) => {
+    worker.onmessage = (e: MessageEvent<CodeRunResult>) => {
       clearTimeout(timer);
       worker.terminate();
       URL.revokeObjectURL(url);
-      setResult(e.data);
-      setIsRunning(false);
+      resolve(e.data);
     };
 
     worker.onerror = (e: ErrorEvent) => {
       clearTimeout(timer);
       worker.terminate();
       URL.revokeObjectURL(url);
-      setResult({ lines: [], duration: 0, error: e.message });
-      setIsRunning(false);
+      resolve({ lines: [], duration: 0, error: e.message });
     };
 
     worker.postMessage({ solution, test });
+  });
+}
+
+export function useCodeRunner() {
+  const [result, setResult] = useState<CodeRunResult | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+
+  const run = useCallback(async (solution: string, test: string) => {
+    setIsRunning(true);
+    setResult(null);
+    const nextResult = await executeCodeRun(solution, test);
+    setResult(nextResult);
+    setIsRunning(false);
   }, []);
 
   return { result, isRunning, run };
