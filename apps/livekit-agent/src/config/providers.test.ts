@@ -64,17 +64,13 @@ const createTtsFromConfig = vi.fn((config) => ({
   kind: `${config.providerId}-tts`,
   config,
 }));
-const resolveTtsConfig = vi.fn((locale?: string) => ({
-  providerId: "openrouter",
-  apiKey:
-    process.env.TTS_API_KEY?.trim() ??
-    process.env.OPEN_ROUTER_API_KEY?.trim() ??
-    "",
-  model: process.env.TTS_MODEL?.trim() ?? "openai/gpt-audio-mini",
-  baseURL: process.env.TTS_BASE_URL?.trim() ?? "https://openrouter.ai/api/v1",
-  voice: locale?.toLowerCase().startsWith("en") ? "alloy-en" : "alloy-zh",
+const resolveTtsConfig = vi.fn((_locale?: string) => ({
+  providerId: "volcengine",
+  appId: process.env.VOLCENGINE_TTS_APP_ID?.trim() ?? "",
+  apiKey: process.env.VOLCENGINE_TTS_ACCESS_TOKEN?.trim() ?? "",
+  cluster: "volcano_tts",
+  voice: "BV700_streaming",
   sampleRate: 24000,
-  audioFormat: "pcm",
 }));
 const createUserScopedSupabaseAuthProfileStore = vi.fn(() => ({
   kind: "user-scoped-profile-store",
@@ -423,12 +419,11 @@ describe("config/providers.createConfiguredTTS", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    delete process.env.TTS_MODEL;
-    delete process.env.TTS_API_KEY;
-    delete process.env.TTS_BASE_URL;
+    delete process.env.VOLCENGINE_TTS_APP_ID;
+    delete process.env.VOLCENGINE_TTS_ACCESS_TOKEN;
   });
 
-  it("creates an OpenRouter TTS instance by default", async () => {
+  it("creates a Volcengine TTS instance by default", async () => {
     const providers = await import("./providers");
 
     const tts = providers.createConfiguredTTS("zh-CN");
@@ -436,10 +431,10 @@ describe("config/providers.createConfiguredTTS", () => {
     expect(resolveTtsConfig).toHaveBeenCalledWith("zh-CN", undefined);
     expect(createTtsFromConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        providerId: "openrouter",
-        model: "openai/gpt-audio-mini",
+        providerId: "volcengine",
+        cluster: "volcano_tts",
       }),
     );
-    expect(tts).toMatchObject({ kind: "openrouter-tts" });
+    expect(tts).toMatchObject({ kind: "volcengine-tts" });
   });
 });

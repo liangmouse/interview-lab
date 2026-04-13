@@ -1,23 +1,19 @@
 import type { tts } from "@livekit/agents";
 
-export type TtsProviderId = "openrouter";
-export type TtsAudioFormat = "pcm" | "pcm16" | "wav";
+export type TtsProviderId = "volcengine";
 
 export interface TtsRuntimeOverrides {
   voice?: string;
   sampleRate?: number;
-  audioFormat?: TtsAudioFormat;
 }
 
 export interface ResolvedTtsConfig {
   providerId: TtsProviderId;
-  apiKey: string;
-  model: string;
-  baseURL: string;
+  appId: string;
+  apiKey: string; // volcengine access token
+  cluster: string;
   voice: string;
   sampleRate: number;
-  audioFormat: TtsAudioFormat;
-  headers?: Record<string, string>;
 }
 
 export interface TtsProviderFactory {

@@ -1,25 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createTtsFromConfig,
-  DEFAULT_TTS_BASE_URL,
-  DEFAULT_TTS_MODEL,
+  DEFAULT_TTS_CLUSTER,
+  DEFAULT_TTS_SAMPLE_RATE,
+  DEFAULT_TTS_VOICE,
   resolveTtsConfig,
 } from "./index";
+import { VolcengineTTS } from "./volcengine-tts";
 
 describe("plugins/tts.resolveTtsConfig", () => {
   const savedEnv = { ...process.env };
 
   beforeEach(() => {
     for (const key of [
-      "TTS_MODEL",
-      "TTS_API_KEY",
-      "TTS_BASE_URL",
-      "TTS_OPENROUTER_HTTP_REFERER",
-      "TTS_OPENROUTER_TITLE",
-      "OPEN_ROUTER_API_KEY",
-      "OPEN_ROUTER_API",
-      "OPEN_ROUTER_HTTP_REFERER",
-      "OPEN_ROUTER_TITLE",
+      "VOLCENGINE_TTS_APP_ID",
+      "VOLCENGINE_TTS_ACCESS_TOKEN",
+      "VOLCENGINE_TTS_CLUSTER",
     ]) {
       delete process.env[key];
     }
@@ -29,61 +25,74 @@ describe("plugins/tts.resolveTtsConfig", () => {
     process.env = { ...savedEnv };
   });
 
-  it("defaults to OpenRouter config and falls back to OPEN_ROUTER_* env vars", () => {
-    process.env.OPEN_ROUTER_API_KEY = "openrouter-key";
-    process.env.OPEN_ROUTER_HTTP_REFERER = "https://example.com";
-    process.env.OPEN_ROUTER_TITLE = "InterviewClaw";
+  it("从环境变量解析火山引擎配置", () => {
+    process.env.VOLCENGINE_TTS_APP_ID = "my-app-id";
+    process.env.VOLCENGINE_TTS_ACCESS_TOKEN = "my-token";
 
     const config = resolveTtsConfig("zh-CN");
 
     expect(config).toMatchObject({
-      providerId: "openrouter",
-      apiKey: "openrouter-key",
-      model: DEFAULT_TTS_MODEL,
-      baseURL: DEFAULT_TTS_BASE_URL,
-      voice: "alloy",
-      sampleRate: 24000,
-      audioFormat: "pcm16",
-      headers: {
-        "HTTP-Referer": "https://example.com",
-        "X-Title": "InterviewClaw",
-      },
+      providerId: "volcengine",
+      appId: "my-app-id",
+      apiKey: "my-token",
+      cluster: DEFAULT_TTS_CLUSTER,
+      voice: DEFAULT_TTS_VOICE,
+      sampleRate: DEFAULT_TTS_SAMPLE_RATE,
     });
   });
 
-  it("supports runtime overrides for OpenRouter", () => {
-    process.env.OPEN_ROUTER_API_KEY = "openrouter-key";
-    process.env.TTS_MODEL = "openai/gpt-audio";
-    process.env.TTS_BASE_URL = "https://custom.example.com/v1";
-    process.env.TTS_OPENROUTER_HTTP_REFERER = "https://tts.example.com";
-    process.env.TTS_OPENROUTER_TITLE = "TTS";
+  it("支持自定义 cluster", () => {
+    process.env.VOLCENGINE_TTS_APP_ID = "my-app-id";
+    process.env.VOLCENGINE_TTS_ACCESS_TOKEN = "my-token";
+    process.env.VOLCENGINE_TTS_CLUSTER = "custom_cluster";
 
-    const config = resolveTtsConfig("en-US", {
-      voice: "ash",
-      audioFormat: "wav",
-      sampleRate: 44100,
-    });
+    const config = resolveTtsConfig("zh-CN");
 
-    expect(config).toMatchObject({
-      providerId: "openrouter",
-      model: "openai/gpt-audio",
-      baseURL: "https://custom.example.com/v1",
-      voice: "ash",
-      audioFormat: "wav",
-      sampleRate: 44100,
-      headers: {
-        "HTTP-Referer": "https://tts.example.com",
-        "X-Title": "TTS",
-      },
-    });
+    expect(config.cluster).toBe("custom_cluster");
   });
 
-  it("creates the provider instance resolved from config", () => {
-    process.env.OPEN_ROUTER_API_KEY = "openrouter-key";
-    const config = resolveTtsConfig("en-US");
+  it("支持运行时 voice 覆盖", () => {
+    process.env.VOLCENGINE_TTS_APP_ID = "my-app-id";
+    process.env.VOLCENGINE_TTS_ACCESS_TOKEN = "my-token";
 
-    const tts = createTtsFromConfig(config);
+    const config = resolveTtsConfig("zh-CN", { voice: "BV701_streaming" });
 
-    expect(tts.label).toBe("openrouter.chat-audio.TTS");
+    expect(config.voice).toBe("BV701_streaming");
+  });
+
+  it("支持运行时 sampleRate 覆盖", () => {
+    process.env.VOLCENGINE_TTS_APP_ID = "my-app-id";
+    process.env.VOLCENGINE_TTS_ACCESS_TOKEN = "my-token";
+
+    const config = resolveTtsConfig("zh-CN", { sampleRate: 16000 });
+
+    expect(config.sampleRate).toBe(16000);
+  });
+
+  it("缺少 VOLCENGINE_TTS_APP_ID 时抛出错误", () => {
+    process.env.VOLCENGINE_TTS_ACCESS_TOKEN = "my-token";
+
+    expect(() => resolveTtsConfig("zh-CN")).toThrow(
+      "[TTS Config] Missing required env: VOLCENGINE_TTS_APP_ID",
+    );
+  });
+
+  it("缺少 VOLCENGINE_TTS_ACCESS_TOKEN 时抛出错误", () => {
+    process.env.VOLCENGINE_TTS_APP_ID = "my-app-id";
+
+    expect(() => resolveTtsConfig("zh-CN")).toThrow(
+      "[TTS Config] Missing required env: VOLCENGINE_TTS_ACCESS_TOKEN",
+    );
+  });
+
+  it("createTtsFromConfig 返回 VolcengineTTS 实例", () => {
+    process.env.VOLCENGINE_TTS_APP_ID = "my-app-id";
+    process.env.VOLCENGINE_TTS_ACCESS_TOKEN = "my-token";
+
+    const config = resolveTtsConfig("zh-CN");
+    const ttsInstance = createTtsFromConfig(config);
+
+    expect(ttsInstance).toBeInstanceOf(VolcengineTTS);
+    expect(ttsInstance.label).toBe("volcengine.TTS");
   });
 });
