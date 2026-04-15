@@ -69,6 +69,17 @@ function isPendingQuestioningJob(job: QuestioningJob) {
   return job.status === "queued" || job.status === "running";
 }
 
+function resolveQuestioningJobStatus(job: QuestioningJob) {
+  return {
+    label: job.status === "running" ? "生成中" : "排队中",
+    description:
+      job.status === "running"
+        ? "题单正在生成，完成后可查看详情。"
+        : "任务已提交，正在排队处理中。",
+    badgeClass: "border-amber-200 bg-amber-50 text-amber-700",
+  };
+}
+
 function mergeQuestioningJobs(
   currentJobs: QuestioningJob[],
   nextJobs: QuestioningJob[],
@@ -98,10 +109,12 @@ export function QuestioningCenterPanel() {
   const [jobError, setJobError] = useState("");
   const [jobWarning, setJobWarning] = useState("");
   const hasResumeLibrary = resumeLibrary.length > 0;
+  const pendingHistoryJobs = jobs.filter(isPendingQuestioningJob);
   const historyReports = jobs
     .filter((job) => job.status === "succeeded" && job.result)
     .map((job) => job.result!);
-  const hasHistoryReports = historyReports.length > 0;
+  const hasHistoryReports =
+    pendingHistoryJobs.length > 0 || historyReports.length > 0;
 
   const [formValues, setFormValues] = useState<QuestioningFormValues>({
     resumeId: "",
@@ -636,47 +649,100 @@ export function QuestioningCenterPanel() {
         </CardHeader>
         <CardContent className="space-y-3">
           {hasHistoryReports ? (
-            historyReports.map((report) => (
-              <details
-                key={report.id}
-                className="group rounded-lg border border-[#E5E5E5] bg-white p-4"
-              >
-                <summary className="cursor-pointer list-none">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-[#141414]">
-                        {report.title}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {formatDateTime(report.createdAt)}
-                      </p>
+            <>
+              {pendingHistoryJobs.map((job) => {
+                const statusMeta = resolveQuestioningJobStatus(job);
+
+                return (
+                  <div
+                    key={job.id}
+                    className="rounded-lg border border-[#E5E5E5] bg-[#FCFCFC] p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium text-[#141414]">
+                            {job.payload.targetRole} 押题任务
+                          </p>
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusMeta.badgeClass}`}
+                          >
+                            {statusMeta.label}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {statusMeta.description}
+                        </p>
+                        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                          <span>创建时间：{formatDateTime(job.createdAt)}</span>
+                          <span>
+                            赛道：
+                            {job.payload.track === "social"
+                              ? t("tracks.social")
+                              : t("tracks.campus")}
+                          </span>
+                          <span>
+                            状态更新时间：
+                            {formatDateTime(job.updatedAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge variant="secondary">处理中</Badge>
                     </div>
-                    <Badge variant="secondary">
-                      {report.track === "social"
-                        ? t("tracks.social")
-                        : t("tracks.campus")}
-                    </Badge>
                   </div>
-                </summary>
-                <div className="mt-4 space-y-3 border-t border-[#F0F0F0] pt-3">
-                  <p className="text-sm text-muted-foreground">
-                    {report.summary}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {report.highlights.map((tag) => (
-                      <Badge key={tag} variant="outline">
-                        {tag}
+                );
+              })}
+
+              {historyReports.map((report) => (
+                <details
+                  key={report.id}
+                  className="group rounded-lg border border-[#E5E5E5] bg-white p-4"
+                >
+                  <summary className="cursor-pointer list-none">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-[#141414]">
+                          {report.title}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {formatDateTime(report.createdAt)}
+                        </p>
+                      </div>
+                      <Badge variant="secondary">
+                        {report.track === "social"
+                          ? t("tracks.social")
+                          : t("tracks.campus")}
                       </Badge>
-                    ))}
+                    </div>
+                  </summary>
+                  <div className="mt-4 space-y-3 border-t border-[#F0F0F0] pt-3">
+                    <p className="text-sm text-muted-foreground">
+                      {report.summary}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {report.highlights.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="outline"
+                          className="max-w-full whitespace-normal break-words px-3 py-1 text-left leading-5"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="cursor-pointer"
+                    >
+                      <Link href={`/questioning/${report.id}`}>
+                        {t("history.viewDetail")}
+                      </Link>
+                    </Button>
                   </div>
-                  <Button asChild variant="outline" className="cursor-pointer">
-                    <Link href={`/questioning/${report.id}`}>
-                      {t("history.viewDetail")}
-                    </Link>
-                  </Button>
-                </div>
-              </details>
-            ))
+                </details>
+              ))}
+            </>
           ) : (
             <div
               className="rounded-lg border border-dashed border-[#DADADA] bg-[#FCFCFC] px-6 py-10 text-center"

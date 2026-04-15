@@ -1,11 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  LayoutDashboard,
-  FileText,
-  History,
-  TrendingUp,
-  BookOpen,
-} from "lucide-react";
+import { LayoutDashboard, FileText, History, TrendingUp } from "lucide-react";
 
 export interface SidebarItem {
   key: string;
@@ -30,12 +24,6 @@ export const sidebarGroups: SidebarGroup[] = [
         titleKey: "interview",
         href: "/interview",
         icon: LayoutDashboard,
-      },
-      {
-        key: "interviewArchive",
-        titleKey: "interviewArchive",
-        href: "/interview/archive",
-        icon: BookOpen,
       },
       {
         key: "records",

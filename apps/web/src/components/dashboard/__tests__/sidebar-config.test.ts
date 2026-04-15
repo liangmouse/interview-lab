@@ -20,7 +20,6 @@ describe("sidebarGroups", () => {
 
     expect(interviewGroup?.items.map((item) => item.href)).toEqual([
       "/interview",
-      "/interview/archive",
       "/records",
     ]);
     expect(prepGroup?.items.map((item) => item.href)).toEqual([
@@ -36,7 +35,6 @@ describe("sidebarGroups", () => {
 
     expect(hrefs).toEqual([
       "/interview",
-      "/interview/archive",
       "/records",
       "/resume-review",
       "/questioning",

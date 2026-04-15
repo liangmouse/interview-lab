@@ -121,6 +121,18 @@ describe("QuestioningCenterPanel", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows pending jobs in history instead of the empty state", async () => {
+    render(<QuestioningCenterPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("前端工程师 押题任务")).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText("排队中").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("处理中").length).toBeGreaterThan(0);
+    expect(screen.queryByText("history.emptyTitle")).not.toBeInTheDocument();
+  });
+
   it("disables generation and shows recharge prompt when trial remaining is 0", async () => {
     vi.stubGlobal(
       "fetch",
@@ -165,6 +177,48 @@ describe("QuestioningCenterPanel", () => {
         screen.getByText("押题记录暂时加载失败，请稍后刷新重试"),
       ).toBeInTheDocument();
     });
+  });
+
+  it("allows long history highlights to wrap instead of overflowing", async () => {
+    listQuestioningJobs.mockResolvedValueOnce({
+      jobs: [
+        {
+          id: "job-success-1",
+          userId: "user-1",
+          status: "succeeded",
+          payload: {
+            resumeStoragePath: "user-1/resume.pdf",
+            targetRole: "Agent 开发",
+            track: "campus",
+          },
+          result: {
+            id: "report-1",
+            title: "agent开发 押题报告",
+            track: "campus",
+            createdAt: "2026-03-24T09:17:00.000Z",
+            summary: "一段摘要",
+            highlights: [
+              "TypeScript 高级类型是核心考点：重点准备条件类型（Conditional Types）、infer 关键字、映射类型（Mapped Types）",
+            ],
+          },
+          attemptCount: 0,
+          availableAt: "2026-03-24T09:17:00.000Z",
+          createdAt: "2026-03-24T09:17:00.000Z",
+          updatedAt: "2026-03-24T09:17:00.000Z",
+          completedAt: "2026-03-24T09:17:00.000Z",
+        },
+      ],
+    });
+
+    render(<QuestioningCenterPanel />);
+
+    const highlight = await screen.findByText(
+      "TypeScript 高级类型是核心考点：重点准备条件类型（Conditional Types）、infer 关键字、映射类型（Mapped Types）",
+    );
+
+    expect(highlight).toHaveClass("max-w-full");
+    expect(highlight).toHaveClass("whitespace-normal");
+    expect(highlight).toHaveClass("break-words");
   });
 
   it("polls every pending job instead of only the latest one", async () => {
