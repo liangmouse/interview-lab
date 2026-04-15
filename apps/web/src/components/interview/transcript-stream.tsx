@@ -3,7 +3,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import { Bot, User, MessageSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type TranscriptItem } from "@/hooks/useLiveKitRoom";
+import { type TranscriptItem } from "@/hooks/interview-voice-runtime-types";
 import { cn } from "@/lib/utils";
 
 // 为了向后兼容，导出别名
@@ -145,22 +145,24 @@ export function TranscriptStream({
               >
                 {message.text.includes("```") ? (
                   <div>
-                    {message.text.split("```").map((part, i) => {
-                      if (i % 2 === 1) {
-                        const [, ...code] = part.split("\n");
-                        return (
-                          <pre
-                            key={i}
-                            className="my-2 overflow-x-auto rounded bg-[#1E1E20] p-3 text-xs"
-                          >
-                            <code className="text-[#E5E5E5]">
-                              {code.join("\n")}
-                            </code>
-                          </pre>
-                        );
-                      }
-                      return <span key={i}>{part}</span>;
-                    })}
+                    {message.text
+                      .split("```")
+                      .map((part: string, i: number) => {
+                        if (i % 2 === 1) {
+                          const [, ...code] = part.split("\n");
+                          return (
+                            <pre
+                              key={i}
+                              className="my-2 overflow-x-auto rounded bg-[#1E1E20] p-3 text-xs"
+                            >
+                              <code className="text-[#E5E5E5]">
+                                {code.join("\n")}
+                              </code>
+                            </pre>
+                          );
+                        }
+                        return <span key={i}>{part}</span>;
+                      })}
                     {/* 非 final 消息显示闪烁光标 */}
                     {!message.isFinal && <TypingCursor />}
                   </div>

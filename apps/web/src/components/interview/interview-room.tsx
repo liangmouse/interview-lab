@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useCallback, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { type AgentState } from "@livekit/components-react";
 import { useLocale } from "next-intl";
 import { AIInterviewerPanel } from "./ai-interviewer-panel";
+import { VoiceFirstPanel } from "./voice-first-panel";
 import { CodeWorkbench } from "./code-workbench";
 import { InterviewHeader } from "./interview-header";
 import { InterviewResumePanel } from "./interview-resume-panel";
@@ -15,17 +17,23 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { useLiveKitRoom } from "@/hooks/useLiveKitRoom";
+import { useInterviewVoiceRuntime } from "@/hooks/useInterviewVoiceRuntime";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import type { VoiceKernel } from "@/lib/voice-kernel";
+import { writeStoredVoiceKernel } from "@/lib/voice-kernel";
 import { useUserStore } from "@/store/user";
 
 interface InterviewRoomProps {
   interviewId: string;
+  initialVoiceKernel: VoiceKernel;
 }
 
 const TURN_MODE_STORAGE_KEY = "interview-turn-mode";
 
-export function InterviewRoom({ interviewId }: InterviewRoomProps) {
+export function InterviewRoom({
+  interviewId,
+  initialVoiceKernel,
+}: InterviewRoomProps) {
   const locale = useLocale();
   const resumeUrl = useUserStore((state) => state.userInfo?.resume_url ?? null);
   const hasResumeUrl = Boolean(resumeUrl);
@@ -41,16 +49,17 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     return saved === "vad" ? "vad" : "manual";
   });
   const [manualDraftText, setManualDraftText] = useState("");
-  const [livekitDraftText, setLivekitDraftText] = useState("");
+  const [runtimeDraftText, setRuntimeDraftText] = useState("");
   const [isCodeWorkbenchOpen, setIsCodeWorkbenchOpen] = useState(false);
   const [codeProblem, setCodeProblem] = useState<CodeProblem | null>(null);
   const [isResumePanelOpen, setIsResumePanelOpen] = useState(
     () => hasResumeUrl,
   );
   const [isInAgentEchoCooldown, setIsInAgentEchoCooldown] = useState(false);
-  const [livekitDraftUpdatedAt, setLivekitDraftUpdatedAt] = useState<
+  const [runtimeDraftUpdatedAt, setRuntimeDraftUpdatedAt] = useState<
     number | null
   >(null);
+  const [isPushToTalkPressed, setIsPushToTalkPressed] = useState(false);
 
   const {
     isSupported: isBrowserSpeechSupported,
@@ -75,6 +84,7 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     `${browserFinalTranscript} ${browserInterimTranscript}`.trim();
 
   const {
+    voiceKernel,
     isConnected,
     isConnecting,
     isMicEnabled,
@@ -86,13 +96,16 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     connect,
     disconnect,
     toggleMicrophone,
-    sendRpc,
+    beginPushToTalk,
+    endPushToTalk,
+    startInterview,
     sendTextMessage,
-  } = useLiveKitRoom({
+  } = useInterviewVoiceRuntime({
     interviewId,
+    voiceKernel: initialVoiceKernel,
     onUserTranscription: (text) => {
-      setLivekitDraftText(text);
-      setLivekitDraftUpdatedAt(Date.now());
+      setRuntimeDraftText(text);
+      setRuntimeDraftUpdatedAt(Date.now());
     },
     onDataMessage: (message) => {
       const event = resolveCodeWorkbenchEvent(message);
@@ -108,13 +121,14 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       console.log("[InterviewRoom] Connected to LiveKit room");
     },
     onDisconnected: () => {
-      console.log("[InterviewRoom] Disconnected from LiveKit room");
+      console.log("[InterviewRoom] Disconnected from interview runtime");
     },
     onError: (err) => {
-      console.error("[InterviewRoom] LiveKit error:", err);
+      console.error("[InterviewRoom] Runtime error:", err);
     },
   });
   const shouldUseBrowserFallback = !isAgentSpeaking && !isInAgentEchoCooldown;
+  const isVoiceFirstMode = voiceKernel !== "legacy";
   const agentState: AgentState = isConnecting
     ? "connecting"
     : !isConnected
@@ -125,19 +139,23 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
 
   useEffect(() => {
     const nextDraftText = resolveDraftTextFromSources({
-      livekitText: livekitDraftText,
-      livekitUpdatedAt: livekitDraftUpdatedAt,
+      livekitText: runtimeDraftText,
+      livekitUpdatedAt: runtimeDraftUpdatedAt,
       browserText: browserDraftText,
       now: Date.now(),
       browserFallbackEnabled: shouldUseBrowserFallback,
     });
     setManualDraftText(nextDraftText);
   }, [
-    livekitDraftText,
-    livekitDraftUpdatedAt,
+    runtimeDraftText,
+    runtimeDraftUpdatedAt,
     browserDraftText,
     shouldUseBrowserFallback,
   ]);
+
+  useEffect(() => {
+    writeStoredVoiceKernel(voiceKernel);
+  }, [voiceKernel]);
 
   // 自动连接到房间
   useEffect(() => {
@@ -158,12 +176,12 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     if (!isConnected) return;
 
     try {
-      await sendRpc("start_interview", { interviewId, turnMode });
-      console.log("[InterviewRoom] Sent start_interview RPC");
+      await startInterview({ turnMode });
+      console.log("[InterviewRoom] Started interview runtime");
     } catch (err) {
-      console.error("[InterviewRoom] Failed to send start_interview:", err);
+      console.error("[InterviewRoom] Failed to start interview:", err);
     }
-  }, [isConnected, interviewId, sendRpc, turnMode]);
+  }, [isConnected, startInterview, turnMode]);
 
   // 发送文本消息
   const handleSendMessage = useCallback(
@@ -171,8 +189,8 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       try {
         await sendTextMessage(text);
         setManualDraftText("");
-        setLivekitDraftText("");
-        setLivekitDraftUpdatedAt(null);
+        setRuntimeDraftText("");
+        setRuntimeDraftUpdatedAt(null);
         resetBrowserTranscript();
         console.log("[InterviewRoom] Sent text message:", text);
       } catch (err) {
@@ -202,6 +220,30 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     stopListening,
     toggleMicrophone,
   ]);
+
+  const handlePushToTalkStart = useCallback(() => {
+    if (!isVoiceFirstMode) return;
+    if (!isConnected || isConnecting || isAgentSpeaking) return;
+
+    flushSync(() => {
+      setIsPushToTalkPressed(true);
+    });
+    void beginPushToTalk?.();
+  }, [
+    beginPushToTalk,
+    isAgentSpeaking,
+    isConnected,
+    isConnecting,
+    isVoiceFirstMode,
+  ]);
+
+  const handlePushToTalkEnd = useCallback(() => {
+    if (!isVoiceFirstMode) return;
+    flushSync(() => {
+      setIsPushToTalkPressed(false);
+    });
+    void endPushToTalk?.();
+  }, [endPushToTalk, isVoiceFirstMode]);
 
   useEffect(() => {
     if (!isConnected || !isMicEnabled || isAgentSpeaking) {
@@ -274,6 +316,53 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isVoiceFirstMode) return;
+
+    const isEditableTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      if (target.isContentEditable) return true;
+      if (
+        target.closest(
+          'input, textarea, [contenteditable="true"], [role="textbox"], .monaco-editor',
+        )
+      ) {
+        return true;
+      }
+      return false;
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (event.repeat) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+      event.preventDefault();
+      handlePushToTalkStart();
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (isEditableTarget(event.target)) return;
+      event.preventDefault();
+      handlePushToTalkEnd();
+    };
+
+    const handleWindowBlur = () => {
+      handlePushToTalkEnd();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [handlePushToTalkEnd, handlePushToTalkStart, isVoiceFirstMode]);
+
   const handleToggleResumePanel = useCallback(() => {
     hasManuallyToggledResumePanelRef.current = true;
     setIsResumePanelOpen((prev) => !prev);
@@ -288,7 +377,22 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
     }
   }, [isConnected, handleStartInterview]);
 
-  const interviewMainContent = !isCodeWorkbenchOpen ? (
+  const interviewPanel = isVoiceFirstMode ? (
+    <VoiceFirstPanel
+      isConnected={isConnected}
+      isConnecting={isConnecting}
+      isMicEnabled={isMicEnabled}
+      isAgentSpeaking={isAgentSpeaking}
+      isUserSpeaking={isUserSpeaking}
+      isAudioPlaybackBlocked={isAudioPlaybackBlocked}
+      transcript={transcript}
+      onMicToggle={handleMicToggle}
+      manualDraftText={manualDraftText}
+      isPushToTalkPressed={isPushToTalkPressed}
+      error={error}
+      onRetry={connect}
+    />
+  ) : (
     <AIInterviewerPanel
       turnMode={turnMode}
       isConnected={isConnected}
@@ -303,23 +407,14 @@ export function InterviewRoom({ interviewId }: InterviewRoomProps) {
       manualDraftText={manualDraftText}
       onSendMessage={handleSendMessage}
     />
+  );
+
+  const interviewMainContent = !isCodeWorkbenchOpen ? (
+    interviewPanel
   ) : (
     <ResizablePanelGroup direction="horizontal" className="h-full w-full">
       <ResizablePanel minSize={35} defaultSize={48} className="h-full">
-        <AIInterviewerPanel
-          turnMode={turnMode}
-          isConnected={isConnected}
-          isConnecting={isConnecting}
-          isMicEnabled={isMicEnabled}
-          isAgentSpeaking={isAgentSpeaking}
-          agentState={agentState}
-          isUserSpeaking={isUserSpeaking}
-          isAudioPlaybackBlocked={isAudioPlaybackBlocked}
-          transcript={transcript}
-          onMicToggle={handleMicToggle}
-          manualDraftText={manualDraftText}
-          onSendMessage={handleSendMessage}
-        />
+        {interviewPanel}
       </ResizablePanel>
 
       <ResizableHandle withHandle />

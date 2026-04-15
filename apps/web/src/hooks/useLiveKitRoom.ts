@@ -21,39 +21,18 @@ import {
 // import { dedupeSegments } from "@livekit/components-core";
 import { getInterviewMessages } from "@/action/interview";
 import { emitUserTranscription } from "./livekit-turn-mode";
+import type {
+  InterviewVoiceRuntimeState,
+  TranscriptItem,
+} from "./interview-voice-runtime-types";
 
-export interface LiveKitRoomState {
-  /** 房间连接状态 */
-  connectionState: ConnectionState;
-  /** 是否已连接 */
-  isConnected: boolean;
-  /** 是否正在连接 */
-  isConnecting: boolean;
-  /** 本地麦克风是否启用 */
-  isMicEnabled: boolean;
-  /** Agent 是否正在说话 */
-  isAgentSpeaking: boolean;
-  /** 用户是否正在说话 */
-  isUserSpeaking: boolean;
-  /** 浏览器是否拦截了 Agent 语音播放 */
-  isAudioPlaybackBlocked: boolean;
-  /** 最新的转写文本 */
-  transcript: TranscriptItem[];
-  /** 错误信息 */
-  error: string | null;
-}
-
-export interface TranscriptItem {
-  id: string;
-  role: "user" | "agent";
-  text: string;
-  timestamp: number;
-  isFinal: boolean;
-}
+export type { TranscriptItem } from "./interview-voice-runtime-types";
 
 export interface UseLiveKitRoomOptions {
   /** 面试 ID */
   interviewId: string;
+  /** 是否启用当前 hook */
+  enabled?: boolean;
   /** 用户实时转写回调（用于输入框/转写条填充） */
   onUserTranscription?: (text: string, isFinal: boolean) => void;
   /** 接收房间 Data 消息（用于 UI 事件联动） */
@@ -69,6 +48,7 @@ export interface UseLiveKitRoomOptions {
 export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
   const {
     interviewId,
+    enabled = true,
     onUserTranscription,
     onDataMessage,
     onConnected,
@@ -103,7 +83,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
     new Map(),
   );
 
-  const [state, setState] = useState<LiveKitRoomState>({
+  const [state, setState] = useState<InterviewVoiceRuntimeState>({
     connectionState: ConnectionState.Disconnected,
     isConnected: false,
     isConnecting: false,
@@ -117,6 +97,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
 
   // 加载历史消息
   useEffect(() => {
+    if (!enabled || !interviewId) return;
     if (!interviewId) return;
 
     let mounted = true;
@@ -175,7 +156,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
     return () => {
       mounted = false;
     };
-  }, [interviewId]);
+  }, [enabled, interviewId]);
 
   const locale = useLocale();
 
@@ -251,6 +232,7 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
    * 连接到 LiveKit 房间
    */
   const connect = useCallback(async () => {
+    if (!enabled) return;
     if (roomRef.current?.state === ConnectionState.Connected) {
       console.log("[useLiveKitRoom] Already connected");
       return;
@@ -317,12 +299,13 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
     // setupRoomEventListeners is declared later in this hook; referencing it in deps
     // triggers TDZ at initialization time in browser bundles.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchToken, onConnected, onError, registerAudioUnlockListeners]);
+  }, [enabled, fetchToken, onConnected, onError, registerAudioUnlockListeners]);
 
   /**
    * 断开连接
    */
   const disconnect = useCallback(async () => {
+    if (!enabled) return;
     if (roomRef.current) {
       await roomRef.current.disconnect();
       roomRef.current = null;
@@ -336,24 +319,26 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
     }));
 
     onDisconnected?.();
-  }, [onDisconnected]);
+  }, [enabled, onDisconnected]);
 
   /**
    * 切换麦克风状态
    */
   const toggleMicrophone = useCallback(async () => {
+    if (!enabled) return;
     if (!roomRef.current?.localParticipant) return;
 
     const newState = !state.isMicEnabled;
     await roomRef.current.localParticipant.setMicrophoneEnabled(newState);
     setState((prev) => ({ ...prev, isMicEnabled: newState }));
-  }, [state.isMicEnabled]);
+  }, [enabled, state.isMicEnabled]);
 
   /**
    * 发送 RPC 消息（如 start_interview）
    */
   const sendRpc = useCallback(
     async (name: string, data: Record<string, unknown> = {}) => {
+      if (!enabled) return;
       if (!roomRef.current?.localParticipant) {
         throw new Error("未连接到房间");
       }
@@ -365,47 +350,51 @@ export function useLiveKitRoom(options: UseLiveKitRoomOptions) {
         { reliable: true },
       );
     },
-    [],
+    [enabled],
   );
 
   /**
    * 发送文本消息给 Agent
    * 用于键盘输入模式
    */
-  const sendTextMessage = useCallback(async (text: string) => {
-    if (!roomRef.current?.localParticipant) {
-      throw new Error("未连接到房间");
-    }
+  const sendTextMessage = useCallback(
+    async (text: string) => {
+      if (!enabled) return;
+      if (!roomRef.current?.localParticipant) {
+        throw new Error("未连接到房间");
+      }
 
-    if (!text.trim()) return;
+      if (!text.trim()) return;
 
-    // 发送文本消息给 Agent
-    const payload = JSON.stringify({
-      type: "user_text",
-      text: text.trim(),
-      timestamp: Date.now(),
-    });
-    const encoder = new TextEncoder();
-    await roomRef.current.localParticipant.publishData(
-      encoder.encode(payload),
-      { reliable: true, topic: "lk-chat-topic" },
-    );
+      // 发送文本消息给 Agent
+      const payload = JSON.stringify({
+        type: "user_text",
+        text: text.trim(),
+        timestamp: Date.now(),
+      });
+      const encoder = new TextEncoder();
+      await roomRef.current.localParticipant.publishData(
+        encoder.encode(payload),
+        { reliable: true, topic: "lk-chat-topic" },
+      );
 
-    // 立即添加到本地转录
-    setState((prev) => ({
-      ...prev,
-      transcript: [
-        ...prev.transcript,
-        {
-          id: `user-${Date.now()}`,
-          role: "user" as const,
-          text: text.trim(),
-          timestamp: Date.now(),
-          isFinal: true,
-        },
-      ],
-    }));
-  }, []);
+      // 立即添加到本地转录
+      setState((prev) => ({
+        ...prev,
+        transcript: [
+          ...prev.transcript,
+          {
+            id: `user-${Date.now()}`,
+            role: "user" as const,
+            text: text.trim(),
+            timestamp: Date.now(),
+            isFinal: true,
+          },
+        ],
+      }));
+    },
+    [enabled],
+  );
 
   /**
    * 设置房间事件监听器

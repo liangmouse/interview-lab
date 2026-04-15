@@ -28,6 +28,7 @@ import {
   CODING_INTERVIEW_QUESTION_COUNT,
   FOCUS_CODING_TOPIC,
 } from "@/lib/interview-session";
+import { buildInterviewHref, readStoredVoiceKernel } from "@/lib/voice-kernel";
 import { toast } from "sonner";
 
 const FOCUS_AREAS: {
@@ -237,7 +238,9 @@ export function FocusInterviewPanel() {
       }
       if (result.interviewId) {
         startTransition(() => {
-          router.push(`/interview/${result.interviewId}`);
+          router.push(
+            buildInterviewHref(result.interviewId, readStoredVoiceKernel()),
+          );
         });
       }
     } catch {
