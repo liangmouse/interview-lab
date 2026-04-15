@@ -21,7 +21,12 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
       .eq("user_id", user.id)
       .single();
 
-    return data;
+    return data
+      ? {
+          ...data,
+          email: user.email ?? null,
+        }
+      : null;
   } catch (error) {
     console.error("Error fetching user profile:", error);
     return null;

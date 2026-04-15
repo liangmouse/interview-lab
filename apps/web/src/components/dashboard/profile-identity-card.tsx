@@ -173,7 +173,9 @@ export function ProfileIdentityCard() {
             <p className="text-sm font-medium text-[#141414]">
               {userInfo?.nickname || t("unnamed")}
             </p>
-            <p className="mt-1 text-xs text-[#666666]">{t("avatarHint")}</p>
+            <p className="mt-1 text-xs text-[#666666]">
+              {userInfo?.email || "未绑定邮箱"}
+            </p>
           </div>
         </div>
 

@@ -24,7 +24,10 @@ export async function getOrCreateUserProfile(
     }
 
     if (existingProfile) {
-      return existingProfile;
+      return {
+        ...existingProfile,
+        email: user.email ?? null,
+      };
     }
 
     // 如果不存在，则创建新的用户个人资料
@@ -48,7 +51,10 @@ export async function getOrCreateUserProfile(
           .eq("user_id", user.id)
           .single();
         if (retryProfile) {
-          return retryProfile;
+          return {
+            ...retryProfile,
+            email: user.email ?? null,
+          };
         }
       }
       console.error("Error creating user profile:", insertError);
@@ -56,7 +62,12 @@ export async function getOrCreateUserProfile(
       return null;
     }
 
-    return newProfile;
+    return newProfile
+      ? {
+          ...newProfile,
+          email: user.email ?? null,
+        }
+      : null;
   } catch (error) {
     console.error("An unexpected error occurred:", error);
     // 不抛出错误，返回 null

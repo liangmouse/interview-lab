@@ -16,6 +16,12 @@ function getLocaleFromPath(pathname: string): string | null {
   return null;
 }
 
+function copyResponseCookies(from: NextResponse, to: NextResponse) {
+  for (const cookie of from.cookies.getAll()) {
+    to.cookies.set(cookie);
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -29,7 +35,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 处理 Supabase session
-  await updateSession(request);
+  const sessionResponse = await updateSession(request);
 
   // 检查路径是否有 locale 前缀
   const localeInPath = getLocaleFromPath(pathname);
@@ -38,11 +44,15 @@ export async function middleware(request: NextRequest) {
   // 这是 localePrefix: 'as-needed' 模式的核心逻辑
   if (!localeInPath) {
     const newPathname = `/${routing.defaultLocale}${pathname === "/" ? "" : pathname}`;
-    return NextResponse.rewrite(new URL(newPathname, request.url));
+    const response = NextResponse.rewrite(new URL(newPathname, request.url));
+    copyResponseCookies(sessionResponse, response);
+    return response;
   }
 
   // 带有 locale 前缀的路径，由 next-intl 处理
-  return intlMiddleware(request);
+  const response = intlMiddleware(request);
+  copyResponseCookies(sessionResponse, response);
+  return response;
 }
 
 export const config = {

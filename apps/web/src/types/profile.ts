@@ -19,6 +19,7 @@ export interface ProjectExperience {
 export interface UserProfile {
   id: string; // uuid
   user_id: string; // uuid
+  email?: string | null;
   nickname: string | null;
   avatar_url: string | null;
   bio: string | null;

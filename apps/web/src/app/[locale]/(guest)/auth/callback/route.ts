@@ -1,17 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateUserProfile } from "@/action/user-profile";
+import { getLocalizedAppPath } from "@/lib/auth-redirect";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
+  const callbackPath = requestUrl.pathname;
   const code = requestUrl.searchParams.get("code");
   const error = requestUrl.searchParams.get("error");
+  const signInPath = getLocalizedAppPath(callbackPath, "/auth/sign-in");
+  const dashboardPath = getLocalizedAppPath(callbackPath, "/dashboard");
 
   // 如果 OAuth 提供者返回了错误
   if (error) {
     console.error("OAuth error:", error);
     return NextResponse.redirect(
-      `${requestUrl.origin}/auth/sign-in?error=${encodeURIComponent("第三方登录失败，请重试")}`,
+      `${requestUrl.origin}${signInPath}?error=${encodeURIComponent("第三方登录失败，请重试")}`,
     );
   }
 
@@ -29,7 +33,7 @@ export async function GET(request: NextRequest) {
     if (exchangeError) {
       console.error("Exchange code error:", exchangeError);
       return NextResponse.redirect(
-        `${requestUrl.origin}/auth/sign-in?error=${encodeURIComponent("登录失败，请重试")}`,
+        `${requestUrl.origin}${signInPath}?error=${encodeURIComponent("登录失败，请重试")}`,
       );
     }
 
@@ -45,5 +49,5 @@ export async function GET(request: NextRequest) {
   }
 
   // 在登录状态重定向到根页面下的dashboard页面
-  return NextResponse.redirect(`${requestUrl.origin}/dashboard`);
+  return NextResponse.redirect(`${requestUrl.origin}${dashboardPath}`);
 }

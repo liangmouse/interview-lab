@@ -1,11 +1,16 @@
 import { createClient } from "@/lib/supabase/client";
+import { getOAuthRedirectTo } from "@/lib/auth-redirect";
+
+function getOAuthRedirectUrl() {
+  return getOAuthRedirectTo(window.location.pathname, window.location.origin);
+}
 
 export async function loginWithGoogle() {
   const supabase = createClient();
   return await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: getOAuthRedirectUrl(),
     },
   });
 }
@@ -15,7 +20,7 @@ export async function loginWithGithub() {
   return await supabase.auth.signInWithOAuth({
     provider: "github",
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: getOAuthRedirectUrl(),
     },
   });
 }

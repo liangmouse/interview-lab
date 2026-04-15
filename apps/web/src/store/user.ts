@@ -16,7 +16,18 @@ export const useUserStore = create<UserState>()(
     (set) => ({
       userInfo: null,
       _hasHydrated: false,
-      setUserInfo: (profile) => set({ userInfo: profile }),
+      setUserInfo: (profile) =>
+        set((state) => ({
+          userInfo: profile
+            ? {
+                ...profile,
+                email:
+                  profile.email === undefined
+                    ? (state.userInfo?.email ?? null)
+                    : profile.email,
+              }
+            : null,
+        })),
       clearUserInfo: () => set({ userInfo: null }),
       setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),

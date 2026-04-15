@@ -13,7 +13,9 @@ function StoreInitializer({ userInfo }: { userInfo: UserProfile | null }) {
     if (
       !initialized.current &&
       userInfo &&
-      (!storedUserInfo || storedUserInfo.id !== userInfo.id)
+      (!storedUserInfo ||
+        storedUserInfo.id !== userInfo.id ||
+        storedUserInfo.email !== userInfo.email)
     ) {
       setUserInfo(userInfo);
       initialized.current = true;
