@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   analyzeInterviewAnswer,
-  ensureInterviewPlan,
+  generateDynamicInterviewOpening,
   getCurrentQuestion,
+  loadExistingInterviewPlan,
+  loadRecentConversationMessages,
   persistDecisionArtifacts,
   requireOwnedInterview,
 } from "@/lib/interview-rag-service";
@@ -21,7 +23,27 @@ export async function POST(request: NextRequest) {
     }
 
     const { profile } = await requireOwnedInterview(interviewId);
-    const plan = await ensureInterviewPlan(interviewId, profile);
+    const recentMessages = await loadRecentConversationMessages(interviewId);
+
+    if (!recentMessages.some((item) => item.role === "user")) {
+      const result = await generateDynamicInterviewOpening({
+        interviewId,
+        profile,
+        recentMessages,
+      });
+      return NextResponse.json(result);
+    }
+
+    const plan = await loadExistingInterviewPlan(interviewId);
+
+    if (!plan) {
+      const result = await generateDynamicInterviewOpening({
+        interviewId,
+        profile,
+        recentMessages,
+      });
+      return NextResponse.json(result);
+    }
 
     if (!currentQuestionId || !answer.trim()) {
       const { question, index } = getCurrentQuestion(plan, currentQuestionId);

@@ -1,62 +1,31 @@
 "use client";
 
-import { useState, useCallback, useTransition } from "react";
+import { useState, useCallback, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  Check,
+  ChevronsUpDown,
   Loader2,
-  MonitorSmartphone,
-  Server,
-  Layers,
-  Smartphone,
   Zap,
   BookOpen,
   Trophy,
   Flame,
   Clock,
   ChevronRight,
+  Search,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   createInterview,
-  type InterviewTopic,
   type InterviewDifficulty,
 } from "@/action/create-interview";
+import { buildInterviewHref, readStoredVoiceKernel } from "@/lib/voice-kernel";
+import { normalizeInterviewTopic } from "@/lib/interview-session";
 import { toast } from "sonner";
-
-const TOPICS: {
-  value: InterviewTopic;
-  label: string;
-  icon: React.ElementType;
-  desc: string;
-}[] = [
-  {
-    value: "frontend",
-    label: "前端开发",
-    icon: MonitorSmartphone,
-    desc: "React / Vue / JS / CSS",
-  },
-  {
-    value: "backend",
-    label: "后端开发",
-    icon: Server,
-    desc: "Node / Go / Java / Python",
-  },
-  {
-    value: "fullstack",
-    label: "全栈开发",
-    icon: Layers,
-    desc: "端到端系统设计与实现",
-  },
-  {
-    value: "mobile",
-    label: "移动开发",
-    icon: Smartphone,
-    desc: "iOS / Android / RN / Flutter",
-  },
-];
 
 const DIFFICULTIES: {
   value: InterviewDifficulty;
@@ -80,6 +49,17 @@ const DURATIONS = [
   { value: 25, label: "25 min", desc: "标准训练" },
   { value: 40, label: "40 min", desc: "深度模拟" },
   { value: 60, label: "60 min", desc: "完整面试" },
+];
+
+const TOPIC_OPTIONS = [
+  "前端开发",
+  "后端开发",
+  "全栈开发",
+  "移动开发",
+  "测试开发",
+  "数据分析",
+  "算法工程师",
+  "产品经理",
 ];
 
 interface SelectPillProps {
@@ -112,45 +92,157 @@ function SelectPill({
   );
 }
 
-interface TopicCardProps {
-  topic: (typeof TOPICS)[number];
-  selected: boolean;
-  onClick: () => void;
+interface TopicComboboxProps {
+  value: string;
+  onChange: (value: string) => void;
 }
 
-function TopicCard({ topic, selected, onClick }: TopicCardProps) {
-  const Icon = topic.icon;
+function TopicCombobox({ value, onChange }: TopicComboboxProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const normalizedQuery = normalizeInterviewTopic(query);
+  const normalizedValue = normalizeInterviewTopic(value);
+  const searchableQuery = normalizedQuery.toLocaleLowerCase();
+  const filteredOptions = TOPIC_OPTIONS.filter((option) =>
+    option.toLocaleLowerCase().includes(searchableQuery),
+  );
+  const hasExactMatch = TOPIC_OPTIONS.some(
+    (option) =>
+      normalizeInterviewTopic(option).toLocaleLowerCase() === searchableQuery,
+  );
+
+  const commitValue = useCallback(
+    (nextValue: string) => {
+      const normalizedNextValue = normalizeInterviewTopic(nextValue);
+      if (!normalizedNextValue) return;
+
+      onChange(normalizedNextValue);
+      setQuery(normalizedNextValue);
+      setIsOpen(false);
+    },
+    [onChange],
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setQuery(normalizedValue);
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, normalizedValue]);
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "group flex cursor-pointer flex-col items-start rounded-xl border p-4 text-left transition-all duration-150 select-none",
-        selected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-sm"
-          : "border-border bg-card hover:border-primary/30 hover:bg-secondary/60 hover:shadow-sm",
-      )}
-    >
-      <div
+    <div ref={containerRef} className={cn("relative", isOpen ? "z-30" : "z-0")}>
+      <button
+        type="button"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        onClick={() => setIsOpen((open) => !open)}
         className={cn(
-          "mb-3 flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-          selected
-            ? "bg-primary text-primary-foreground"
-            : "bg-secondary text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary",
+          "flex h-12 w-full items-center justify-between rounded-xl border border-border/80 bg-background px-4 text-left text-base shadow-none transition-colors",
+          isOpen
+            ? "border-primary ring-2 ring-primary/15"
+            : "hover:border-primary/40",
         )}
       >
-        <Icon className="h-4.5 w-4.5" />
-      </div>
-      <p
-        className={cn(
-          "text-sm font-semibold",
-          selected ? "text-primary" : "text-foreground",
-        )}
-      >
-        {topic.label}
-      </p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{topic.desc}</p>
-    </button>
+        <span
+          className={cn(
+            "truncate",
+            normalizedValue ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {normalizedValue || "请选择岗位方向"}
+        </span>
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
+
+      {isOpen ? (
+        <div className="absolute inset-x-0 top-[calc(100%+0.375rem)] z-50 overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xl">
+          <div className="border-b border-border/60 px-3 py-2.5">
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && normalizedQuery) {
+                    event.preventDefault();
+                    commitValue(query);
+                  }
+                }}
+                placeholder="搜索岗位方向"
+                className="h-9 border-0 bg-transparent pr-3 pl-9 text-sm shadow-none focus-visible:ring-0"
+              />
+            </div>
+          </div>
+
+          <div className="max-h-52 overflow-y-auto bg-card p-2" role="listbox">
+            {filteredOptions.map((option) => {
+              const isSelected = normalizedValue === option;
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => commitValue(option)}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                    isSelected
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-secondary",
+                  )}
+                >
+                  <span>{option}</span>
+                  {isSelected ? <Check className="h-4 w-4" /> : null}
+                </button>
+              );
+            })}
+
+            {normalizedQuery && !hasExactMatch ? (
+              <button
+                type="button"
+                onClick={() => commitValue(query)}
+                className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-secondary"
+              >
+                使用 “{normalizedQuery}”
+              </button>
+            ) : null}
+
+            {filteredOptions.length === 0 &&
+            (!normalizedQuery || hasExactMatch) ? (
+              <p className="px-3 py-2 text-sm text-muted-foreground">
+                没有匹配的岗位方向
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -158,7 +250,7 @@ export function FullInterviewPanel() {
   const tPage = useTranslations("dashboard.pages");
   const router = useRouter();
 
-  const [topic, setTopic] = useState<InterviewTopic | null>(null);
+  const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<InterviewDifficulty | null>(
     null,
   );
@@ -166,9 +258,10 @@ export function FullInterviewPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const isBusy = isLoading || isPending;
+  const normalizedTopic = normalizeInterviewTopic(topic);
 
   const handleStart = useCallback(async () => {
-    if (!topic) {
+    if (!normalizedTopic) {
       toast.error("请选择岗位方向");
       return;
     }
@@ -183,14 +276,20 @@ export function FullInterviewPanel() {
 
     setIsLoading(true);
     try {
-      const result = await createInterview({ topic, difficulty, duration });
+      const result = await createInterview({
+        topic: normalizedTopic,
+        difficulty,
+        duration,
+      });
       if (result.error) {
         toast.error(result.error);
         return;
       }
       if (result.interviewId) {
         startTransition(() => {
-          router.push(`/interview/${result.interviewId}`);
+          router.push(
+            buildInterviewHref(result.interviewId, readStoredVoiceKernel()),
+          );
         });
       }
     } catch {
@@ -198,9 +297,9 @@ export function FullInterviewPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, [topic, difficulty, duration, router]);
+  }, [normalizedTopic, difficulty, duration, router]);
 
-  const isReady = !!topic && !!difficulty && !!duration;
+  const isReady = !!normalizedTopic && !!difficulty && !!duration;
 
   return (
     <div className="space-y-6">
@@ -226,16 +325,7 @@ export function FullInterviewPanel() {
           <label className="mb-3 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             岗位方向
           </label>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {TOPICS.map((t) => (
-              <TopicCard
-                key={t.value}
-                topic={t}
-                selected={topic === t.value}
-                onClick={() => setTopic(t.value)}
-              />
-            ))}
-          </div>
+          <TopicCombobox value={topic} onChange={setTopic} />
         </div>
 
         <div className="mx-6 border-t border-border/60" />
@@ -335,11 +425,6 @@ export function FullInterviewPanel() {
               </>
             )}
           </Button>
-          {!isReady && (
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              请完成上方所有配置后开始
-            </p>
-          )}
         </div>
       </div>
     </div>

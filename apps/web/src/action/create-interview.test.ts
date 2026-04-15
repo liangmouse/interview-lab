@@ -168,4 +168,19 @@ describe("createInterview", () => {
       }),
     ]);
   });
+
+  it("normalizes custom topics before storing interview type", async () => {
+    await createInterview({
+      topic: "产品经理：增长方向",
+      difficulty: "intermediate",
+      duration: 25,
+    });
+
+    expect(mockInterviewInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        type: "产品经理 增长方向:intermediate",
+        duration: "25",
+      }),
+    ]);
+  });
 });

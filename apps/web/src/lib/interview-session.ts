@@ -1,4 +1,4 @@
-export type InterviewTopic = "frontend" | "backend" | "fullstack" | "mobile";
+export type InterviewTopic = string;
 
 export type InterviewDifficulty =
   | "beginner"
@@ -15,13 +15,6 @@ export type ParsedInterviewType = {
   variant: InterviewSessionVariant;
 };
 
-const INTERVIEW_TOPICS = new Set<InterviewTopic>([
-  "frontend",
-  "backend",
-  "fullstack",
-  "mobile",
-]);
-
 const INTERVIEW_DIFFICULTIES = new Set<InterviewDifficulty>([
   "beginner",
   "intermediate",
@@ -37,12 +30,20 @@ export const CODING_INTERVIEW_RESUME_TO_LEETCODE_RATIO = {
   leetcode: 3,
 } as const;
 
+export function normalizeInterviewTopic(topic: string) {
+  return topic
+    .trim()
+    .replace(/[:：]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
 export function buildInterviewType(input: {
   topic: InterviewTopic;
   difficulty: InterviewDifficulty;
   variant?: InterviewSessionVariant;
 }) {
-  const base = `${input.topic}:${input.difficulty}`;
+  const normalizedTopic = normalizeInterviewTopic(input.topic);
+  const base = `${normalizedTopic}:${input.difficulty}`;
   return input.variant === "coding" ? `${base}:coding` : base;
 }
 
@@ -55,11 +56,13 @@ export function parseInterviewType(
     .map((segment) => segment.trim())
     .filter(Boolean);
 
-  const topic = segments.find((segment): segment is InterviewTopic =>
-    INTERVIEW_TOPICS.has(segment as InterviewTopic),
-  );
   const difficulty = segments.find((segment): segment is InterviewDifficulty =>
     INTERVIEW_DIFFICULTIES.has(segment as InterviewDifficulty),
+  );
+  const topicSegment = segments.find(
+    (segment) =>
+      !INTERVIEW_DIFFICULTIES.has(segment as InterviewDifficulty) &&
+      segment !== "coding",
   );
   const variant: InterviewSessionVariant = segments.includes("coding")
     ? "coding"
@@ -67,7 +70,7 @@ export function parseInterviewType(
 
   return {
     raw,
-    topic: topic ?? null,
+    topic: topicSegment ?? null,
     difficulty: difficulty ?? null,
     variant,
   };

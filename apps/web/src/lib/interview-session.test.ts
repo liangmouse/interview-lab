@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInterviewType,
   isCodingInterviewType,
+  normalizeInterviewTopic,
   parseInterviewType,
 } from "./interview-session";
 
@@ -31,6 +32,24 @@ describe("interview-session", () => {
       topic: "fullstack",
       difficulty: "expert",
       variant: "coding",
+    });
+  });
+
+  it("supports custom topics and normalizes delimiters", () => {
+    expect(normalizeInterviewTopic("  产品经理：增长方向  ")).toBe(
+      "产品经理 增长方向",
+    );
+    expect(
+      buildInterviewType({
+        topic: "产品经理：增长方向",
+        difficulty: "intermediate",
+      }),
+    ).toBe("产品经理 增长方向:intermediate");
+    expect(parseInterviewType("产品经理:advanced")).toEqual({
+      raw: "产品经理:advanced",
+      topic: "产品经理",
+      difficulty: "advanced",
+      variant: "standard",
     });
   });
 
