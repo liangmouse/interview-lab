@@ -257,20 +257,45 @@
     "resumeReview": {
       "form": {
         "title": "Resume Review Configuration",
-        "description": "Select a resume and optionally paste a target JD to get AI-powered structured feedback and improvement suggestions.",
+        "description": "Specify the target role and company before generating feedback. Add a JD when you want more role-specific suggestions.",
         "resumeLabel": "Select Resume",
         "resumePlaceholder": "Select an uploaded resume",
         "noResumes": "No resumes found. Please upload one in your profile first.",
         "goToProfile": "Go to Profile",
-        "jdLabel": "Job Description (Optional)",
-        "jdPlaceholder": "Paste target JD for targeted suggestions",
+        "targetRoleLabel": "Target Role",
+        "targetRolePlaceholder": "e.g. Senior Frontend Engineer / AI Product Engineer",
+        "targetCompanyLabel": "Target Company",
+        "targetCompanyPlaceholder": "e.g. Google / OpenAI",
+        "jdLabel": "Job Description / JD (Optional)",
+        "jdPlaceholder": "Paste responsibilities, skill requirements, or team context for more targeted suggestions",
         "startReview": "Start Review",
         "reviewing": "AI is analyzing your resume...",
-        "reviewingHint": "AI is reviewing each section of your resume. Please wait..."
+        "reviewingHint": "AI is reviewing each section of your resume. Please wait...",
+        "runningHint": "Your resume is being analyzed and scored. Please wait...",
+        "queueHint": "The task has been submitted and queued. You can open the details from the history list once it finishes."
+      },
+      "history": {
+        "title": "Review History",
+        "description": "Recent resume reviews are listed here. Open details only when you need the full report.",
+        "empty": "No resume reviews yet. Your first review will appear here.",
+        "uploadedAt": "Resume Uploaded At",
+        "reviewedAt": "Reviewed At",
+        "score": "Score",
+        "viewDetail": "View Details",
+        "hideDetail": "Hide Details",
+        "unknownResume": "Unnamed Resume",
+        "unknownTime": "Unknown",
+        "pendingTime": "Processing"
+      },
+      "detail": {
+        "title": "Review Details"
       },
       "result": {
         "overallScore": "Overall Score",
         "overallAssessment": "Overall Assessment",
+        "layoutTitle": "Layout Readability",
+        "layoutSummary": "Layout Summary",
+        "layoutSuggestions": "Layout Suggestions",
         "strengths": "Strengths",
         "weaknesses": "Needs Improvement",
         "before": "Original",
@@ -297,7 +322,6 @@
       "identity": {
         "title": "Nickname & Avatar",
         "unnamed": "Unnamed user",
-        "avatarHint": "Click the corner button to update avatar",
         "nicknameLabel": "Nickname",
         "nicknameRequired": "Nickname is required",
         "nicknameUpdated": "Nickname updated",

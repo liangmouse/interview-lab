@@ -112,7 +112,7 @@ describe("llm-apps/shared.getCapabilityModelInfo", () => {
       personalInfo: null,
       jobIntention: null,
       experienceYears: null,
-      skills: [],
+      skills: ["React", "Vue./<"],
       education: null,
       workExperiences: [],
       projectExperiences: [],
@@ -127,6 +127,26 @@ describe("llm-apps/shared.getCapabilityModelInfo", () => {
         method: "functionCalling",
       }),
     );
+    expect(invoke).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "user",
+          content: expect.stringContaining("文本提取质量"),
+        }),
+      ]),
+    );
+  });
+
+  it("detects low-confidence extraction text", async () => {
+    const { assessResumeTextQuality } = await import("./shared");
+    const report = assessResumeTextQuality(
+      "github 梁爽  18856303679 HTML0 CSS< Vue./< ./.0./0 - ./.0./3",
+    );
+
+    expect(report.isLowConfidence).toBe(true);
+    expect(report.privateUseGlyphCount).toBeGreaterThan(0);
+    expect(report.suspiciousTokenCount).toBeGreaterThan(0);
+    expect(report.reasons.length).toBeGreaterThan(0);
   });
 
   it("rebuilds snapshot when cached parsedJson is invalid", async () => {
@@ -164,6 +184,36 @@ describe("llm-apps/shared.getCapabilityModelInfo", () => {
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(upsertResumeRecord).toHaveBeenCalledTimes(1);
     expect(result.snapshot.skills).toEqual(["React", "TypeScript"]);
+    expect(result.qualityReport.isLowConfidence).toBe(false);
+  });
+
+  it("returns quality report when reusing a cached snapshot", async () => {
+    getResumeRecordByStoragePath.mockResolvedValue({
+      id: "resume-1",
+      userId: "user-1",
+      storagePath: "user-1/resume.pdf",
+      fileName: "resume.pdf",
+      fileUrl: "https://example.com/resume.pdf",
+      parsedText:
+        "github 梁爽  18856303679 HTML0 CSS< Vue./< ./.0./0 - ./.0./3",
+      parsedJson: {
+        jobIntention: "前端工程师",
+        skills: ["React", "TypeScript"],
+        workExperiences: [],
+        projectExperiences: [],
+      },
+      processingStatus: "completed",
+      uploadedAt: new Date().toISOString(),
+    });
+
+    const { ensureResumeSnapshot } = await import("./shared");
+    const result = await ensureResumeSnapshot("user-1", "user-1/resume.pdf");
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(upsertResumeRecord).not.toHaveBeenCalled();
+    expect(result.snapshot.skills).toEqual(["React", "TypeScript"]);
+    expect(result.qualityReport.isLowConfidence).toBe(true);
+    expect(result.qualityReport.reasons.length).toBeGreaterThan(0);
   });
 
   it("fails fast when rebuilt snapshot is empty", async () => {
@@ -187,5 +237,32 @@ describe("llm-apps/shared.getCapabilityModelInfo", () => {
     await expect(
       ensureResumeSnapshot("user-1", "user-1/resume.pdf"),
     ).rejects.toThrow("简历解析结果为空，无法生成个性化押题");
+  });
+
+  it("drops obviously corrupted skills and dates from snapshot", async () => {
+    invoke.mockResolvedValue({
+      personalInfo: null,
+      jobIntention: null,
+      experienceYears: null,
+      skills: ["React", "CSS<", "TypeScript"],
+      education: null,
+      workExperiences: [
+        {
+          company: "美团",
+          position: "前端开发",
+          startDate: ".0./0",
+          endDate: "2024.09",
+          description: "负责平台开发",
+        },
+      ],
+      projectExperiences: [],
+    });
+
+    const { analyzeResumeSnapshot } = await import("./shared");
+    const snapshot = await analyzeResumeSnapshot("HTML0 CSS< React ./.0./0");
+
+    expect(snapshot.skills).toEqual(["React", "TypeScript"]);
+    expect(snapshot.workExperiences?.[0]?.startDate).toBeNull();
+    expect(snapshot.workExperiences?.[0]?.endDate).toBe("2024.09");
   });
 });

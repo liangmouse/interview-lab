@@ -7,10 +7,16 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  CircleHelp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type {
   ResumeReviewResult,
@@ -218,6 +224,103 @@ export function ResumeReviewResults({
         </CardContent>
       </Card>
 
+      {result.layoutReview && (
+        <Card className="border-[#E5E5E5] bg-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-[#141414]">
+              {t("layoutTitle")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Progress
+                value={result.layoutReview.score}
+                className="h-2 flex-1"
+              />
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  scoreColor(result.layoutReview.score),
+                )}
+              >
+                {result.layoutReview.score}
+              </span>
+            </div>
+
+            <div
+              className={cn(
+                "rounded-xl border px-4 py-3",
+                scoreBg(result.layoutReview.score),
+              )}
+            >
+              <p className="mb-1 text-sm font-semibold text-[#141414]">
+                {t("layoutSummary")}
+              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {result.layoutReview.summary}
+              </p>
+            </div>
+
+            {result.layoutReview.strengths.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                  {t("strengths")}
+                </p>
+                <ul className="space-y-1">
+                  {result.layoutReview.strengths.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 text-sm text-[#141414]"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {result.layoutReview.issues.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                  {t("weaknesses")}
+                </p>
+                <ul className="space-y-1">
+                  {result.layoutReview.issues.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 text-sm text-[#141414]"
+                    >
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {result.layoutReview.suggestions.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#141414]">
+                  {t("layoutSuggestions")}
+                </p>
+                <ul className="space-y-1">
+                  {result.layoutReview.suggestions.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 text-sm text-[#141414]"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Section cards */}
       <Card className="border-[#E5E5E5] bg-white">
         <CardContent className="space-y-2 pt-6">
@@ -230,8 +333,27 @@ export function ResumeReviewResults({
       {/* ATS compatibility */}
       <Card className="border-[#E5E5E5] bg-white">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base text-[#141414]">
-            {t("atsTitle")}
+          <CardTitle className="flex items-center gap-2 text-base text-[#141414]">
+            <span>{t("atsTitle")}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="ATS 兼容性说明"
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#6B7280] transition-colors hover:text-[#141414] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#141414]/15"
+                >
+                  <CircleHelp className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                sideOffset={8}
+                className="max-w-xs leading-5"
+              >
+                你的简历对企业招聘系统 ATS（Applicant Tracking
+                System，申请人跟踪系统）的“可读取、可解析、可检索”程度。
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

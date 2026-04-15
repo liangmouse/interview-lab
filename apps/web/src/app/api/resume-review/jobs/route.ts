@@ -33,16 +33,28 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const resumeStoragePath = String(body.resumeStoragePath || "").trim();
+  const targetRole = String(body.targetRole || "").trim();
+  const targetCompany = String(body.targetCompany || "").trim();
   const jobDescription = String(body.jobDescription || "").trim();
 
   console.info("[api/resume-review/jobs] create request received", {
     userId: user.id,
     resumeStoragePath,
+    targetRole,
+    targetCompany,
     hasJobDescription: !!jobDescription,
   });
 
   if (!resumeStoragePath || !resumeStoragePath.startsWith(`${user.id}/`)) {
     return NextResponse.json({ error: "请选择有效简历" }, { status: 400 });
+  }
+
+  if (!targetRole) {
+    return NextResponse.json({ error: "请填写目标岗位" }, { status: 400 });
+  }
+
+  if (!targetCompany) {
+    return NextResponse.json({ error: "请填写目标公司" }, { status: 400 });
   }
 
   const {
@@ -65,6 +77,8 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       payload: {
         resumeStoragePath,
+        targetRole,
+        targetCompany,
         ...(jobDescription ? { jobDescription } : {}),
       },
     },

@@ -272,6 +272,14 @@ export type ATSCompatibility = {
   recommendations: string[];
 };
 
+export type ResumeLayoutReview = {
+  score: number;
+  summary: string;
+  strengths: string[];
+  issues: string[];
+  suggestions: string[];
+};
+
 export type JDMatchAnalysis = {
   matchScore: number;
   matchedKeywords: string[];
@@ -284,6 +292,7 @@ export type ResumeReviewResult = {
   overallScore: number;
   overallAssessment: string;
   sections: ResumeReviewSection[];
+  layoutReview?: ResumeLayoutReview;
   atsCompatibility: ATSCompatibility;
   jdMatchAnalysis?: JDMatchAnalysis;
   createdAt: string;
@@ -323,6 +332,8 @@ export type QuestioningReport = {
 
 export type ResumeReviewJobPayload = {
   resumeStoragePath: string;
+  targetRole: string;
+  targetCompany: string;
   jobDescription?: string;
 };
 

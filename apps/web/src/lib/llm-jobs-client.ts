@@ -33,6 +33,8 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export async function createResumeReviewJob(input: {
   resumeStoragePath: string;
+  targetRole: string;
+  targetCompany: string;
   jobDescription?: string;
 }) {
   const response = await fetchJsonWithTiming(
