@@ -351,7 +351,7 @@ export async function claimNextResumeReviewJob() {
   const { data, error } = await client
     .from("resume_review_jobs")
     .select("*")
-    .in("status", ["queued", "failed"])
+    .in("status", ["queued"])
     .lte("available_at", now)
     .order("created_at", { ascending: true })
     .limit(10);

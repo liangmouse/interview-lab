@@ -4,6 +4,7 @@ import {
   registerLangfuseProcessShutdown,
 } from "@interviewclaw/ai-runtime";
 import {
+  runOneJobRecommendationJob,
   runOneQuestioningJob,
   runOneResumeReviewJob,
 } from "@interviewclaw/llm-apps";
@@ -74,6 +75,12 @@ export class SchedulerService {
         await runOneQuestioningJob();
       } catch (error) {
         console.error("[scheduler] questioning worker failed:", error);
+      }
+
+      try {
+        await runOneJobRecommendationJob();
+      } catch (error) {
+        console.error("[scheduler] job recommendation worker failed:", error);
       }
     };
 

@@ -90,7 +90,7 @@ describe("POST /api/interview/next-question", () => {
       question: {
         questionId: "dynamic-intro-1",
         questionText:
-          "你是前端开发面试场景中的面试官，请友善地引导用户进行自我介绍，简短一些就好。",
+          "你好，欢迎参加今天的前端开发面试。先请你做一个简短的自我介绍，重点说说最近做过的项目和你负责的部分。",
       },
       index: 0,
       decision: {
@@ -99,7 +99,7 @@ describe("POST /api/interview/next-question", () => {
         shouldAdvance: true,
         nextQuestionId: "dynamic-intro-1",
         questionText:
-          "你是前端开发面试场景中的面试官，请友善地引导用户进行自我介绍，简短一些就好。",
+          "你好，欢迎参加今天的前端开发面试。先请你做一个简短的自我介绍，重点说说最近做过的项目和你负责的部分。",
       },
     });
 
@@ -118,6 +118,6 @@ describe("POST /api/interview/next-question", () => {
       recentMessages: [],
     });
     expect(mockGetCurrentQuestion).not.toHaveBeenCalled();
-    expect(data.decision.questionText).toContain("引导用户进行自我介绍");
+    expect(data.decision.questionText).toContain("简短的自我介绍");
   });
 });

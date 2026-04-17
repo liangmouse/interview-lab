@@ -3,7 +3,8 @@ import { LayoutDashboard, FileText, History, TrendingUp } from "lucide-react";
 
 export interface SidebarItem {
   key: string;
-  titleKey: string;
+  titleKey?: string;
+  title?: string;
   href: string;
   icon: LucideIcon;
 }
@@ -47,6 +48,12 @@ export const sidebarGroups: SidebarGroup[] = [
         key: "questioningCenter",
         titleKey: "questioningCenter",
         href: "/questioning",
+        icon: TrendingUp,
+      },
+      {
+        key: "jobRecommendations",
+        title: "岗位推荐",
+        href: "/job-recommendations",
         icon: TrendingUp,
       },
     ],

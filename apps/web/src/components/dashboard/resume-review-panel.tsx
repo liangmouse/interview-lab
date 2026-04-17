@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ResumeReviewJob } from "@interviewclaw/domain";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -40,6 +40,8 @@ import {
 } from "@/lib/llm-jobs-client";
 import { ResumeReviewResults } from "./resume-review-results";
 
+const REVIEW_HISTORY_REFRESH_INTERVAL_MS = 15000;
+
 function upsertJobList(jobs: ResumeReviewJob[], job: ResumeReviewJob) {
   const next = [job, ...jobs.filter((item) => item.id !== job.id)];
   return next.sort((left, right) =>
@@ -71,11 +73,16 @@ function resolveJobStatus(job: ResumeReviewJob) {
   };
 }
 
-export function ResumeReviewPanel() {
+export function ResumeReviewPanel({
+  initialReviewJobs = [],
+}: {
+  initialReviewJobs?: ResumeReviewJob[];
+}) {
   const t = useTranslations("dashboard.resumeReview");
 
   const [resumes, setResumes] = useState<ResumeLibraryItem[]>([]);
-  const [reviewJobs, setReviewJobs] = useState<ResumeReviewJob[]>([]);
+  const [reviewJobs, setReviewJobs] =
+    useState<ResumeReviewJob[]>(initialReviewJobs);
   const [selectedResumePath, setSelectedResumePath] = useState("");
   const [targetRole, setTargetRole] = useState("");
   const [targetCompany, setTargetCompany] = useState("");
@@ -86,19 +93,42 @@ export function ResumeReviewPanel() {
   const [jobError, setJobError] = useState("");
   const [jobStartedAt, setJobStartedAt] = useState<number | null>(null);
 
+  const loadReviewJobs = useCallback(async () => {
+    const jobs = await listResumeReviewJobs();
+    console.info("[resume-review] jobs loaded", {
+      jobCount: jobs.length,
+    });
+    setReviewJobs(jobs);
+    return jobs;
+  }, []);
+
   useEffect(() => {
     void getResumeLibrary().then(setResumes);
-    void listResumeReviewJobs()
-      .then((jobs) => {
-        console.info("[resume-review] initial jobs loaded", {
-          jobCount: jobs.length,
-        });
-        setReviewJobs(jobs);
-      })
-      .catch((error) => {
-        console.error("Failed to load resume review jobs:", error);
+    void loadReviewJobs().catch((error) => {
+      console.error("Failed to load resume review jobs:", error);
+    });
+  }, [loadReviewJobs]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void loadReviewJobs().catch((error) => {
+        console.error("Failed to refresh resume review jobs:", error);
       });
-  }, []);
+    }, REVIEW_HISTORY_REFRESH_INTERVAL_MS);
+
+    const handleFocus = () => {
+      void loadReviewJobs().catch((error) => {
+        console.error("Failed to refresh resume review jobs on focus:", error);
+      });
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadReviewJobs]);
 
   useEffect(() => {
     if (
@@ -351,6 +381,11 @@ export function ResumeReviewPanel() {
             {t("history.title")}
           </CardTitle>
           <CardDescription>{t("history.description")}</CardDescription>
+          {process.env.NODE_ENV === "development" ? (
+            <p className="text-xs text-muted-foreground">
+              debug: clientJobCount={reviewJobs.length}
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent className="space-y-3">
           {reviewJobs.length === 0 ? (

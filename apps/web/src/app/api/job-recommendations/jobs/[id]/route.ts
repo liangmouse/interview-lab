@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
-import { getResumeReviewJobForUser } from "@interviewclaw/data-access";
+import { getJobRecommendationJobForUser } from "@interviewclaw/data-access";
 import { createClient } from "@/lib/supabase/server";
 
-export const dynamic = "force-dynamic";
-
-interface ResumeReviewJobRouteProps {
+interface JobRecommendationJobRouteProps {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(
   _request: Request,
-  { params }: ResumeReviewJobRouteProps,
+  { params }: JobRecommendationJobRouteProps,
 ) {
   const supabase = await createClient();
   const {
@@ -22,7 +20,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const job = await getResumeReviewJobForUser(id, user.id, supabase);
+  const job = await getJobRecommendationJobForUser(id, user.id, supabase);
 
   if (!job) {
     return NextResponse.json({ error: "任务不存在" }, { status: 404 });

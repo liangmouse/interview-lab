@@ -13,6 +13,12 @@ export function Sidebar() {
   const t = useTranslations("dashboard.sidebar");
   const pathname = usePathname();
   const { userInfo } = useUserStore();
+  const resolveSidebarLabel = (labelKey?: string, title?: string) => {
+    if (title) {
+      return title;
+    }
+    return labelKey ? t(labelKey) : "";
+  };
 
   return (
     <aside className="hidden w-72 shrink-0 flex-col border-r border-border/50 bg-background/95 backdrop-blur-sm lg:flex">
@@ -90,7 +96,7 @@ export function Sidebar() {
                             : "text-muted-foreground/80",
                         )}
                       />
-                      {t(item.titleKey)}
+                      {resolveSidebarLabel(item.titleKey, item.title)}
                     </Link>
                   );
                 })}

@@ -24,7 +24,7 @@ describe("generateDynamicInterviewOpening", () => {
     mockLoadInterviewMessages.mockResolvedValue([]);
   });
 
-  it("uses a fixed self-introduction prompt when the interview has no user speech yet", async () => {
+  it("uses a spoken self-introduction opening when the interview has no user speech yet", async () => {
     const result = await generateDynamicInterviewOpening({
       interviewId: "interview-1",
       profile: {
@@ -33,7 +33,7 @@ describe("generateDynamicInterviewOpening", () => {
     });
 
     expect(result.decision.questionText).toBe(
-      "你是前端开发面试场景中的面试官，请友善地引导用户进行自我介绍，简短一些就好。",
+      "你好，欢迎参加今天的前端开发面试。先请你做一个简短的自我介绍，重点说说最近做过的项目和你负责的部分。",
     );
     expect(result.question.questionText).toBe(result.decision.questionText);
   });

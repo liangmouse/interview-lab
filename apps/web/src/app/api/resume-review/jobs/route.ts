@@ -6,6 +6,8 @@ import {
 } from "@interviewclaw/data-access";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const supabase = await createClient();
   const {
@@ -17,6 +19,10 @@ export async function GET() {
   }
 
   const jobs = await listResumeReviewJobsForUser(user.id, 20, supabase);
+  console.info("[api/resume-review/jobs] list request completed", {
+    userId: user.id,
+    jobCount: jobs.length,
+  });
   return NextResponse.json({ data: jobs });
 }
 

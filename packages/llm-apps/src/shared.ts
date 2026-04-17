@@ -401,8 +401,8 @@ export async function analyzeResumeSnapshot(
 export function buildJobTracingContext(input: {
   userId: string;
   jobId: string;
-  jobType: "questioning" | "resume-review";
-  resumeStoragePath: string;
+  jobType: "questioning" | "resume-review" | "job-recommendation";
+  resumeStoragePath?: string;
   metadata?: Record<string, unknown>;
 }): LangfuseTracingContext {
   return {

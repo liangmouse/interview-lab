@@ -1,15 +1,29 @@
 "use client";
 
-import { Bell, ChevronRight } from "lucide-react";
+import { Bell, ChevronRight, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Link } from "@/i18n/navigation";
-import React from "react";
+import { Link, useRouter } from "@/i18n/navigation";
+import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useUserStore } from "@/store/user";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface BreadcrumbItem {
-  labelKey: string;
+  labelKey?: string;
+  label?: string;
   href?: string;
 }
 
@@ -22,9 +36,13 @@ export function DashboardHeader({
   breadcrumbs,
   children,
 }: DashboardHeaderProps) {
-  const { userInfo } = useUserStore();
+  const { userInfo, clearUserInfo } = useUserStore();
+  const router = useRouter();
   const tDashboard = useTranslations("dashboard");
   const tProfile = useTranslations("profile");
+  const tNav = useTranslations("nav");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
 
   const defaultBreadcrumbs: BreadcrumbItem[] = [
     { labelKey: "home", href: "/dashboard" },
@@ -33,8 +51,34 @@ export function DashboardHeader({
 
   const items = breadcrumbs || defaultBreadcrumbs;
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut({
+        scope: "local",
+      });
+      if (error) {
+        throw error;
+      }
+      clearUserInfo();
+      setConfirmLogoutOpen(false);
+      router.replace("/auth/sign-in");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error(tNav("logoutError") || "退出登录失败，请重试");
+      setIsLoggingOut(false);
+    }
+  };
+
   // Translate label based on key prefix
-  const translateLabel = (labelKey: string) => {
+  const translateLabel = (item: BreadcrumbItem) => {
+    if (item.label) {
+      return item.label;
+    }
+
+    const labelKey = item.labelKey || "";
     if (labelKey.startsWith("profile.")) {
       return tProfile(labelKey.replace("profile.", ""));
     }
@@ -62,7 +106,7 @@ export function DashboardHeader({
                     : "text-muted-foreground",
                 )}
               >
-                {translateLabel(item.labelKey)}
+                {translateLabel(item)}
               </Link>
             ) : (
               <span
@@ -72,7 +116,7 @@ export function DashboardHeader({
                     : "",
                 )}
               >
-                {translateLabel(item.labelKey)}
+                {translateLabel(item)}
               </span>
             )}
           </React.Fragment>
@@ -85,6 +129,16 @@ export function DashboardHeader({
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background transition-transform group-hover:scale-110" />
         </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full"
+          onClick={() => setConfirmLogoutOpen(true)}
+          disabled={isLoggingOut}
+          aria-label={tNav("logout")}
+        >
+          <LogOut className="h-5 w-5" />
+        </Button>
         <Avatar className="h-9 w-9 ring-2 ring-border/50 transition-shadow hover:ring-primary/20">
           <AvatarImage
             src={userInfo?.avatar_url || "/placeholder.svg?height=36&width=36"}
@@ -95,6 +149,35 @@ export function DashboardHeader({
           </AvatarFallback>
         </Avatar>
       </div>
+      <AlertDialog
+        open={confirmLogoutOpen}
+        onOpenChange={(open) => {
+          if (!isLoggingOut) {
+            setConfirmLogoutOpen(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认退出登录</AlertDialogTitle>
+            <AlertDialogDescription>
+              退出后将立即返回登录页。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoggingOut}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isLoggingOut}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleLogout();
+              }}
+            >
+              确认退出
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </header>
   );
 }

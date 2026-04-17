@@ -61,8 +61,8 @@ type DynamicEvaluationResult = {
   };
 };
 
-const SELF_INTRO_PROMPT_TEMPLATE =
-  "你是{scene}中的面试官，请友善地引导用户进行自我介绍，简短一些就好。";
+const SELF_INTRO_OPENING_TEMPLATE =
+  "你好，欢迎参加今天的{role}面试。先请你做一个简短的自我介绍，重点说说最近做过的项目和你负责的部分。";
 
 const questionTypeSchema = z.enum([
   "knowledge",
@@ -140,15 +140,14 @@ function createDynamicQuestion(args: {
   };
 }
 
-function buildInterviewSceneLabel(profile: any) {
-  const role = profile?.job_intention?.trim() || "技术面试场景";
-  return `${role}面试场景`;
+function buildInterviewRoleLabel(profile: any) {
+  return profile?.job_intention?.trim() || "技术岗位";
 }
 
-function buildSelfIntroductionPrompt(profile: any) {
-  return SELF_INTRO_PROMPT_TEMPLATE.replace(
-    "{scene}",
-    buildInterviewSceneLabel(profile),
+function buildSelfIntroductionOpening(profile: any) {
+  return SELF_INTRO_OPENING_TEMPLATE.replace(
+    "{role}",
+    buildInterviewRoleLabel(profile),
   );
 }
 
@@ -237,7 +236,7 @@ async function loadQuestionReferences(profile: any) {
 }
 
 function buildOpeningFallback(profile: any): DynamicOpeningResult {
-  const questionText = buildSelfIntroductionPrompt(profile);
+  const questionText = buildSelfIntroductionOpening(profile);
   const question = createDynamicQuestion({
     questionText,
     questionType: "project",
@@ -347,7 +346,7 @@ export async function generateDynamicInterviewOpening(args: {
     (await loadRecentConversationMessages(args.interviewId));
 
   if (!hasAnyUserMessage(recentMessages)) {
-    const questionText = buildSelfIntroductionPrompt(args.profile);
+    const questionText = buildSelfIntroductionOpening(args.profile);
     const question = createDynamicQuestion({
       questionText,
       questionType: "project",

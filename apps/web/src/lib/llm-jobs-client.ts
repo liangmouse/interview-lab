@@ -57,6 +57,9 @@ export async function getResumeReviewJob(jobId: string) {
   const response = await fetchJsonWithTiming(
     "getResumeReviewJob",
     `/api/resume-review/jobs/${jobId}`,
+    {
+      cache: "no-store",
+    },
   );
   const payload = await readJson<{ data: ResumeReviewJob }>(response);
   return payload.data;
@@ -66,6 +69,9 @@ export async function listResumeReviewJobs() {
   const response = await fetchJsonWithTiming(
     "listResumeReviewJobs",
     "/api/resume-review/jobs",
+    {
+      cache: "no-store",
+    },
   );
   const payload = await readJson<{ data: ResumeReviewJob[] }>(response);
   return payload.data;

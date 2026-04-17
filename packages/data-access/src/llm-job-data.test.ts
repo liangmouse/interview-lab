@@ -9,6 +9,7 @@ vi.mock("./supabase-admin", () => ({
 }));
 
 import {
+  claimNextResumeReviewJob,
   claimNextQuestioningJob,
   sanitizeDatabaseValue,
   upsertResumeRecord,
@@ -136,6 +137,50 @@ describe("claimNextQuestioningJob", () => {
     });
 
     await claimNextQuestioningJob();
+
+    expect(inStatus).toHaveBeenCalledWith("status", ["queued"]);
+  });
+});
+
+describe("claimNextResumeReviewJob", () => {
+  it("only claims queued jobs and never reclaims failed jobs", async () => {
+    const staleLt = vi.fn().mockResolvedValue({ error: null });
+    const staleEq = vi.fn(() => ({
+      lt: staleLt,
+    }));
+    const staleUpdate = vi.fn(() => ({
+      eq: staleEq,
+    }));
+
+    const limit = vi.fn().mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    const order = vi.fn(() => ({
+      limit,
+    }));
+    const lte = vi.fn(() => ({
+      order,
+    }));
+    const inStatus = vi.fn(() => ({
+      lte,
+    }));
+    const select = vi.fn(() => ({
+      in: inStatus,
+    }));
+
+    getSupabaseAdminClient.mockReturnValue({
+      from: vi
+        .fn()
+        .mockReturnValueOnce({
+          update: staleUpdate,
+        })
+        .mockReturnValueOnce({
+          select,
+        }),
+    });
+
+    await claimNextResumeReviewJob();
 
     expect(inStatus).toHaveBeenCalledWith("status", ["queued"]);
   });
