@@ -1,4 +1,5 @@
 export type AuthTab = "sign-in" | "sign-up";
+type SearchParamsLike = Pick<URLSearchParams, "toString">;
 
 const DEFAULT_AUTH_TAB: AuthTab = "sign-in";
 
@@ -18,4 +19,14 @@ export function normalizeAuthTab(
   }
 
   return DEFAULT_AUTH_TAB;
+}
+
+export function buildAuthTabHref(
+  pathname: string,
+  tab: AuthTab,
+  searchParams: SearchParamsLike,
+): string {
+  const nextParams = new URLSearchParams(searchParams.toString());
+  nextParams.set("tab", tab);
+  return `${pathname}?${nextParams.toString()}`;
 }

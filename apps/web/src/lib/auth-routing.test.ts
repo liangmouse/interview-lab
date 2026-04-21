@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { normalizeAuthTab, resolveAuthEntryTarget } from "@/lib/auth-routing";
+import {
+  buildAuthTabHref,
+  normalizeAuthTab,
+  resolveAuthEntryTarget,
+} from "@/lib/auth-routing";
 
 describe("resolveAuthEntryTarget", () => {
   it("returns sign-in for guest users", () => {
@@ -27,5 +31,21 @@ describe("normalizeAuthTab", () => {
   it("handles array search params", () => {
     expect(normalizeAuthTab(["sign-up"])).toBe("sign-up");
     expect(normalizeAuthTab(["invalid", "sign-up"])).toBe("sign-in");
+  });
+});
+
+describe("buildAuthTabHref", () => {
+  it("sets tab and keeps existing query params", () => {
+    const searchParams = new URLSearchParams("foo=1&bar=2");
+    expect(buildAuthTabHref("/auth/sign-in", "sign-up", searchParams)).toBe(
+      "/auth/sign-in?foo=1&bar=2&tab=sign-up",
+    );
+  });
+
+  it("replaces existing tab query param", () => {
+    const searchParams = new URLSearchParams("tab=sign-in&foo=1");
+    expect(buildAuthTabHref("/auth/sign-in", "sign-up", searchParams)).toBe(
+      "/auth/sign-in?tab=sign-up&foo=1",
+    );
   });
 });
