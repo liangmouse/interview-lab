@@ -8,12 +8,6 @@ export function AuthArtwork() {
   const t = useTranslations("auth.artwork");
 
   const features = [t("feature1"), t("feature2"), t("feature3")];
-  const trustCompanies = [
-    t("company1"),
-    t("company2"),
-    t("company3"),
-    t("company4"),
-  ];
 
   return (
     <div className="relative w-full h-full bg-linear-to-br from-[#FDFCF8] to-[#F2F0E8] overflow-hidden">
@@ -86,23 +80,6 @@ export function AuthArtwork() {
                 <span className="text-[#141414] text-base">{feature}</span>
               </div>
             ))}
-          </div>
-
-          {/* Trust proof */}
-          <div className="space-y-4 border-t border-[#E5E5E5] pt-6">
-            <p className="text-sm font-medium text-[#666666]">
-              {t("trustedBy")}
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-xs text-[#4A4A4A] sm:grid-cols-4">
-              {trustCompanies.map((company) => (
-                <span
-                  key={company}
-                  className="rounded-md border border-[#E5E5E5] bg-white/70 px-3 py-2"
-                >
-                  {company}
-                </span>
-              ))}
-            </div>
           </div>
         </div>
       </div>

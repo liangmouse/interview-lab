@@ -1,5 +1,12 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, FileText, History, TrendingUp } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  LayoutDashboard,
+  FileText,
+  History,
+  PenTool,
+  TrendingUp,
+} from "lucide-react";
 
 export interface SidebarItem {
   key: string;
@@ -45,6 +52,12 @@ export const sidebarGroups: SidebarGroup[] = [
         icon: FileText,
       },
       {
+        key: "resumeGeneration",
+        title: "简历工坊",
+        href: "/resume-generation",
+        icon: PenTool,
+      },
+      {
         key: "questioningCenter",
         titleKey: "questioningCenter",
         href: "/questioning",
@@ -54,7 +67,7 @@ export const sidebarGroups: SidebarGroup[] = [
         key: "jobRecommendations",
         title: "岗位推荐",
         href: "/job-recommendations",
-        icon: TrendingUp,
+        icon: BriefcaseBusiness,
       },
     ],
   },

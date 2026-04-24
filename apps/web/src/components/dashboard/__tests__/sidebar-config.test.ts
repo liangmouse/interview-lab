@@ -24,6 +24,7 @@ describe("sidebarGroups", () => {
     ]);
     expect(prepGroup?.items.map((item) => item.href)).toEqual([
       "/resume-review",
+      "/resume-generation",
       "/questioning",
       "/job-recommendations",
     ]);
@@ -38,6 +39,7 @@ describe("sidebarGroups", () => {
       "/interview",
       "/records",
       "/resume-review",
+      "/resume-generation",
       "/questioning",
       "/job-recommendations",
     ]);

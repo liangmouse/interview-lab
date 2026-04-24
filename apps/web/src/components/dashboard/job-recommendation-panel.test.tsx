@@ -143,7 +143,7 @@ describe("JobRecommendationPanel", () => {
     render(<JobRecommendationPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("BOSS 登录态")).toBeInTheDocument();
+      expect(screen.getByText("连接 BOSS 账号")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "手动筛选" }));
@@ -164,7 +164,7 @@ describe("JobRecommendationPanel", () => {
     render(<JobRecommendationPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("BOSS 登录态")).toBeInTheDocument();
+      expect(screen.getByText("连接 BOSS 账号")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "手动筛选" }));
@@ -237,5 +237,28 @@ describe("JobRecommendationPanel", () => {
     await waitFor(() => {
       expect(screen.queryByText("前端工程师")).not.toBeInTheDocument();
     });
+  });
+
+  it("reveals the guided connection UI and advanced manual entry", async () => {
+    render(<JobRecommendationPanel />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("三步完成连接，不需要先理解 Cookie 是什么"),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText("你最关心的事")).toBeInTheDocument();
+    expect(
+      screen.getByText("不会自动发消息、打招呼或改你的资料。"),
+    ).toBeInTheDocument();
+
+    expect(screen.queryByLabelText("粘贴登录信息")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "高级方式" }));
+
+    expect(screen.getByLabelText("粘贴登录信息")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "更新连接并验证" }),
+    ).toBeInTheDocument();
   });
 });

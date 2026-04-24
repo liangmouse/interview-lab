@@ -1,0 +1,153 @@
+.page {
+  min-height: 100%;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(232, 245, 237, 0.9),
+      transparent 30%
+    ),
+    linear-gradient(180deg, #fbfaf6 0%, #f4f2eb 100%);
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  backdrop-filter: blur(14px);
+  background: rgba(251, 250, 246, 0.88);
+  border-bottom: 1px solid rgba(22, 22, 22, 0.08);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #5b5b5b;
+  font-size: 12px;
+}
+
+.shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
+
+.paper {
+  background: white;
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  border-radius: 28px;
+  box-shadow: 0 24px 80px rgba(24, 30, 28, 0.08);
+  overflow: hidden;
+}
+
+.hero {
+  padding: 40px 48px 28px;
+  border-bottom: 1px solid rgba(18, 18, 18, 0.08);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(237, 248, 241, 0.95),
+      rgba(250, 246, 238, 0.95)
+    ),
+    white;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.1;
+  color: #151515;
+}
+
+.hero p {
+  margin: 10px 0 0;
+  color: #5d5d5d;
+}
+
+.markdown {
+  padding: 40px 48px 56px;
+  color: #1f1f1f;
+  line-height: 1.7;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  color: #111;
+  margin-top: 28px;
+  margin-bottom: 10px;
+}
+
+.markdown h1 {
+  font-size: 28px;
+  line-height: 1.15;
+  margin-top: 0;
+}
+
+.markdown h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding-top: 24px;
+  border-top: 1px solid rgba(17, 17, 17, 0.08);
+}
+
+.markdown h3 {
+  font-size: 18px;
+}
+
+.markdown p,
+.markdown li {
+  font-size: 15px;
+}
+
+.markdown ul {
+  padding-left: 20px;
+  margin: 10px 0 16px;
+}
+
+.markdown strong {
+  color: #101010;
+}
+
+.markdown hr {
+  border: none;
+  border-top: 1px solid rgba(17, 17, 17, 0.08);
+  margin: 28px 0;
+}
+
+@media print {
+  .page {
+    background: white;
+  }
+
+  .toolbar {
+    display: none;
+  }
+
+  .shell {
+    max-width: none;
+    padding: 0;
+  }
+
+  .paper {
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+  }
+
+  .hero,
+  .markdown {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}

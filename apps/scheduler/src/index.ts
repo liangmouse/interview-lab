@@ -6,6 +6,7 @@ import {
 import {
   runOneJobRecommendationJob,
   runOneQuestioningJob,
+  runOneResumeGenerationJob,
   runOneResumeReviewJob,
 } from "@interviewclaw/llm-apps";
 import { WorkflowEngine } from "@interviewclaw/workflows";
@@ -75,6 +76,12 @@ export class SchedulerService {
         await runOneQuestioningJob();
       } catch (error) {
         console.error("[scheduler] questioning worker failed:", error);
+      }
+
+      try {
+        await runOneResumeGenerationJob();
+      } catch (error) {
+        console.error("[scheduler] resume generation worker failed:", error);
       }
 
       try {
