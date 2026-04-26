@@ -2,6 +2,7 @@ import type React from "react";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
+import { SingletonProvider } from "@/components/singleton-provider";
 import "./globals.css";
 
 const geist = localFont({
@@ -46,6 +47,7 @@ export default function RootLayout({
         className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}
       >
         {children}
+        <SingletonProvider />
         <Analytics />
       </body>
     </html>

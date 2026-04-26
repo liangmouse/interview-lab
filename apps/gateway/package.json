@@ -9,6 +9,11 @@
   "dependencies": {
     "@interviewclaw/channel-sdk": "workspace:*",
     "@interviewclaw/domain": "workspace:*",
-    "@interviewclaw/workflows": "workspace:*"
+    "@interviewclaw/volc-realtime-protocol": "workspace:*",
+    "@interviewclaw/workflows": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.12"
   }
 }

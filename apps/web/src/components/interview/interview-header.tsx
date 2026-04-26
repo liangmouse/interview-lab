@@ -84,12 +84,7 @@ export function InterviewHeader({
       );
     }
 
-    return (
-      <div className="flex items-center gap-2 text-sm text-gray-400">
-        <WifiOff className="h-4 w-4" />
-        <span>{t("disconnected")}</span>
-      </div>
-    );
+    return null;
   };
 
   return (
@@ -113,40 +108,44 @@ export function InterviewHeader({
           </span>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleResumePanel}
-          className={cn("hidden md:flex")}
-          aria-label={
-            isResumePanelOpen ? t("hideResumePanel") : t("showResumePanel")
-          }
-        >
-          {isResumePanelOpen ? (
-            <PanelLeftClose className="h-4 w-4" />
-          ) : (
-            <PanelLeftOpen className="h-4 w-4" />
-          )}
-          <span className="text-xs">
-            {isResumePanelOpen ? t("hideResumePanel") : t("showResumePanel")}
-          </span>
-        </Button>
+        {onToggleResumePanel ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleResumePanel}
+            className={cn("hidden md:flex")}
+            aria-label={
+              isResumePanelOpen ? t("hideResumePanel") : t("showResumePanel")
+            }
+          >
+            {isResumePanelOpen ? (
+              <PanelLeftClose className="h-4 w-4" />
+            ) : (
+              <PanelLeftOpen className="h-4 w-4" />
+            )}
+            <span className="text-xs">
+              {isResumePanelOpen ? t("hideResumePanel") : t("showResumePanel")}
+            </span>
+          </Button>
+        ) : null}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleCodeWorkbench}
-          className={cn(
-            "hidden md:flex",
-            isCodeWorkbenchOpen && "text-[#10B981]",
-          )}
-        >
-          {isCodeWorkbenchOpen ? (
-            <PanelRightClose className="h-4 w-4" />
-          ) : (
-            <PanelRightOpen className="h-4 w-4" />
-          )}
-        </Button>
+        {onToggleCodeWorkbench ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleCodeWorkbench}
+            className={cn(
+              "hidden md:flex",
+              isCodeWorkbenchOpen && "text-[#10B981]",
+            )}
+          >
+            {isCodeWorkbenchOpen ? (
+              <PanelRightClose className="h-4 w-4" />
+            ) : (
+              <PanelRightOpen className="h-4 w-4" />
+            )}
+          </Button>
+        ) : null}
 
         <Button variant="ghost" size="sm" className="hidden md:flex">
           <Maximize2 className="h-4 w-4" />

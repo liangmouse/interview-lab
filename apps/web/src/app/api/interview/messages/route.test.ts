@@ -2,12 +2,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 // Hoist mocks
-const { mockFrom, mockSupabase } = vi.hoisted(() => {
+const { mockFrom, mockRpc, mockSupabase } = vi.hoisted(() => {
   const mockFrom = vi.fn();
+  const mockRpc = vi.fn();
   const mockSupabase = {
     from: mockFrom,
+    rpc: mockRpc,
   };
-  return { mockFrom, mockSupabase };
+  return { mockFrom, mockRpc, mockSupabase };
 });
 
 const mockSelect = vi.fn();
@@ -105,7 +107,7 @@ describe("Messages API", () => {
     });
 
     it("should return 200 on successful insert", async () => {
-      mockInsert.mockResolvedValue({ error: null });
+      mockRpc.mockResolvedValue({ error: null });
 
       const payload = {
         interviewId: "123",
@@ -125,16 +127,56 @@ describe("Messages API", () => {
 
       expect(res.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(mockFrom).toHaveBeenCalledWith("messages");
-      expect(mockInsert).toHaveBeenCalledWith({
-        interview_id: "123",
-        role: "user",
-        content: "hello",
+      expect(mockRpc).toHaveBeenCalledWith("add_user_message", {
+        p_interview_id: "123",
+        p_content: "hello",
       });
     });
 
+    it("should save assistant messages through the ai message rpc", async () => {
+      mockRpc.mockResolvedValue({ error: null });
+
+      const req = new NextRequest(
+        "http://localhost:3000/api/interview/messages",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            interviewId: "123",
+            role: "assistant",
+            content: "你好",
+          }),
+        },
+      );
+      const res = await POST(req);
+
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith("add_ai_message", {
+        p_interview_id: "123",
+        p_content: "你好",
+      });
+    });
+
+    it("should return 400 if role is invalid", async () => {
+      const req = new NextRequest(
+        "http://localhost:3000/api/interview/messages",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            interviewId: "123",
+            role: "system",
+            content: "hello",
+          }),
+        },
+      );
+      const res = await POST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(data.error).toBe("Invalid role");
+    });
+
     it("should return 500 on insert error", async () => {
-      mockInsert.mockResolvedValue({ error: { message: "Insert Failed" } });
+      mockRpc.mockResolvedValue({ error: { message: "Insert Failed" } });
 
       const payload = {
         interviewId: "123",

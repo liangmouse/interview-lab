@@ -25,7 +25,10 @@
         "packages/ai-runtime/src/telemetry.ts"
       ],
       "@interviewclaw/llm-apps": ["packages/llm-apps/src/index.ts"],
-      "@interviewclaw/workflows": ["packages/workflows/src/index.ts"]
+      "@interviewclaw/workflows": ["packages/workflows/src/index.ts"],
+      "@interviewclaw/volc-realtime-protocol": [
+        "packages/volc-realtime-protocol/src/index.ts"
+      ]
     }
   }
 }

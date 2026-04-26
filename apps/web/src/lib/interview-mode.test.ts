@@ -15,6 +15,7 @@ describe("normalizeInterviewMode", () => {
   it("supports full and focus", () => {
     expect(normalizeInterviewMode("full")).toBe("full");
     expect(normalizeInterviewMode("focus")).toBe("focus");
+    expect(normalizeInterviewMode("realtime")).toBe("full");
   });
 
   it("supports array query value", () => {

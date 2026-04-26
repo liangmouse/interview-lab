@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import dotenv from "dotenv";
 
 const pnpmBin = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const children = [];
 let shuttingDown = false;
 let exitCode = 0;
-let cleanupDone = false;
+const realtimeOnly = process.argv.includes("--realtime-only");
 
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -27,7 +27,7 @@ function spawnService(name, args) {
     if (shuttingDown) return;
     const resolvedCode = typeof code === "number" ? code : 1;
     const reason = signal ? `signal ${signal}` : `code ${resolvedCode}`;
-    if (name === "web") {
+    if (name === "web" || (realtimeOnly && name === "gateway")) {
       console.error(
         `[dev] ${name} exited with ${reason}, stopping all services`,
       );
@@ -51,17 +51,6 @@ function shutdown(code = 0) {
     }
   }
 
-  if (!cleanupDone) {
-    cleanupDone = true;
-    const cleanupResult = spawnSync(pnpmBin, ["run", "agent:kill"], {
-      stdio: "inherit",
-      env: process.env,
-    });
-    if (cleanupResult.error) {
-      console.error("[dev] Failed to run agent cleanup:", cleanupResult.error);
-    }
-  }
-
   setTimeout(() => {
     for (const child of children) {
       if (!child.killed) {
@@ -76,22 +65,27 @@ process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
 spawnService("web", ["run", "dev:web"]);
-spawnService("scheduler", ["run", "dev:scheduler"]);
 
-const requiredAgentEnv = [
-  "LIVEKIT_API_KEY",
-  "LIVEKIT_API_SECRET",
-  "LIVEKIT_URL",
+const requiredGatewayEnv = [
+  "VOLC_REALTIME_BROWSER_API_KEY",
+  "VOLCENGINE_STT_APP_ID",
+  "VOLCENGINE_STT_ACCESS_TOKEN",
 ];
-const missingAgentEnv = requiredAgentEnv.filter((key) => !process.env[key]);
+const missingGatewayEnv = requiredGatewayEnv.filter((key) => !process.env[key]);
 
-if (missingAgentEnv.length === 0) {
-  spawnService("agent", ["run", "agent:dev"]);
+if (missingGatewayEnv.length === 0) {
+  spawnService("gateway", ["run", "dev:gateway"]);
 } else {
   console.warn(
-    `[dev] Skip agent startup because missing env: ${missingAgentEnv.join(", ")}`,
+    `[dev] Skip gateway startup because missing env: ${missingGatewayEnv.join(", ")}`,
   );
   console.warn(
-    "[dev] Interview realtime mode will be unavailable in this session",
+    "[dev] End-to-end voice mode will be unavailable in this session",
   );
+}
+
+if (realtimeOnly) {
+  console.warn("[dev] Realtime-only mode: skip scheduler");
+} else {
+  spawnService("scheduler", ["run", "dev:scheduler"]);
 }

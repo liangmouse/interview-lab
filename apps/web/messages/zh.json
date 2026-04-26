@@ -170,7 +170,7 @@
       "records": "面试记录",
       "recordsDesc": "查看历史场次、评分变化和关键表现趋势。",
       "resumeReview": "简历点评",
-      "resumeReviewDesc": "针对当前简历内容给出结构化修改建议与表达优化。",
+      "resumeReviewDesc": "针对当前简历内容给出结构化修改建议与表达优化",
       "questioningCenter": "押题中心",
       "questioningCenterDesc": "聚合简历押题与 JD 押题，生成优先训练题单。",
       "backToDashboard": "返回控制台"

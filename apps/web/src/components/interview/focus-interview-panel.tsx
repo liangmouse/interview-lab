@@ -28,7 +28,7 @@ import {
   CODING_INTERVIEW_QUESTION_COUNT,
   FOCUS_CODING_TOPIC,
 } from "@/lib/interview-session";
-import { buildInterviewHref, readStoredVoiceKernel } from "@/lib/voice-kernel";
+import { buildInterviewHref } from "@/lib/voice-kernel";
 import { toast } from "sonner";
 
 const FOCUS_AREAS: {
@@ -238,9 +238,7 @@ export function FocusInterviewPanel() {
       }
       if (result.interviewId) {
         startTransition(() => {
-          router.push(
-            buildInterviewHref(result.interviewId, readStoredVoiceKernel()),
-          );
+          router.push(buildInterviewHref(result.interviewId));
         });
       }
     } catch {

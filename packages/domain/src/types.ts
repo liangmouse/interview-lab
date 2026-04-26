@@ -1,4 +1,4 @@
-export type ChannelKind = "web" | "feishu" | "telegram" | "livekit";
+export type ChannelKind = "web" | "feishu" | "telegram";
 
 export type UserIdentityLink = {
   id: string;

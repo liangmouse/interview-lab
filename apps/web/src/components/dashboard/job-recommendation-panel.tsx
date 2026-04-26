@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   JobRecommendationFeedbackAction,
   JobRecommendationJob,
@@ -41,12 +41,16 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ArrowRight,
   CheckCircle2,
   ChevronDown,
+  CircleHelp,
   ClipboardPaste,
-  ExternalLink,
-  LockKeyhole,
   ShieldCheck,
   TriangleAlert,
   WandSparkles,
@@ -130,6 +134,49 @@ function BossConnectionStep({
         </div>
       </div>
     </div>
+  );
+}
+
+function BossPrivacyTooltip() {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="隐私与权限说明"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#D7E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#315747] transition-colors hover:border-[#BFD6CC] hover:bg-[#F7FAF8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D31]/15"
+        >
+          <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
+          隐私与权限
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        sideOffset={10}
+        className="max-w-[360px] rounded-xl bg-[#173D31] p-4 text-left text-white shadow-[0_18px_50px_rgba(23,61,49,0.22)]"
+      >
+        <div className="space-y-3 text-xs leading-5">
+          <div>
+            <p className="font-semibold text-white">会做什么</p>
+            <p className="mt-1 text-white/80">
+              只校验 BOSS 登录状态，并在你主动开始推荐时读取岗位推荐所需会话。
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold text-white">不会做什么</p>
+            <p className="mt-1 text-white/80">
+              不会自动投递、发消息、打招呼、修改资料，也不会在页面回显原始登录信息。
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold text-white">你可以控制</p>
+            <p className="mt-1 text-white/80">
+              连接失效会提示重新连接；你也可以随时删除连接。
+            </p>
+          </div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -307,6 +354,8 @@ export function JobRecommendationPanel() {
     Record<string, JobRecommendationFeedbackAction>
   >({});
   const [jobError, setJobError] = useState("");
+  const manualEntryRef = useRef<HTMLDivElement>(null);
+  const sessionCookieInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     void Promise.all([getBossSession(), listJobRecommendationJobs()])
@@ -363,9 +412,20 @@ export function JobRecommendationPanel() {
   );
   const canStartRecommendations = session?.status === "connected";
 
+  function openManualEntry() {
+    setIsManualEntryOpen(true);
+    window.requestAnimationFrame(() => {
+      manualEntryRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      sessionCookieInputRef.current?.focus({ preventScroll: true });
+    });
+  }
+
   async function handleSaveSession() {
     if (!sessionCookie.trim()) {
-      setIsManualEntryOpen(true);
+      openManualEntry();
       setSessionError(
         "还没有检测到登录信息，请先复制完整内容，再回来点击连接并验证。",
       );
@@ -476,8 +536,8 @@ export function JobRecommendationPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-[28px] border border-[#DCE7E2] bg-[linear-gradient(135deg,#F8FBF9_0%,#F4FAF7_52%,#EEF7F2_100%)] p-5">
-            <div className="grid gap-5 lg:grid-cols-[1.25fr_0.95fr]">
+          <div className="rounded-[24px] border border-[#DCE7E2] bg-[linear-gradient(135deg,#F8FBF9_0%,#F4FAF7_52%,#EEF7F2_100%)] p-5">
+            <div className="grid gap-5 lg:grid-cols-[1.28fr_0.86fr]">
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#D7E5DE] bg-white/80 px-3 py-1 text-xs font-medium text-[#315747]">
                   <WandSparkles className="h-3.5 w-3.5" aria-hidden="true" />
@@ -485,57 +545,60 @@ export function JobRecommendationPanel() {
                 </div>
                 <div className="space-y-3">
                   <h3 className="text-[22px] font-semibold leading-8 text-[#173D31] text-balance">
-                    三步完成连接，不需要先理解 Cookie 是什么
+                    三步连接 BOSS，复制后回来验证
                   </h3>
                   <p className="max-w-2xl text-sm leading-7 text-[#52615B]">
-                    你只需要在浏览器里保持 BOSS
-                    已登录，按下面步骤复制登录信息，然后回来验证。高级方式仍然保留，默认先隐藏。
+                    保持{" "}
+                    <a
+                      href="https://www.zhipin.com"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-[#1E5D47] underline underline-offset-4"
+                    >
+                      BOSS 网页版
+                    </a>{" "}
+                    已登录，复制浏览器里的登录信息，粘贴后系统会立即校验是否可用。
                   </p>
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <BossConnectionStep
                     step="1"
-                    title="先确认已登录"
-                    description="在浏览器里打开 BOSS 网页版，确认页面右上角已经是你的账号状态。"
+                    title="打开 BOSS"
+                    description="确认网页版已经是登录状态。"
                   />
                   <BossConnectionStep
                     step="2"
                     title="复制登录信息"
-                    description="按教程复制浏览器里的登录信息，整段复制，不需要自己筛字段。"
+                    description="整段复制，不需要筛字段。"
                   />
                   <BossConnectionStep
                     step="3"
-                    title="回来验证连接"
-                    description="回到这里粘贴并点击连接，系统会立即校验是否还能正常读取职位。"
+                    title="回来验证"
+                    description="粘贴后点击连接并验证。"
                     tone="accent"
                   />
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-[#D5E4DD] bg-white/90 p-5 shadow-[0_18px_50px_rgba(23,61,49,0.06)]">
+              <div className="rounded-2xl border border-[#D5E4DD] bg-white/90 p-5 shadow-[0_18px_50px_rgba(23,61,49,0.06)]">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#173D31] text-white">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#173D31] text-white">
                     <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <p className="text-sm font-semibold text-[#173D31]">
-                      连接边界
+                      只用于岗位推荐
                     </p>
-                    <ul className="space-y-2 text-sm leading-6 text-[#55665F]">
-                      <li>
-                        - 当前连接只服务于岗位推荐流程，不用于别的页面能力。
-                      </li>
-                      <li>
-                        - 不会在前台展示你粘贴的原始内容，也不会让其他用户看到。
-                      </li>
-                      <li>- 连接失效后你可以随时重新连接或删除连接。</li>
-                    </ul>
+                    <p className="text-sm leading-6 text-[#55665F]">
+                      不会自动投递、发消息或修改资料。更多边界说明可悬浮查看。
+                    </p>
+                    <BossPrivacyTooltip />
                   </div>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <Button
                     type="button"
-                    onClick={() => setIsManualEntryOpen(true)}
+                    onClick={openManualEntry}
                     className="min-w-[148px]"
                   >
                     我已复制，去粘贴
@@ -561,119 +624,22 @@ export function JobRecommendationPanel() {
 
             {isGuideOpen ? (
               <div className="mt-5 rounded-3xl border border-[#D6E6DE] bg-white/85 p-5">
-                <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                  <div className="space-y-3">
-                    <p className="text-sm font-semibold text-[#173D31]">
-                      详细操作步骤
-                    </p>
-                    <ol className="space-y-2 text-sm leading-7 text-[#52615B]">
-                      <li>1. 打开 BOSS 网页版并完成登录，保持页面不要退出。</li>
-                      <li>
-                        2. 在浏览器里打开开发者工具，进入 Application 或 Storage
-                        里的 Cookies。
-                      </li>
-                      <li>
-                        3. 复制当前站点下的完整 Cookie 内容，不要手动删改。
-                      </li>
-                      <li>4. 回到这里粘贴，点击“连接并验证”。</li>
-                    </ol>
-                  </div>
-                  <div className="rounded-2xl border border-[#E8ECE9] bg-[#F7FAF8] p-4">
-                    <div className="flex items-start gap-3">
-                      <LockKeyhole
-                        className="mt-0.5 h-4 w-4 text-[#173D31]"
-                        aria-hidden="true"
-                      />
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-[#173D31]">
-                          操作提示
-                        </p>
-                        <p className="text-sm leading-6 text-[#55665F]">
-                          如果你愿意提供 2-3
-                          张当前浏览器操作截图，我可以再把这里改成真正的图文教程样式。
-                        </p>
-                        <a
-                          href="https://www.zhipin.com"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center text-sm font-medium text-[#1E5D47] underline underline-offset-4"
-                        >
-                          打开 BOSS 网页版
-                          <ExternalLink
-                            className="ml-1 h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-[#173D31]">
+                    详细操作步骤
+                  </p>
+                  <ol className="space-y-2 text-sm leading-7 text-[#52615B]">
+                    <li>1. 打开 BOSS 网页版并完成登录，保持页面不要退出。</li>
+                    <li>
+                      2. 在浏览器里打开开发者工具，进入 Application 或 Storage
+                      里的 Cookies。
+                    </li>
+                    <li>3. 复制当前站点下的完整 Cookie 内容，不要手动删改。</li>
+                    <li>4. 回到这里粘贴，点击“连接并验证”。</li>
+                  </ol>
                 </div>
               </div>
             ) : null}
-          </div>
-
-          <div className="rounded-3xl border border-[#E6ECE8] bg-[#FBFCFB] p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EEF5F1] text-[#173D31]">
-                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-[#173D31]">
-                  你最关心的事
-                </p>
-                <p className="text-sm leading-6 text-[#55665F]">
-                  这段登录信息确实敏感，所以这里把边界说清楚。我们希望用户是在理解用途后，再决定是否连接。
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl border border-[#DCE7E2] bg-white p-4">
-                <p className="text-sm font-semibold text-[#173D31]">
-                  当前会做什么
-                </p>
-                <ul className="mt-2 space-y-2 text-sm leading-6 text-[#55665F]">
-                  <li>- 校验你的 BOSS 登录状态是否仍然可用。</li>
-                  <li>- 在你主动开始推荐时，读取职位推荐所需的受限会话。</li>
-                  <li>- 在你删除连接或连接失效前，维持这段受限连接。</li>
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-[#F0E5D9] bg-[#FFF9F3] p-4">
-                <p className="text-sm font-semibold text-[#8B5A24]">
-                  当前不会做什么
-                </p>
-                <ul className="mt-2 space-y-2 text-sm leading-6 text-[#6A4B28]">
-                  <li>- 不会自动投递职位。</li>
-                  <li>- 不会自动发消息、打招呼或改你的资料。</li>
-                  <li>- 不会在页面上回显你粘贴的原始内容。</li>
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-[#E8ECE9] bg-white p-4">
-                <p className="text-sm font-semibold text-[#173D31]">
-                  你掌控什么
-                </p>
-                <ul className="mt-2 space-y-2 text-sm leading-6 text-[#55665F]">
-                  <li>- 你可以随时点“删除连接”立即断开。</li>
-                  <li>- 连接失效后，系统会明确提示你重新连接。</li>
-                  <li>
-                    -
-                    如果你暂时不放心，可以先不要连接，等我们后续做更轻量的一键方案。
-                  </li>
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-[#E8ECE9] bg-white p-4">
-                <p className="text-sm font-semibold text-[#173D31]">
-                  为什么现在还需要这一步
-                </p>
-                <p className="mt-2 text-sm leading-6 text-[#55665F]">
-                  现阶段推荐能力依赖 BOSS
-                  网页登录态来验证可读性。这不是最理想的方案，所以我们把它做成显式连接，而不是静默采集。
-                </p>
-              </div>
-            </div>
           </div>
 
           {session ? (
@@ -729,10 +695,7 @@ export function JobRecommendationPanel() {
                       <Link href="#start-recommendation">开始推荐</Link>
                     </Button>
                   ) : (
-                    <Button
-                      type="button"
-                      onClick={() => setIsManualEntryOpen(true)}
-                    >
+                    <Button type="button" onClick={openManualEntry}>
                       重新连接
                     </Button>
                   )}
@@ -748,7 +711,10 @@ export function JobRecommendationPanel() {
             </div>
           ) : null}
 
-          <div className="rounded-2xl border border-dashed border-[#D6E3DC] bg-[#FCFDFC] p-4">
+          <div
+            ref={manualEntryRef}
+            className="rounded-2xl border border-dashed border-[#D6E3DC] bg-[#FCFDFC] p-4 scroll-mt-24"
+          >
             <button
               type="button"
               className="flex w-full items-center justify-between gap-4 text-left"
@@ -779,6 +745,7 @@ export function JobRecommendationPanel() {
                   粘贴登录信息
                 </label>
                 <Textarea
+                  ref={sessionCookieInputRef}
                   id="boss-session-cookie"
                   name="boss-session-cookie"
                   value={sessionCookie}

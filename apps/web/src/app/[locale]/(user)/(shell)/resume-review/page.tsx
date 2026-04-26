@@ -32,12 +32,6 @@ export default async function ResumeReviewPage() {
             {t("resumeReview")}
           </h1>
           <p className="text-muted-foreground">{t("resumeReviewDesc")}</p>
-          {process.env.NODE_ENV === "development" ? (
-            <p className="text-xs text-muted-foreground">
-              debug: serverUserId={user?.id ?? "anonymous"} serverJobCount=
-              {initialReviewJobs.length}
-            </p>
-          ) : null}
         </section>
         <section className="mx-auto w-full max-w-5xl pb-10">
           <ResumeReviewPanel initialReviewJobs={initialReviewJobs} />

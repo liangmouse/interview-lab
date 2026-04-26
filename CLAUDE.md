@@ -41,12 +41,11 @@
 
 ## Project Structure & Monorepo Organization
 
-This is a **pnpm + Turbo monorepo** named `interviewclaw` — an AI-powered mock interview platform with real-time voice sessions (LiveKit), LLM-driven interviewers, and Stripe subscriptions.
+This is a **pnpm + Turbo monorepo** named `interviewclaw` — an AI-powered mock interview platform with realtime voice sessions, LLM-driven interviewers, and Stripe subscriptions.
 
 ### Apps (`apps/`)
 - `apps/web` — Next.js 15 frontend (main user-facing app)
-- `apps/gateway` — API gateway service
-- `apps/livekit-agent` — LiveKit-based interviewer agent runtime
+- `apps/gateway` — API gateway service and realtime voice WebSocket proxy
 - `apps/scheduler` — background job scheduler
 
 ### Packages (`packages/`)
@@ -77,21 +76,19 @@ This is a **pnpm + Turbo monorepo** named `interviewclaw` — an AI-powered mock
 
 Run from the **repo root** unless noted:
 
-- `pnpm dev` — start all services together (web + agent, via `scripts/dev-with-agent.mjs`)
+- `pnpm dev` — start local services together (web + gateway + scheduler, via `scripts/dev-with-agent.mjs`)
 - `pnpm dev:web` — start only the Next.js web app
 - `pnpm dev:gateway` — start only the gateway
-- `pnpm dev:agent` — start only the LiveKit agent
+- `pnpm dev:realtime` — start web + gateway for realtime voice debugging
 - `pnpm dev:scheduler` — start only the scheduler
-- `pnpm dev:turbo` — run web + agent in parallel via Turbopack
+- `pnpm dev:turbo` — run web + gateway in parallel via Turbopack
 - `pnpm build` — production build for all packages (via turbo)
 - `pnpm build:web` — build only the web app
-- `pnpm build:agent` — build only the agent
 - `pnpm start` — run the production web server
 - `pnpm lint` — ESLint checks across all packages
 - `pnpm format` — Prettier formatting across the repo
 - `pnpm test` — run Vitest in CI mode
 - `pnpm test:packages` — run tests under `packages/` only
-- `pnpm agent:kill` — stop the agent process
 
 ## Coding Style & Naming Conventions
 
@@ -125,7 +122,7 @@ Run from the **repo root** unless noted:
 
 ## Configuration & Secrets
 
-- Copy `.env.example` to `.env.local` and fill Supabase/LiveKit credentials before running locally.
+- Copy `.env.example` to `.env.local` and fill Supabase/Volcengine credentials before running locally.
 - Do not commit secrets; prefer local environment overrides.
 
 ## gstack

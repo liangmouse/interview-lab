@@ -39,14 +39,19 @@
 - 未经明确要求，不新增埋点、遥测、外部网络请求或第三方上报。
 - 优先类型安全、显式错误处理和可维护性；仅在意图不明显时添加简短注释。
 
+## Browser Debugging
+
+- 调试需要登录态/token/cookies 的本地页面时，优先使用真实 Chrome 的 `Profile 2`，不要使用无头浏览器或隔离 profile。
+- 使用 browser-use 时默认命令形态为：`browser-use --browser real --profile "Profile 2" --headed ...`。
+- 如果需要通过 Chrome DevTools Protocol 做页面调试，也应连接/打开使用 `Profile 2` 的真实浏览器会话；不要用无法复用该 profile 的默认 DevTools 会话验证登录后页面。
+
 ## Project Structure & Monorepo Organization
 
 This is a **pnpm + Turbo monorepo** named `interviewclaw`.
 
 ### Apps (`apps/`)
 - `apps/web` — Next.js 15 frontend (main user-facing app)
-- `apps/gateway` — API gateway service
-- `apps/livekit-agent` — LiveKit-based interviewer agent runtime
+- `apps/gateway` — API gateway service and realtime voice WebSocket proxy
 - `apps/scheduler` — background job scheduler
 
 ### Packages (`packages/`)
@@ -77,22 +82,19 @@ This is a **pnpm + Turbo monorepo** named `interviewclaw`.
 
 Run from the **repo root** unless noted:
 
-- `pnpm dev` — start all services together (web + agent, via `scripts/dev-with-agent.mjs`)
+- `pnpm dev` — start local services together (web + gateway + scheduler, via `scripts/dev-with-agent.mjs`)
 - `pnpm dev:web` — start only the Next.js web app
 - `pnpm dev:gateway` — start only the gateway
-- `pnpm dev:agent` — start only the LiveKit agent (`@interviewclaw/livekit-agent`)
+- `pnpm dev:realtime` — start web + gateway for realtime voice debugging
 - `pnpm dev:scheduler` — start only the scheduler
-- `pnpm dev:turbo` — run web + agent in parallel via Turbopack
+- `pnpm dev:turbo` — run web + gateway in parallel via Turbopack
 - `pnpm build` — production build for all packages (via turbo)
 - `pnpm build:web` — build only the web app
-- `pnpm build:agent` — build only the agent
 - `pnpm start` — run the production web server
 - `pnpm lint` — ESLint checks across all packages
 - `pnpm format` — Prettier formatting across the repo
 - `pnpm test` — run Vitest in CI mode
 - `pnpm test:packages` — run tests under `packages/` only
-- `pnpm agent:dev` — alias for `dev:agent`
-- `pnpm agent:kill` — stop the agent process
 
 ## Coding Style & Naming Conventions
 
@@ -126,5 +128,5 @@ Run from the **repo root** unless noted:
 
 ## Configuration & Secrets
 
-- Copy `.env.example` to `.env.local` and fill Supabase/LiveKit credentials before running locally.
+- Copy `.env.example` to `.env.local` and fill Supabase/Volcengine credentials before running locally.
 - Do not commit secrets; prefer local environment overrides.

@@ -33,6 +33,12 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 describe("InterviewHeader", () => {
+  it("does not render disconnected status by default", () => {
+    const html = renderToString(React.createElement(InterviewHeader));
+
+    expect(html).not.toContain("Disconnected");
+  });
+
   it("renders show resume label when resume panel is closed", () => {
     const html = renderToString(
       React.createElement(InterviewHeader, {

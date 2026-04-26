@@ -1,82 +1,17 @@
 "use client";
 
-import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
-import {
-  createInterview,
-  type InterviewTopic,
-  type InterviewDifficulty,
-} from "@/action/create-interview";
-import { toast } from "sonner";
+import { ArrowRight, Clock, SlidersHorizontal, Sparkles } from "lucide-react";
 
 export function QuickStartCard() {
   const t = useTranslations("dashboard.simulation");
   const router = useRouter();
 
-  const [topic, setTopic] = useState<InterviewTopic | "">("");
-  const [difficulty, setDifficulty] = useState<InterviewDifficulty | "">("");
-  const [duration, setDuration] = useState<number | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(false);
-  // useTransition 追踪导航状态
-  const [isPending, startTransition] = useTransition();
-
-  // 综合 loading 状态：API 调用中 或 导航中
-  const isBusy = isLoading || isPending;
-
-  // 开始面试
-  const handleStartInterview = useCallback(async () => {
-    // 验证表单
-    if (!topic) {
-      toast.error("请选择面试主题");
-      console.log("topic", topic);
-      return;
-    }
-    if (!difficulty) {
-      toast.error("请选择面试难度");
-      console.log("difficulty", difficulty);
-      return;
-    }
-    if (!duration) {
-      toast.error("请选择面试时长");
-      console.log("duration", duration);
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const result = await createInterview({ topic, difficulty, duration });
-
-      if (result.error) {
-        toast.error(result.error);
-        setIsLoading(false);
-        return;
-      }
-
-      if (result.interviewId) {
-        // API 调用完成，重置 isLoading
-        setIsLoading(false);
-        // 使用 startTransition 包裹导航，isPending 会自动追踪导航状态
-        startTransition(() => {
-          router.push(`/interview/${result.interviewId}`);
-        });
-      }
-    } catch (err) {
-      console.error("Failed to start interview:", err);
-      toast.error("启动面试失败，请重试");
-      setIsLoading(false);
-    }
-  }, [topic, difficulty, duration, router]);
+  const handleOpenInterviewConfig = () => {
+    router.push("/interview");
+  };
 
   return (
     <div className="rounded-lg border border-[#E5E5E5] bg-white p-10 shadow-sm lg:p-12">
@@ -87,93 +22,46 @@ export function QuickStartCard() {
           </h2>
           <p className="text-[#525252]">{t("description")}</p>
         </div>
-        <div className="mx-auto grid w-full max-w-4xl gap-4 md:grid-cols-3 md:gap-6">
-          <div className="mx-auto w-full max-w-[220px] space-y-2">
-            <label className="text-xs uppercase tracking-wide text-[#4F4F4F]">
-              {t("topic")}
-            </label>
-            <Select
-              value={topic}
-              onValueChange={(value) => setTopic(value as InterviewTopic)}
-            >
-              <SelectTrigger className="h-12 w-full border-[#E5E5E5] bg-white text-[#141414] data-[placeholder]:text-[#5A6A62]">
-                <SelectValue placeholder={t("selectTopic")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="frontend">{t("topics.frontend")}</SelectItem>
-                <SelectItem value="backend">{t("topics.backend")}</SelectItem>
-                <SelectItem value="fullstack">
-                  {t("topics.fullstack")}
-                </SelectItem>
-                <SelectItem value="mobile">{t("topics.mobile")}</SelectItem>
-              </SelectContent>
-            </Select>
+
+        <div className="mx-auto grid w-full max-w-4xl gap-3 md:grid-cols-3">
+          <div className="flex items-start gap-3 rounded-md border border-[#E5E5E5] bg-[#FAFAFA] p-4">
+            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-[#0F3E2E]" />
+            <div>
+              <p className="text-sm font-medium text-[#141414]">选择面试模式</p>
+              <p className="mt-1 text-sm text-[#525252]">
+                支持综合面试和专项训练。
+              </p>
+            </div>
           </div>
-          <div className="mx-auto w-full max-w-[220px] space-y-2">
-            <label className="text-xs uppercase tracking-wide text-[#4F4F4F]">
-              {t("difficulty")}
-            </label>
-            <Select
-              value={difficulty}
-              onValueChange={(value) =>
-                setDifficulty(value as InterviewDifficulty)
-              }
-            >
-              <SelectTrigger className="h-12 w-full border-[#E5E5E5] bg-white text-[#141414] data-[placeholder]:text-[#5A6A62]">
-                <SelectValue placeholder={t("selectDifficulty")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="beginner">
-                  {t("difficulties.beginner")}
-                </SelectItem>
-                <SelectItem value="intermediate">
-                  {t("difficulties.intermediate")}
-                </SelectItem>
-                <SelectItem value="advanced">
-                  {t("difficulties.advanced")}
-                </SelectItem>
-                <SelectItem value="expert">
-                  {t("difficulties.expert")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-start gap-3 rounded-md border border-[#E5E5E5] bg-[#FAFAFA] p-4">
+            <SlidersHorizontal className="mt-0.5 h-5 w-5 shrink-0 text-[#0F3E2E]" />
+            <div>
+              <p className="text-sm font-medium text-[#141414]">配置岗位方向</p>
+              <p className="mt-1 text-sm text-[#525252]">
+                在面试页选择主题、难度和专项能力。
+              </p>
+            </div>
           </div>
-          <div className="mx-auto w-full max-w-[220px] space-y-2">
-            <label className="text-xs uppercase tracking-wide text-[#4F4F4F]">
-              {t("duration")}
-            </label>
-            <Select
-              value={duration?.toString()}
-              onValueChange={(value) => setDuration(parseInt(value))}
-            >
-              <SelectTrigger className="h-12 w-full border-[#E5E5E5] bg-white text-[#141414] data-[placeholder]:text-[#5A6A62]">
-                <SelectValue placeholder={t("selectDuration")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10 min</SelectItem>
-                <SelectItem value="25">25 min</SelectItem>
-                <SelectItem value="40">40 min</SelectItem>
-                <SelectItem value="60">60 min</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-start gap-3 rounded-md border border-[#E5E5E5] bg-[#FAFAFA] p-4">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#0F3E2E]" />
+            <div>
+              <p className="text-sm font-medium text-[#141414]">
+                个性化定制面试内容
+              </p>
+              <p className="mt-1 text-sm text-[#525252]">
+                根据岗位方向和能力目标生成专属练习。
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* 开始面试按钮 */}
         <Button
           size="lg"
-          onClick={handleStartInterview}
-          disabled={isBusy}
+          onClick={handleOpenInterviewConfig}
           className="mx-auto flex h-12 w-full max-w-4xl cursor-pointer bg-[#0F3E2E] text-base font-normal text-white hover:bg-[#0F3E2E]/90 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isBusy ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {isLoading ? "正在创建面试..." : "正在跳转..."}
-            </>
-          ) : (
-            t("startButton")
-          )}
+          去配置面试
+          <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </div>

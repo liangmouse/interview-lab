@@ -1,446 +1,247 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useState } from "react";
-import { flushSync } from "react-dom";
-import { type AgentState } from "@livekit/components-react";
-import { useLocale } from "next-intl";
-import { AIInterviewerPanel } from "./ai-interviewer-panel";
-import { VoiceFirstPanel } from "./voice-first-panel";
-import { CodeWorkbench } from "./code-workbench";
+import { useCallback, useMemo, useState } from "react";
 import { InterviewHeader } from "./interview-header";
 import { InterviewResumePanel } from "./interview-resume-panel";
-import { resolveCodeWorkbenchEvent } from "./code-workbench-event";
-import type { CodeProblem } from "./code-editor-utils";
-import { resolveDraftTextFromSources } from "./transcription-source-resolver";
+import {
+  RealtimeInterviewPanel,
+  type RealtimeInterviewStatus,
+} from "./realtime-interview-panel";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { useInterviewVoiceRuntime } from "@/hooks/useInterviewVoiceRuntime";
-import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
-import type { VoiceKernel } from "@/lib/voice-kernel";
-import { writeStoredVoiceKernel } from "@/lib/voice-kernel";
+import {
+  parseInterviewType,
+  type InterviewDifficulty,
+} from "@/lib/interview-session";
 import { useUserStore } from "@/store/user";
 
 interface InterviewRoomProps {
   interviewId: string;
-  initialVoiceKernel: VoiceKernel;
+  interviewType?: string | null;
+  duration?: string | null;
+  candidateContext?: RealtimeCandidateContext | null;
+  interviewPlan?: RealtimeInterviewPlanContext | null;
 }
 
-const TURN_MODE_STORAGE_KEY = "interview-turn-mode";
+const DIFFICULTY_LABELS: Record<InterviewDifficulty, string> = {
+  beginner: "初级",
+  intermediate: "中级",
+  advanced: "高级",
+  expert: "专家",
+};
+
+type RealtimeCandidateContext = {
+  jobIntention?: string | null;
+  companyIntention?: string | null;
+  experienceYears?: number | null;
+  skills?: string[] | null;
+  bio?: string | null;
+  hasResume?: boolean;
+  workExperiences?: unknown[] | null;
+  projectExperiences?: unknown[] | null;
+};
+
+type RealtimeInterviewPlanContext = {
+  summary?: string | null;
+  plannedTopics?: string[] | null;
+  questions?: Array<{
+    questionText: string;
+    questionType?: string | null;
+    topics?: string[] | null;
+    expectedSignals?: string[] | null;
+  }> | null;
+};
+
+function compactText(value: unknown, maxLength = 120) {
+  if (typeof value === "string") return value.trim().slice(0, maxLength);
+  if (typeof value === "number") return String(value);
+  if (!value || typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  const fields = [
+    "title",
+    "name",
+    "company",
+    "role",
+    "position",
+    "description",
+    "summary",
+    "responsibilities",
+    "achievements",
+    "tech_stack",
+    "technologies",
+  ];
+  const parts = fields
+    .map((field) => {
+      const item = record[field];
+      if (Array.isArray(item)) return item.filter(Boolean).join("、");
+      return typeof item === "string" || typeof item === "number"
+        ? String(item)
+        : "";
+    })
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return parts.join("，").slice(0, maxLength);
+}
+
+function formatExperienceList(label: string, value?: unknown[] | null) {
+  const items = Array.isArray(value)
+    ? value
+        .map((item) => compactText(item))
+        .filter(Boolean)
+        .slice(0, 3)
+    : [];
+  if (!items.length) return null;
+  return `${label}：${items.map((item, index) => `${index + 1}. ${item}`).join("；")}`;
+}
+
+function formatCandidateContext(context?: RealtimeCandidateContext | null) {
+  if (!context) return "";
+
+  return [
+    context.jobIntention ? `目标岗位：${context.jobIntention}` : null,
+    context.companyIntention ? `目标公司：${context.companyIntention}` : null,
+    context.experienceYears !== null && context.experienceYears !== undefined
+      ? `经验年限：${context.experienceYears} 年`
+      : null,
+    Array.isArray(context.skills) && context.skills.length
+      ? `技能关键词：${context.skills.filter(Boolean).slice(0, 12).join("、")}`
+      : null,
+    context.bio ? `候选人简介：${context.bio.slice(0, 180)}` : null,
+    context.hasResume ? "简历状态：已上传简历，可围绕简历经历追问。" : null,
+    formatExperienceList("工作经历摘要", context.workExperiences),
+    formatExperienceList("项目经历摘要", context.projectExperiences),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function formatInterviewPlan(plan?: RealtimeInterviewPlanContext | null) {
+  if (!plan) return "";
+  const questions = (plan.questions ?? []).slice(0, 6);
+
+  return [
+    plan.summary ? `计划摘要：${plan.summary}` : null,
+    plan.plannedTopics?.length
+      ? `计划覆盖主题：${plan.plannedTopics.slice(0, 10).join("、")}`
+      : null,
+    questions.length
+      ? [
+          "参考问题（按需自然使用，不要照本宣科）：",
+          ...questions.map((item, index) => {
+            const topics = item.topics?.length
+              ? `；考点：${item.topics.join("、")}`
+              : "";
+            const signals = item.expectedSignals?.length
+              ? `；观察信号：${item.expectedSignals.slice(0, 4).join("、")}`
+              : "";
+            return `${index + 1}. ${item.questionText}${topics}${signals}`;
+          }),
+        ].join("\n")
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildRealtimeSystemRole(input: {
+  interviewType?: string | null;
+  duration?: string | null;
+  candidateContext?: RealtimeCandidateContext | null;
+  interviewPlan?: RealtimeInterviewPlanContext | null;
+}) {
+  const parsed = parseInterviewType(input.interviewType);
+  const candidateContext = formatCandidateContext(input.candidateContext);
+  const interviewPlan = formatInterviewPlan(input.interviewPlan);
+  const topic =
+    input.candidateContext?.jobIntention?.trim() || parsed.topic || "技术岗位";
+  const difficulty = parsed.difficulty
+    ? DIFFICULTY_LABELS[parsed.difficulty]
+    : "标准";
+  const duration = input.duration?.trim();
+  const durationLine = duration ? `预计时长：${duration} 分钟。` : "";
+
+  return [
+    "你是一位资深中文技术面试官，正在进行一场综合模拟面试。",
+    `岗位方向：${topic}。难度：${difficulty}。${durationLine}`,
+    candidateContext ? `候选人上下文：\n${candidateContext}` : "",
+    interviewPlan ? `面试计划参考：\n${interviewPlan}` : "",
+    "请直接开始面试：先用一句自然的问候开场，然后请候选人做简短自我介绍。",
+    "面试过程中保持真人对话感，不要念稿，不要一次抛出多个问题。",
+    "每轮只问一个问题；根据候选人回答自然追问、澄清或切换到相关技术点。",
+    "优先考察项目经历、技术深度、取舍原因、问题排查和沟通表达。",
+    "如果候选人回答太短，请温和追问具体场景、指标、个人贡献和技术细节。",
+    "请自然推进节奏：开场自我介绍 -> 项目经历深挖 -> 技术原理/系统设计/排障细节 -> 根据时间收尾总结；不要向候选人朗读这些阶段名。",
+    "候选人插话或继续回答时，请停止当前展开，优先听完并围绕新信息追问。",
+  ].join("\n");
+}
 
 export function InterviewRoom({
   interviewId,
-  initialVoiceKernel,
+  interviewType,
+  duration,
+  candidateContext,
+  interviewPlan,
 }: InterviewRoomProps) {
-  const locale = useLocale();
   const resumeUrl = useUserStore((state) => state.userInfo?.resume_url ?? null);
   const hasResumeUrl = Boolean(resumeUrl);
-  const hasConnectedRef = useRef(false);
-  const hasManuallyToggledResumePanelRef = useRef(false);
-  const agentEchoCooldownTimerRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
-  const prevIsAgentSpeakingRef = useRef(false);
-  const [turnMode] = useState<"manual" | "vad">(() => {
-    if (typeof window === "undefined") return "manual";
-    const saved = window.localStorage.getItem(TURN_MODE_STORAGE_KEY);
-    return saved === "vad" ? "vad" : "manual";
-  });
-  const [manualDraftText, setManualDraftText] = useState("");
-  const [runtimeDraftText, setRuntimeDraftText] = useState("");
-  const [isCodeWorkbenchOpen, setIsCodeWorkbenchOpen] = useState(false);
-  const [codeProblem, setCodeProblem] = useState<CodeProblem | null>(null);
   const [isResumePanelOpen, setIsResumePanelOpen] = useState(
     () => hasResumeUrl,
   );
-  const [isInAgentEchoCooldown, setIsInAgentEchoCooldown] = useState(false);
-  const [runtimeDraftUpdatedAt, setRuntimeDraftUpdatedAt] = useState<
-    number | null
-  >(null);
-  const [isPushToTalkPressed, setIsPushToTalkPressed] = useState(false);
-
-  const {
-    isSupported: isBrowserSpeechSupported,
-    transcript: browserFinalTranscript,
-    interimTranscript: browserInterimTranscript,
-    startListening,
-    stopListening,
-    resetTranscript: resetBrowserTranscript,
-  } = useSpeechRecognition({
-    language: locale.startsWith("zh") ? "zh-CN" : "en-US",
-    continuous: true,
-    interimResults: true,
-    onError: (speechError) => {
-      console.warn(
-        "[InterviewRoom] Browser speech recognition error:",
-        speechError,
-      );
-    },
+  const [runtimeStatus, setRuntimeStatus] = useState<RealtimeInterviewStatus>({
+    isConnected: false,
+    isConnecting: false,
+    error: null,
   });
 
-  const browserDraftText =
-    `${browserFinalTranscript} ${browserInterimTranscript}`.trim();
-
-  const {
-    voiceKernel,
-    isConnected,
-    isConnecting,
-    isMicEnabled,
-    isAgentSpeaking,
-    isUserSpeaking,
-    isAudioPlaybackBlocked,
-    transcript,
-    error,
-    connect,
-    disconnect,
-    toggleMicrophone,
-    beginPushToTalk,
-    endPushToTalk,
-    startInterview,
-    sendTextMessage,
-  } = useInterviewVoiceRuntime({
-    interviewId,
-    voiceKernel: initialVoiceKernel,
-    onUserTranscription: (text) => {
-      setRuntimeDraftText(text);
-      setRuntimeDraftUpdatedAt(Date.now());
-    },
-    onDataMessage: (message) => {
-      const event = resolveCodeWorkbenchEvent(message);
-      if (event?.action === "open") {
-        setCodeProblem(event.problem);
-        setIsCodeWorkbenchOpen(true);
-      }
-      if (event?.action === "close") {
-        setIsCodeWorkbenchOpen(false);
-      }
-    },
-    onConnected: () => {
-      console.log("[InterviewRoom] Connected to LiveKit room");
-    },
-    onDisconnected: () => {
-      console.log("[InterviewRoom] Disconnected from interview runtime");
-    },
-    onError: (err) => {
-      console.error("[InterviewRoom] Runtime error:", err);
-    },
-  });
-  const shouldUseBrowserFallback = !isAgentSpeaking && !isInAgentEchoCooldown;
-  const isVoiceFirstMode = voiceKernel !== "legacy";
-  const agentState: AgentState = isConnecting
-    ? "connecting"
-    : !isConnected
-      ? "disconnected"
-      : isAgentSpeaking
-        ? "speaking"
-        : "listening";
-
-  useEffect(() => {
-    const nextDraftText = resolveDraftTextFromSources({
-      livekitText: runtimeDraftText,
-      livekitUpdatedAt: runtimeDraftUpdatedAt,
-      browserText: browserDraftText,
-      now: Date.now(),
-      browserFallbackEnabled: shouldUseBrowserFallback,
-    });
-    setManualDraftText(nextDraftText);
-  }, [
-    runtimeDraftText,
-    runtimeDraftUpdatedAt,
-    browserDraftText,
-    shouldUseBrowserFallback,
-  ]);
-
-  useEffect(() => {
-    writeStoredVoiceKernel(voiceKernel);
-  }, [voiceKernel]);
-
-  // 自动连接到房间
-  useEffect(() => {
-    if (hasConnectedRef.current) return;
-    hasConnectedRef.current = true;
-
-    connect();
-
-    return () => {
-      disconnect();
-    };
-
-    // 只执行一次
-  }, [connect, disconnect]);
-
-  // 连接成功后发送 start_interview RPC
-  const handleStartInterview = useCallback(async () => {
-    if (!isConnected) return;
-
-    try {
-      await startInterview({ turnMode });
-      console.log("[InterviewRoom] Started interview runtime");
-    } catch (err) {
-      console.error("[InterviewRoom] Failed to start interview:", err);
-    }
-  }, [isConnected, startInterview, turnMode]);
-
-  // 发送文本消息
-  const handleSendMessage = useCallback(
-    async (text: string) => {
-      try {
-        await sendTextMessage(text);
-        setManualDraftText("");
-        setRuntimeDraftText("");
-        setRuntimeDraftUpdatedAt(null);
-        resetBrowserTranscript();
-        console.log("[InterviewRoom] Sent text message:", text);
-      } catch (err) {
-        console.error("[InterviewRoom] Failed to send message:", err);
-      }
-    },
-    [resetBrowserTranscript, sendTextMessage],
+  const systemRole = useMemo(
+    () =>
+      buildRealtimeSystemRole({
+        interviewType,
+        duration,
+        candidateContext,
+        interviewPlan,
+      }),
+    [candidateContext, duration, interviewPlan, interviewType],
   );
-
-  const handleMicToggle = useCallback(() => {
-    void (async () => {
-      const willEnableMic = !isMicEnabled;
-      await toggleMicrophone();
-
-      if (!isBrowserSpeechSupported) return;
-      if (willEnableMic && !isAgentSpeaking) {
-        startListening();
-      } else {
-        stopListening();
-      }
-    })();
-  }, [
-    isBrowserSpeechSupported,
-    isAgentSpeaking,
-    isMicEnabled,
-    startListening,
-    stopListening,
-    toggleMicrophone,
-  ]);
-
-  const handlePushToTalkStart = useCallback(() => {
-    if (!isVoiceFirstMode) return;
-    if (!isConnected || isConnecting || isAgentSpeaking) return;
-
-    flushSync(() => {
-      setIsPushToTalkPressed(true);
-    });
-    void beginPushToTalk?.();
-  }, [
-    beginPushToTalk,
-    isAgentSpeaking,
-    isConnected,
-    isConnecting,
-    isVoiceFirstMode,
-  ]);
-
-  const handlePushToTalkEnd = useCallback(() => {
-    if (!isVoiceFirstMode) return;
-    flushSync(() => {
-      setIsPushToTalkPressed(false);
-    });
-    void endPushToTalk?.();
-  }, [endPushToTalk, isVoiceFirstMode]);
-
-  useEffect(() => {
-    if (!isConnected || !isMicEnabled || isAgentSpeaking) {
-      stopListening();
-      return;
-    }
-    if (isInAgentEchoCooldown) {
-      stopListening();
-      return;
-    }
-    if (isBrowserSpeechSupported) {
-      startListening();
-    }
-  }, [
-    isBrowserSpeechSupported,
-    isInAgentEchoCooldown,
-    isAgentSpeaking,
-    isConnected,
-    isMicEnabled,
-    startListening,
-    stopListening,
-  ]);
-
-  useEffect(() => {
-    if (!isConnected) {
-      if (agentEchoCooldownTimerRef.current) {
-        clearTimeout(agentEchoCooldownTimerRef.current);
-        agentEchoCooldownTimerRef.current = null;
-      }
-      setIsInAgentEchoCooldown(false);
-      prevIsAgentSpeakingRef.current = false;
-      return;
-    }
-
-    if (isAgentSpeaking) {
-      if (agentEchoCooldownTimerRef.current) {
-        clearTimeout(agentEchoCooldownTimerRef.current);
-        agentEchoCooldownTimerRef.current = null;
-      }
-      setIsInAgentEchoCooldown(true);
-    } else if (prevIsAgentSpeakingRef.current) {
-      if (agentEchoCooldownTimerRef.current) {
-        clearTimeout(agentEchoCooldownTimerRef.current);
-      }
-      agentEchoCooldownTimerRef.current = setTimeout(() => {
-        setIsInAgentEchoCooldown(false);
-        agentEchoCooldownTimerRef.current = null;
-      }, 1500);
-    }
-
-    prevIsAgentSpeakingRef.current = isAgentSpeaking;
-  }, [isAgentSpeaking, isConnected]);
-
-  useEffect(() => {
-    if (!isAgentSpeaking) return;
-    resetBrowserTranscript();
-  }, [isAgentSpeaking, resetBrowserTranscript]);
-
-  useEffect(() => {
-    if (hasResumeUrl && !hasManuallyToggledResumePanelRef.current) {
-      setIsResumePanelOpen(true);
-    }
-  }, [hasResumeUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (agentEchoCooldownTimerRef.current) {
-        clearTimeout(agentEchoCooldownTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isVoiceFirstMode) return;
-
-    const isEditableTarget = (target: EventTarget | null) => {
-      if (!(target instanceof HTMLElement)) return false;
-      if (target.isContentEditable) return true;
-      if (
-        target.closest(
-          'input, textarea, [contenteditable="true"], [role="textbox"], .monaco-editor',
-        )
-      ) {
-        return true;
-      }
-      return false;
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code !== "Space") return;
-      if (event.repeat) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isEditableTarget(event.target)) return;
-      event.preventDefault();
-      handlePushToTalkStart();
-    };
-
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code !== "Space") return;
-      if (isEditableTarget(event.target)) return;
-      event.preventDefault();
-      handlePushToTalkEnd();
-    };
-
-    const handleWindowBlur = () => {
-      handlePushToTalkEnd();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("blur", handleWindowBlur);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", handleWindowBlur);
-    };
-  }, [handlePushToTalkEnd, handlePushToTalkStart, isVoiceFirstMode]);
 
   const handleToggleResumePanel = useCallback(() => {
-    hasManuallyToggledResumePanelRef.current = true;
+    if (!hasResumeUrl) return;
     setIsResumePanelOpen((prev) => !prev);
-  }, []);
+  }, [hasResumeUrl]);
 
-  // 连接成功后自动开始面试
-  useEffect(() => {
-    if (isConnected) {
-      // 给 Agent 一点时间准备
-      const timer = setTimeout(handleStartInterview, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isConnected, handleStartInterview]);
-
-  const interviewPanel = isVoiceFirstMode ? (
-    <VoiceFirstPanel
-      isConnected={isConnected}
-      isConnecting={isConnecting}
-      isMicEnabled={isMicEnabled}
-      isAgentSpeaking={isAgentSpeaking}
-      isUserSpeaking={isUserSpeaking}
-      isAudioPlaybackBlocked={isAudioPlaybackBlocked}
-      transcript={transcript}
-      onMicToggle={handleMicToggle}
-      manualDraftText={manualDraftText}
-      isPushToTalkPressed={isPushToTalkPressed}
-      error={error}
-      onRetry={connect}
-    />
-  ) : (
-    <AIInterviewerPanel
-      turnMode={turnMode}
-      isConnected={isConnected}
-      isConnecting={isConnecting}
-      isMicEnabled={isMicEnabled}
-      isAgentSpeaking={isAgentSpeaking}
-      agentState={agentState}
-      isUserSpeaking={isUserSpeaking}
-      isAudioPlaybackBlocked={isAudioPlaybackBlocked}
-      transcript={transcript}
-      onMicToggle={handleMicToggle}
-      manualDraftText={manualDraftText}
-      onSendMessage={handleSendMessage}
-    />
-  );
-
-  const interviewMainContent = !isCodeWorkbenchOpen ? (
-    interviewPanel
-  ) : (
-    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-      <ResizablePanel minSize={35} defaultSize={48} className="h-full">
-        {interviewPanel}
-      </ResizablePanel>
-
-      <ResizableHandle withHandle />
-
-      <ResizablePanel defaultSize={52} minSize={30} className="h-full">
-        <CodeWorkbench problem={codeProblem ?? undefined} />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+  const realtimePanel = (
+    <div className="h-full overflow-hidden">
+      <RealtimeInterviewPanel
+        interviewId={interviewId}
+        title="综合面试"
+        systemRole={systemRole}
+        speakingStyle="自然、简洁、有追问感，像真实技术面试官一样交流。"
+        className="h-full"
+        onStatusChange={setRuntimeStatus}
+      />
+    </div>
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#FDFCF8]">
+    <div
+      data-interview-id={interviewId}
+      className="fixed inset-0 flex flex-col bg-[#FDFCF8]"
+    >
       <InterviewHeader
-        isConnected={isConnected}
-        isConnecting={isConnecting}
-        error={error}
+        isConnected={runtimeStatus.isConnected}
+        isConnecting={runtimeStatus.isConnecting}
+        error={runtimeStatus.error}
         isResumePanelOpen={isResumePanelOpen}
-        onToggleResumePanel={handleToggleResumePanel}
-        isCodeWorkbenchOpen={isCodeWorkbenchOpen}
-        onToggleCodeWorkbench={() => {
-          setIsCodeWorkbenchOpen((prev) => !prev);
-        }}
+        onToggleResumePanel={hasResumeUrl ? handleToggleResumePanel : undefined}
       />
 
       <div className="flex-1 overflow-hidden">
-        {isResumePanelOpen ? (
+        {hasResumeUrl && isResumePanelOpen ? (
           <ResizablePanelGroup direction="horizontal" className="h-full w-full">
             <ResizablePanel minSize={20} defaultSize={34} maxSize={60}>
               <InterviewResumePanel resumeUrl={resumeUrl} />
@@ -449,11 +250,11 @@ export function InterviewRoom({
             <ResizableHandle withHandle />
 
             <ResizablePanel defaultSize={66} minSize={40} className="h-full">
-              {interviewMainContent}
+              {realtimePanel}
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
-          interviewMainContent
+          realtimePanel
         )}
       </div>
     </div>

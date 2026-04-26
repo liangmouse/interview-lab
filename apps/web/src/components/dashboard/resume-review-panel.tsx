@@ -91,13 +91,9 @@ export function ResumeReviewPanel({
   const [activeJob, setActiveJob] = useState<ResumeReviewJob | null>(null);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [jobError, setJobError] = useState("");
-  const [jobStartedAt, setJobStartedAt] = useState<number | null>(null);
 
   const loadReviewJobs = useCallback(async () => {
     const jobs = await listResumeReviewJobs();
-    console.info("[resume-review] jobs loaded", {
-      jobCount: jobs.length,
-    });
     setReviewJobs(jobs);
     return jobs;
   }, []);
@@ -142,18 +138,6 @@ export function ResumeReviewPanel({
     const timer = window.setInterval(() => {
       void getResumeReviewJob(activeJob.id)
         .then((job) => {
-          const waitSeconds = jobStartedAt
-            ? Math.round((Date.now() - jobStartedAt) / 1000)
-            : null;
-          console.info("[resume-review] poll result", {
-            jobId: activeJob.id,
-            status: job.status,
-            waitSeconds,
-            attemptCount: job.attemptCount,
-            startedAt: job.startedAt,
-            completedAt: job.completedAt,
-          });
-
           setActiveJob(job);
           setReviewJobs((prev) => upsertJobList(prev, job));
 
@@ -176,7 +160,7 @@ export function ResumeReviewPanel({
     return () => {
       window.clearInterval(timer);
     };
-  }, [activeJob, jobStartedAt]);
+  }, [activeJob]);
 
   const hasResumes = resumes.length > 0;
 
@@ -215,13 +199,6 @@ export function ResumeReviewPanel({
     setIsReviewing(true);
     setSelectedReviewId(null);
     setJobError("");
-    setJobStartedAt(Date.now());
-    console.info("[resume-review] create job start", {
-      resumeStoragePath: selectedResumePath,
-      targetRole: normalizedTargetRole,
-      targetCompany: normalizedTargetCompany,
-      hasJobDescription: !!normalizedJobDescription,
-    });
 
     try {
       const job = await createResumeReviewJob({
@@ -232,17 +209,11 @@ export function ResumeReviewPanel({
           ? { jobDescription: normalizedJobDescription }
           : {}),
       });
-      console.info("[resume-review] create job success", {
-        jobId: job.id,
-        status: job.status,
-        createdAt: job.createdAt,
-      });
       setActiveJob(job);
       setReviewJobs((prev) => upsertJobList(prev, job));
     } catch (error) {
       console.error("Failed to create resume review job:", error);
       setIsReviewing(false);
-      setJobStartedAt(null);
       setJobError(
         error instanceof Error ? error.message : "简历点评任务创建失败",
       );
@@ -381,11 +352,6 @@ export function ResumeReviewPanel({
             {t("history.title")}
           </CardTitle>
           <CardDescription>{t("history.description")}</CardDescription>
-          {process.env.NODE_ENV === "development" ? (
-            <p className="text-xs text-muted-foreground">
-              debug: clientJobCount={reviewJobs.length}
-            </p>
-          ) : null}
         </CardHeader>
         <CardContent className="space-y-3">
           {reviewJobs.length === 0 ? (

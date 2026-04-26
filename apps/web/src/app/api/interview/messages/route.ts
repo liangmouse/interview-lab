@@ -45,17 +45,27 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { interviewId, role, content } = body;
+    const normalizedContent =
+      typeof content === "string"
+        ? content.trim()
+        : String(content ?? "").trim();
 
-    if (!interviewId || !role || !content) {
+    if (!interviewId || !role || !normalizedContent) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    if (role !== "user" && role !== "assistant") {
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+
     const supabase = createSupabaseAdminClient();
-    const { error } = await supabase.from("messages").insert({
-      interview_id: interviewId,
-      role,
-      content,
-    });
+    const { error } = await supabase.rpc(
+      role === "user" ? "add_user_message" : "add_ai_message",
+      {
+        p_interview_id: interviewId,
+        p_content: normalizedContent,
+      },
+    );
 
     if (error) {
       console.error("Error saving message:", error);

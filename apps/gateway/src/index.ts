@@ -1,77 +1,44 @@
+import { createServer } from "node:http";
 import {
-  FeishuAdapter,
-  TelegramAdapter,
-  type ChannelAdapter,
-} from "@interviewclaw/channel-sdk";
-import { SessionRouter } from "@interviewclaw/domain";
-import { WorkflowEngine } from "@interviewclaw/workflows";
+  createVoiceRealtimeProxy,
+  getVoiceRealtimeConfigStatus,
+} from "./voice-realtime-proxy";
 
-type GatewayEvent = {
-  channel: "feishu" | "telegram";
-  headers: Record<string, string>;
-  body: string;
-};
+export { ChannelGateway } from "./channel-gateway";
 
-export class ChannelGateway {
-  private readonly router = new SessionRouter();
-  private readonly workflowEngine = new WorkflowEngine();
-  private readonly adapters: Record<string, ChannelAdapter>;
+const PORT = Number(process.env.GATEWAY_PORT ?? 8787);
+const HOST = process.env.GATEWAY_HOST ?? "0.0.0.0";
 
-  constructor() {
-    this.adapters = {
-      feishu: new FeishuAdapter(),
-      telegram: new TelegramAdapter(),
-    };
+const voiceProxy = createVoiceRealtimeProxy();
+
+const server = createServer((req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(
+      JSON.stringify({
+        ok: true,
+        voiceRealtime: getVoiceRealtimeConfigStatus(),
+      }),
+    );
+    return;
   }
+  res.writeHead(404);
+  res.end();
+});
 
-  async handleWebhook(event: GatewayEvent) {
-    const adapter = this.adapters[event.channel];
-    if (!adapter) {
-      throw new Error(`Unsupported channel: ${event.channel}`);
-    }
-
-    const verified = await adapter.verifyWebhook({
-      headers: event.headers,
-      body: event.body,
-    });
-
-    if (!verified) {
-      return { accepted: false, reason: "invalid_signature" };
-    }
-
-    const inbound = await adapter.parseInboundEvent({
-      body: event.body,
-      headers: event.headers,
-    });
-
-    if (!inbound) {
-      return { accepted: false, reason: "ignored" };
-    }
-
-    const session = this.router.route({
-      userId: inbound.externalUserId,
-      channel: inbound.channel,
-      threadKey: inbound.threadKey,
-    });
-
-    const plannedTask = this.workflowEngine.schedule({
-      dedupeKey: `${inbound.channel}:${inbound.threadKey}:${inbound.text}`,
-      capability: "study_planner",
-      trigger: "event",
-      payload: {
-        sessionId: session.id,
-        text: inbound.text,
-      },
-    });
-
-    return {
-      accepted: true,
-      session,
-      plannedTask,
-    };
+server.on("upgrade", (req, socket, head) => {
+  const url = new URL(req.url ?? "/", "http://localhost");
+  if (url.pathname === "/voice/realtime") {
+    voiceProxy.handleUpgrade(req, socket, head);
+    return;
   }
-}
+  socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+  socket.destroy();
+});
 
-if (process.env.NODE_ENV !== "test") {
-  console.log("[gateway] InterviewClaw gateway ready");
-}
+server.listen(PORT, HOST, () => {
+  console.log(`[gateway] listening on ws://${HOST}:${PORT}`);
+  console.log(
+    `[gateway] voice realtime proxy at ws://${HOST}:${PORT}/voice/realtime`,
+  );
+});

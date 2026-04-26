@@ -32,7 +32,6 @@ vi.mock("@/action/create-interview", () => ({
 
 vi.mock("@/lib/voice-kernel", () => ({
   buildInterviewHref: vi.fn(),
-  readStoredVoiceKernel: vi.fn(),
 }));
 
 describe("FullInterviewPanel", () => {

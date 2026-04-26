@@ -8,17 +8,26 @@ import type {
   ResumeVersion,
 } from "@interviewclaw/domain";
 import { Link } from "@/i18n/navigation";
-import { ArrowRight, FileText, Languages, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  ArrowRight,
+  Bot,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  Send,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getResumeLibrary,
@@ -28,7 +37,6 @@ import { formatDateTime } from "@/lib/format";
 import {
   RESUME_GENERATION_DIRECTION_OPTIONS,
   RESUME_GENERATION_LANGUAGE_OPTIONS,
-  formatResumeGenerationMissingField,
 } from "@/lib/resume-generation";
 import {
   createResumeGenerationJob,
@@ -103,12 +111,18 @@ export function ResumeGenerationPanel() {
   const [isSendingAnswer, setIsSendingAnswer] = useState(false);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
 
-  const hasResumeLibrary = resumeLibrary.length > 0;
   const pendingJobs = useMemo(
     () =>
       jobs.filter((job) => job.status === "queued" || job.status === "running"),
     [jobs],
   );
+  const latestVersion = versions[0] ?? null;
+  const sessionStatusLabel = !currentSession
+    ? "准备开始"
+    : currentSession.sessionStatus === "collecting"
+      ? "采集中"
+      : "可生成";
+  const targetRole = currentSession?.portraitDraft.targetRole ?? "";
 
   const loadHistory = useCallback(async () => {
     const [loadedVersions, loadedJobs] = await Promise.all([
@@ -165,21 +179,6 @@ export function ResumeGenerationPanel() {
       window.clearInterval(timer);
     };
   }, [pendingJobs]);
-
-  const sessionSummary = useMemo(() => {
-    if (!currentSession) {
-      return null;
-    }
-
-    return {
-      targetRole: currentSession.portraitDraft.targetRole,
-      summary: currentSession.portraitDraft.summary,
-      skills: currentSession.portraitDraft.skills,
-      missingFields: currentSession.missingFields.map(
-        formatResumeGenerationMissingField,
-      ),
-    };
-  }, [currentSession]);
 
   const handleStartSession = async () => {
     if (!selectedResumePath) {
@@ -254,410 +253,326 @@ export function ResumeGenerationPanel() {
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="overflow-hidden border-[#E5E5E5] bg-[linear-gradient(135deg,#fffdf7,white_55%,#f7fbf8)]">
-        <CardHeader className="border-b border-[#F0ECE2]">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2">
-              <CardTitle className="text-xl text-[#141414]">
-                开始一版新简历
-              </CardTitle>
-              <CardDescription>
-                基于已有简历做二次重写，通过分步补问把事实补齐，再生成可预览的
-                Markdown 简历。
-              </CardDescription>
-            </div>
-            <div className="rounded-full border border-[#E5E0D1] bg-white/80 px-3 py-1 text-xs font-medium text-[#7A5C2E]">
-              LapisCV 风格预览
+    <div className="mx-auto flex min-h-[calc(100vh-132px)] max-w-4xl flex-col overflow-hidden rounded-[24px] border border-[#DFDDD5] bg-white shadow-[0_24px_70px_rgba(20,20,20,0.08)]">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#ECE9DF] bg-[#FFFEFA] px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#141414] text-white">
+            <Bot className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold text-[#141414]">
+              AI 简历顾问
+            </h2>
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span>{sessionStatusLabel}</span>
+              {currentSession ? (
+                <>
+                  <span className="h-1 w-1 rounded-full bg-[#C9C4B6]" />
+                  <span>
+                    {currentSession.missingFields.length > 0
+                      ? `还缺 ${currentSession.missingFields.length} 项`
+                      : "信息齐备"}
+                  </span>
+                </>
+              ) : null}
+              {targetRole ? (
+                <>
+                  <span className="h-1 w-1 rounded-full bg-[#C9C4B6]" />
+                  <span className="truncate">{targetRole}</span>
+                </>
+              ) : null}
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6 p-6">
-          <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-[#141414]">
-                选择基础简历
-              </label>
-              <div className="grid gap-3">
-                {hasResumeLibrary ? (
-                  resumeLibrary.map((resume) => {
-                    const selected = selectedResumePath === resume.filePath;
-                    return (
-                      <button
-                        key={resume.filePath}
-                        type="button"
-                        onClick={() => setSelectedResumePath(resume.filePath)}
-                        className={`rounded-xl border p-4 text-left transition ${
-                          selected
-                            ? "border-[#0F6A4B] bg-[#F4FBF8] shadow-[0_10px_30px_rgba(15,106,75,0.08)]"
-                            : "border-[#E8E5DA] bg-white hover:bg-[#FCFBF8]"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-medium text-[#141414]">
-                              {resume.defaultName}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              上传于 {formatDateTime(resume.uploadedAt)}
-                            </p>
-                          </div>
-                          <FileText className="h-4 w-4 text-[#7A7A7A]" />
-                        </div>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-xl border border-dashed border-[#DADADA] bg-[#FCFCFC] px-4 py-8 text-center text-sm text-muted-foreground">
-                    暂无可用简历，请先在个人资料里上传 PDF 简历。
-                  </div>
-                )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {pendingJobs.length > 0 ? (
+            <span className="hidden items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 sm:inline-flex">
+              <Clock3 className="h-3.5 w-3.5" />
+              {pendingJobs.length}
+            </span>
+          ) : null}
+          {latestVersion ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="cursor-pointer"
+            >
+              <Link href={`/resume-generation/versions/${latestVersion.id}`}>
+                预览
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <span className="hidden items-center gap-1 rounded-full border border-[#E5E0D1] bg-white px-2.5 py-1 text-xs font-medium text-[#7A5C2E] sm:inline-flex">
+              <Sparkles className="h-3.5 w-3.5" />
+              LapisCV
+            </span>
+          )}
+        </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[#F8F6EF] px-4 py-7 sm:px-8">
+        <div className="mx-auto flex max-w-2xl flex-col gap-5">
+          {!currentSession ? (
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#141414] text-white">
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="max-w-[min(620px,86%)] rounded-2xl rounded-tl-sm bg-white px-4 py-3 text-sm leading-6 text-[#141414] shadow-sm">
+                选好基础简历后直接开始。我只会追问生成简历所必需的信息。
               </div>
             </div>
-
-            <div className="space-y-5 rounded-2xl border border-[#EFE8D8] bg-white/80 p-5">
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-[#141414]">
-                  投递方向预设
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {RESUME_GENERATION_DIRECTION_OPTIONS.map((option) => {
-                    const selected = directionPreset === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setDirectionPreset(option.value)}
-                        className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                          selected
-                            ? "border-[#0F6A4B] bg-[#0F6A4B] text-white"
-                            : "border-[#E4DFD4] bg-white text-[#333] hover:border-[#B9C8BD]"
-                        }`}
-                        title={option.description}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
+          ) : currentSession.messages.length > 0 ? (
+            currentSession.messages.map((message, index) => {
+              const isAssistant = message.role === "assistant";
+              return (
+                <div
+                  key={`${message.createdAt}-${index}`}
+                  className={`flex items-start gap-3 ${
+                    isAssistant ? "justify-start" : "justify-end"
+                  }`}
+                >
+                  {isAssistant ? (
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#141414] text-white">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                  ) : null}
+                  <div
+                    className={`max-w-[min(620px,86%)] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
+                      isAssistant
+                        ? "rounded-tl-sm bg-white text-[#141414]"
+                        : "rounded-tr-sm bg-[#141414] text-white"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                  {!isAssistant ? (
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E7E2D6] text-[#555]">
+                      <UserRound className="h-4 w-4" />
+                    </div>
+                  ) : null}
                 </div>
+              );
+            })
+          ) : (
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#141414] text-white">
+                <Bot className="h-4 w-4" />
               </div>
+              <div className="max-w-[min(620px,86%)] rounded-2xl rounded-tl-sm bg-white px-4 py-3 text-sm leading-6 text-[#141414] shadow-sm">
+                信息已经够了，可以开始生成。
+              </div>
+            </div>
+          )}
 
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-[#141414]">
-                  输出语言
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {RESUME_GENERATION_LANGUAGE_OPTIONS.map((option) => {
-                    const selected = language === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setLanguage(option.value)}
-                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition ${
-                          selected
-                            ? "border-[#1B4B91] bg-[#1B4B91] text-white"
-                            : "border-[#E4DFD4] bg-white text-[#333]"
-                        }`}
+          {activeJob ? (
+            <div className="mx-auto flex max-w-full items-center gap-3 rounded-full border border-[#E4E0D5] bg-white px-3 py-2 text-xs text-[#555] shadow-sm">
+              <span
+                className={`rounded-full border px-2 py-0.5 font-medium ${resolveJobStatus(activeJob).badgeClass}`}
+              >
+                {resolveJobStatus(activeJob).label}
+              </span>
+              <span className="truncate">
+                {activeJob.payload.portraitSnapshot.targetRole ||
+                  "简历生成任务"}
+              </span>
+              {activeJob.result?.previewUrl ? (
+                <Link
+                  href={activeJob.result.previewUrl}
+                  className="shrink-0 font-medium text-[#0F6A4B]"
+                >
+                  查看
+                </Link>
+              ) : null}
+            </div>
+          ) : latestVersion ? (
+            <div className="mx-auto flex max-w-full items-center gap-3 rounded-full border border-[#E4E0D5] bg-white px-3 py-2 text-xs text-[#555] shadow-sm">
+              <FileText className="h-3.5 w-3.5 shrink-0 text-[#777]" />
+              <span className="truncate">
+                最近版本：{latestVersion.title} ·{" "}
+                {formatDateTime(latestVersion.createdAt)}
+              </span>
+              <Link
+                href={`/resume-generation/versions/${latestVersion.id}`}
+                className="shrink-0 font-medium text-[#0F6A4B]"
+              >
+                预览
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <footer className="shrink-0 border-t border-[#ECE9DF] bg-[#FFFEFA] px-4 py-4 sm:px-5">
+        {currentSession ? (
+          currentSession.sessionStatus === "collecting" ? (
+            <div className="space-y-3">
+              {currentSession.suggestedAnswerHints.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {currentSession.suggestedAnswerHints
+                    .slice(0, 3)
+                    .map((hint) => (
+                      <Badge
+                        key={hint}
+                        variant="outline"
+                        className="shrink-0 bg-white"
                       >
-                        <Languages className="h-3.5 w-3.5" />
-                        {option.label}
-                      </button>
-                    );
-                  })}
+                        {hint}
+                      </Badge>
+                    ))}
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-[#141414]">
-                  自定义要求
-                </label>
+              ) : null}
+              <div className="flex items-end gap-2">
                 <Textarea
-                  value={customStylePrompt}
-                  onChange={(event) => setCustomStylePrompt(event.target.value)}
-                  placeholder="例如：更偏英文互联网风格，强调 AI 项目、技术深度和量化结果。"
-                  rows={5}
+                  value={answerInput}
+                  onChange={(event) => setAnswerInput(event.target.value)}
+                  placeholder="直接回复这个问题..."
+                  rows={2}
+                  className="min-h-14 resize-none rounded-2xl border-[#DDD8CC] bg-white px-4 py-3 shadow-none"
                 />
+                <Button
+                  onClick={() => void handleSubmitAnswer()}
+                  loading={isSendingAnswer}
+                  disabled={!answerInput.trim()}
+                  size="icon-lg"
+                  className="h-12 w-12 shrink-0 cursor-pointer rounded-full bg-[#141414] text-white hover:bg-[#222]"
+                  aria-label="提交补充信息"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-2 text-sm text-[#124E36]">
+                <CheckCircle2 className="h-5 w-5 shrink-0" />
+                <span className="truncate">
+                  信息齐备，可以生成 Markdown 简历
+                </span>
+              </div>
+              <Button
+                onClick={() => void handleCreateJob()}
+                loading={isCreatingJob}
+                className="cursor-pointer bg-[#0F6A4B] text-white hover:bg-[#0C553C]"
+              >
+                开始生成
+              </Button>
+            </div>
+          )
+        ) : (
+          <div className="space-y-3">
+            <div className="grid gap-2 lg:grid-cols-[minmax(0,1.35fr)_180px_132px_auto]">
+              <label className="sr-only" htmlFor="resume-generation-source">
+                选择基础简历
+              </label>
+              <Select
+                value={selectedResumePath}
+                onValueChange={setSelectedResumePath}
+                disabled={resumeLibrary.length === 0}
+              >
+                <SelectTrigger
+                  id="resume-generation-source"
+                  className="h-11 w-full rounded-xl border-[#DDD8CC] bg-white"
+                >
+                  <SelectValue
+                    placeholder={
+                      resumeLibrary.length === 0
+                        ? "暂无可用简历"
+                        : "选择基础简历"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {resumeLibrary.map((resume) => (
+                      <SelectItem key={resume.filePath} value={resume.filePath}>
+                        {resume.defaultName}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+
+              <label className="sr-only" htmlFor="resume-generation-direction">
+                投递方向
+              </label>
+              <Select
+                value={directionPreset}
+                onValueChange={(value) =>
+                  setDirectionPreset(value as ResumeGenerationDirectionPreset)
+                }
+              >
+                <SelectTrigger
+                  id="resume-generation-direction"
+                  className="h-11 w-full rounded-xl border-[#DDD8CC] bg-white"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {RESUME_GENERATION_DIRECTION_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+
+              <label className="sr-only" htmlFor="resume-generation-language">
+                输出语言
+              </label>
+              <Select
+                value={language}
+                onValueChange={(value) => setLanguage(value as typeof language)}
+              >
+                <SelectTrigger
+                  id="resume-generation-language"
+                  className="h-11 w-full rounded-xl border-[#DDD8CC] bg-white"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {RESUME_GENERATION_LANGUAGE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
 
               <Button
                 onClick={() => void handleStartSession()}
                 loading={isCreatingSession}
-                disabled={!hasResumeLibrary}
-                className="w-full cursor-pointer bg-[#141414] text-white hover:bg-[#222]"
+                disabled={!selectedResumePath}
+                className="h-11 cursor-pointer rounded-xl bg-[#141414] px-5 text-white hover:bg-[#222]"
               >
-                开始补充采集
+                开始
               </Button>
             </div>
+
+            <details className="group">
+              <summary className="w-fit cursor-pointer list-none text-xs text-muted-foreground transition hover:text-[#141414]">
+                高级要求
+              </summary>
+              <Textarea
+                value={customStylePrompt}
+                onChange={(event) => setCustomStylePrompt(event.target.value)}
+                placeholder="可选：补充语言风格、目标公司偏好、强调项目等。"
+                rows={2}
+                className="mt-2 min-h-14 resize-none rounded-xl border-[#DDD8CC] bg-white shadow-none"
+              />
+            </details>
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="border-[#E5E5E5] bg-white">
-          <CardHeader>
-            <CardTitle className="text-xl text-[#141414]">采集对话</CardTitle>
-            <CardDescription>
-              系统会一次只追问一个最关键的缺失信息，补齐后即可生成。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {currentSession ? (
-              <>
-                <div className="space-y-3 rounded-2xl border border-[#EFEFEF] bg-[#FAFAFA] p-4">
-                  {currentSession.messages.length > 0 ? (
-                    currentSession.messages.map((message, index) => (
-                      <div
-                        key={`${message.createdAt}-${index}`}
-                        className={`rounded-2xl px-4 py-3 ${
-                          message.role === "assistant"
-                            ? "mr-8 bg-white text-[#141414] shadow-sm"
-                            : "ml-8 bg-[#111] text-white"
-                        }`}
-                      >
-                        <p className="text-xs opacity-70">
-                          {message.role === "assistant"
-                            ? "系统提问"
-                            : "你的补充"}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm leading-6">
-                          {message.content}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      当前信息已经足够，可以直接生成。
-                    </p>
-                  )}
-                </div>
-
-                {currentSession.sessionStatus === "collecting" ? (
-                  <div className="space-y-3">
-                    <Textarea
-                      value={answerInput}
-                      onChange={(event) => setAnswerInput(event.target.value)}
-                      placeholder="按问题直接补充，尽量给出项目背景、职责、动作和结果。"
-                      rows={5}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      {currentSession.suggestedAnswerHints.map((hint) => (
-                        <Badge key={hint} variant="outline">
-                          {hint}
-                        </Badge>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={() => void handleSubmitAnswer()}
-                      loading={isSendingAnswer}
-                      disabled={!answerInput.trim()}
-                      className="cursor-pointer"
-                    >
-                      提交补充信息
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-[#DDEFE5] bg-[#F4FBF8] p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-[#124E36]">
-                          信息已整理完成
-                        </p>
-                        <p className="mt-1 text-sm text-[#4B6B5E]">
-                          现在可以开始生成 Markdown 简历，并进入预览页导出 PDF。
-                        </p>
-                      </div>
-                      <Button
-                        onClick={() => void handleCreateJob()}
-                        loading={isCreatingJob}
-                        className="cursor-pointer bg-[#0F6A4B] text-white hover:bg-[#0C553C]"
-                      >
-                        开始生成
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-[#DADADA] bg-[#FCFCFC] px-6 py-10 text-center">
-                <Sparkles className="mx-auto h-5 w-5 text-[#A08A5A]" />
-                <p className="mt-3 text-base font-medium text-[#141414]">
-                  先创建一个采集会话
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  选择简历、投递方向和语言后，系统会自动判断缺什么再继续追问。
-                </p>
-              </div>
-            )}
-
-            {jobError ? (
-              <p className="text-sm text-red-500">{jobError}</p>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card className="border-[#E5E5E5] bg-white">
-            <CardHeader>
-              <CardTitle className="text-xl text-[#141414]">
-                当前画像摘要
-              </CardTitle>
-              <CardDescription>这里展示已沉淀出来的关键信息。</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {sessionSummary ? (
-                <>
-                  <div className="space-y-1">
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#888]">
-                      Target
-                    </p>
-                    <p className="text-sm text-[#141414]">
-                      {sessionSummary.targetRole || "待补充"}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#888]">
-                      Summary
-                    </p>
-                    <p className="text-sm leading-6 text-[#141414]">
-                      {sessionSummary.summary || "待补充"}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#888]">
-                      Skills
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {sessionSummary.skills.length > 0 ? (
-                        sessionSummary.skills.map((skill) => (
-                          <Badge key={skill} variant="secondary">
-                            {skill}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          待补充
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#888]">
-                      Missing
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {sessionSummary.missingFields.length > 0 ? (
-                        sessionSummary.missingFields.map((field) => (
-                          <Badge key={field} variant="outline">
-                            {field}
-                          </Badge>
-                        ))
-                      ) : (
-                        <Badge className="bg-emerald-600 text-white">
-                          已齐备
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  还没有开始采集，创建会话后这里会实时更新。
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-[#E5E5E5] bg-white">
-            <CardHeader>
-              <CardTitle className="text-xl text-[#141414]">生成记录</CardTitle>
-              <CardDescription>
-                任务状态与历史版本都会展示在这里。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {activeJob ? (
-                <div className="rounded-2xl border border-[#ECECEC] bg-[#FCFCFC] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-[#141414]">
-                        {activeJob.payload.portraitSnapshot.targetRole ||
-                          "简历生成任务"}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        创建于 {formatDateTime(activeJob.createdAt)}
-                      </p>
-                      {activeJob.result?.summary ? (
-                        <p className="mt-3 text-sm leading-6 text-[#333]">
-                          {activeJob.result.summary}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${resolveJobStatus(activeJob).badgeClass}`}
-                    >
-                      {resolveJobStatus(activeJob).label}
-                    </span>
-                  </div>
-                  {activeJob.result?.previewUrl ? (
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="mt-4 cursor-pointer"
-                    >
-                      <Link href={activeJob.result.previewUrl}>
-                        查看预览
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {versions.length > 0 ? (
-                versions.map((version) => (
-                  <div
-                    key={version.id}
-                    className="rounded-2xl border border-[#ECECEC] bg-white p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-2">
-                        <p className="font-medium text-[#141414]">
-                          {version.title}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {version.summary}
-                        </p>
-                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                          <span>{formatDateTime(version.createdAt)}</span>
-                          <span>
-                            {version.language === "en-US" ? "英文" : "中文"}
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        asChild
-                        variant="ghost"
-                        className="cursor-pointer"
-                      >
-                        <Link
-                          href={`/resume-generation/versions/${version.id}`}
-                        >
-                          预览
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-2xl border border-dashed border-[#DADADA] bg-[#FCFCFC] px-6 py-8 text-center text-sm text-muted-foreground">
-                  暂无历史版本，生成第一版后会出现在这里。
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        {jobError ? (
+          <p className="mt-3 text-sm text-red-500">{jobError}</p>
+        ) : null}
+      </footer>
     </div>
   );
 }

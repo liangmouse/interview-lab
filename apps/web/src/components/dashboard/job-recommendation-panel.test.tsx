@@ -2,7 +2,14 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { JobRecommendationPanel } from "./job-recommendation-panel";
 
@@ -105,6 +112,14 @@ function buildSucceededJob() {
 describe("JobRecommendationPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
     useUserStore.mockReturnValue({
       userInfo: {
         job_intention: "前端工程师",
@@ -136,6 +151,8 @@ describe("JobRecommendationPanel", () => {
   });
 
   afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
@@ -239,22 +256,35 @@ describe("JobRecommendationPanel", () => {
     });
   });
 
-  it("reveals the guided connection UI and advanced manual entry", async () => {
+  it("reveals compact connection UI, privacy tooltip, and advanced manual entry", async () => {
+    const user = userEvent.setup();
+
     render(<JobRecommendationPanel />);
 
     await waitFor(() => {
       expect(
-        screen.getByText("三步完成连接，不需要先理解 Cookie 是什么"),
+        screen.getByText("三步连接 BOSS，复制后回来验证"),
       ).toBeInTheDocument();
     });
-    expect(screen.getByText("你最关心的事")).toBeInTheDocument();
     expect(
-      screen.getByText("不会自动发消息、打招呼或改你的资料。"),
-    ).toBeInTheDocument();
+      screen.queryByText(
+        "只校验 BOSS 登录状态，并在你主动开始推荐时读取岗位推荐所需会话。",
+      ),
+    ).not.toBeInTheDocument();
+
+    await user.hover(screen.getByRole("button", { name: "隐私与权限说明" }));
+
+    expect(
+      (
+        await screen.findAllByText(
+          "只校验 BOSS 登录状态，并在你主动开始推荐时读取岗位推荐所需会话。",
+        )
+      ).length,
+    ).toBeGreaterThan(0);
 
     expect(screen.queryByLabelText("粘贴登录信息")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "高级方式" }));
+    fireEvent.click(screen.getByRole("button", { name: /高级方式/ }));
 
     expect(screen.getByLabelText("粘贴登录信息")).toBeInTheDocument();
     expect(

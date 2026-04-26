@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { fireEvent, render } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InterviewRoom } from "./interview-room";
@@ -9,29 +8,24 @@ import { InterviewRoom } from "./interview-room";
 vi.stubGlobal("React", React);
 
 vi.mock("next-intl", () => ({
-  useLocale: () => "zh-CN",
+  useTranslations: () => (key: string) => key,
 }));
 
-vi.mock("./ai-interviewer-panel", () => ({
-  AIInterviewerPanel: () => null,
-}));
-
-vi.mock("./voice-first-panel", () => ({
-  VoiceFirstPanel: () => null,
-}));
-
-vi.mock("./code-workbench", () => ({
-  CodeWorkbench: () => null,
+vi.mock("./realtime-interview-panel", () => ({
+  RealtimeInterviewPanel: (props: unknown) => {
+    realtimePanelProps = props as Record<string, unknown>;
+    return React.createElement("div", null, "RealtimeInterviewPanel");
+  },
 }));
 
 vi.mock("./interview-resume-panel", () => ({
-  InterviewResumePanel: () => null,
+  InterviewResumePanel: () => React.createElement("div", null, "Resume"),
 }));
 
 vi.mock("./interview-header", () => ({
   InterviewHeader: (props: unknown) => {
     headerProps = props as Record<string, unknown>;
-    return null;
+    return React.createElement("div", null, "Header");
   },
 }));
 
@@ -40,38 +34,6 @@ vi.mock("@/components/ui/resizable", () => ({
   ResizablePanel: ({ children }: { children?: React.ReactNode }) => children,
   ResizablePanelGroup: ({ children }: { children?: React.ReactNode }) =>
     children,
-}));
-
-vi.mock("@/hooks/useSpeechRecognition", () => ({
-  useSpeechRecognition: () => ({
-    isSupported: true,
-    transcript: "",
-    interimTranscript: "",
-    startListening: vi.fn(),
-    stopListening: vi.fn(),
-    resetTranscript: vi.fn(),
-  }),
-}));
-
-vi.mock("@/hooks/useInterviewVoiceRuntime", () => ({
-  useInterviewVoiceRuntime: () => ({
-    voiceKernel: "stepfun-realtime",
-    isConnected: true,
-    isConnecting: false,
-    isMicEnabled: true,
-    isAgentSpeaking: false,
-    isUserSpeaking: false,
-    isAudioPlaybackBlocked: false,
-    transcript: [],
-    error: null,
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    toggleMicrophone: vi.fn(),
-    beginPushToTalk: mockBeginPushToTalk,
-    endPushToTalk: mockEndPushToTalk,
-    startInterview: vi.fn(),
-    sendTextMessage: vi.fn(),
-  }),
 }));
 
 vi.mock("@/store/user", () => ({
@@ -88,49 +50,67 @@ vi.mock("@/store/user", () => ({
 }));
 
 let headerProps: Record<string, unknown> | null = null;
-const mockBeginPushToTalk = vi.fn();
-const mockEndPushToTalk = vi.fn();
+let realtimePanelProps: Record<string, unknown> | null = null;
 
 describe("InterviewRoom", () => {
   beforeEach(() => {
     headerProps = null;
-    mockBeginPushToTalk.mockReset();
-    mockEndPushToTalk.mockReset();
+    realtimePanelProps = null;
   });
 
-  it("renders without accessing isAgentSpeaking before initialization", () => {
+  it("renders the realtime voice panel without legacy runtime props", () => {
     expect(() =>
       renderToString(
         React.createElement(InterviewRoom, {
           interviewId: "1",
-          initialVoiceKernel: "legacy",
+          interviewType: "后端开发:intermediate",
+          duration: "25",
+          candidateContext: {
+            jobIntention: "后端工程师",
+            companyIntention: "AI 公司",
+            skills: ["Java", "Redis"],
+            hasResume: true,
+            projectExperiences: [
+              {
+                title: "秒杀系统",
+                description: "负责库存一致性和削峰",
+              },
+            ],
+          },
+          interviewPlan: {
+            summary: "后端中级面试计划",
+            plannedTopics: ["缓存", "并发"],
+            questions: [
+              {
+                questionText: "讲一下 Redis 缓存击穿怎么处理？",
+                topics: ["缓存"],
+                expectedSignals: ["互斥锁", "逻辑过期"],
+              },
+            ],
+          },
         }),
       ),
     ).not.toThrow();
+
+    expect(realtimePanelProps?.interviewId).toBe("1");
+    expect(realtimePanelProps?.title).toBe("综合面试");
+    expect(String(realtimePanelProps?.systemRole)).toContain(
+      "岗位方向：后端工程师",
+    );
+    expect(String(realtimePanelProps?.systemRole)).toContain("难度：中级");
+    expect(String(realtimePanelProps?.systemRole)).toContain("秒杀系统");
+    expect(String(realtimePanelProps?.systemRole)).toContain("Redis 缓存击穿");
   });
 
   it("opens resume panel by default when resume url exists", () => {
     renderToString(
       React.createElement(InterviewRoom, {
         interviewId: "1",
-        initialVoiceKernel: "legacy",
+        interviewType: "前端开发:beginner",
       }),
     );
+
     expect(headerProps?.isResumePanelOpen).toBe(true);
-  });
-
-  it("starts and ends push-to-talk when holding space in voice-first mode", () => {
-    render(
-      React.createElement(InterviewRoom, {
-        interviewId: "1",
-        initialVoiceKernel: "stepfun-realtime",
-      }),
-    );
-
-    fireEvent.keyDown(window, { code: "Space" });
-    fireEvent.keyUp(window, { code: "Space" });
-
-    expect(mockBeginPushToTalk).toHaveBeenCalledTimes(1);
-    expect(mockEndPushToTalk).toHaveBeenCalledTimes(1);
+    expect(typeof headerProps?.onToggleResumePanel).toBe("function");
   });
 });

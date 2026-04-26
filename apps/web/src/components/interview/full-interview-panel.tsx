@@ -23,7 +23,7 @@ import {
   createInterview,
   type InterviewDifficulty,
 } from "@/action/create-interview";
-import { buildInterviewHref, readStoredVoiceKernel } from "@/lib/voice-kernel";
+import { buildInterviewHref } from "@/lib/voice-kernel";
 import { normalizeInterviewTopic } from "@/lib/interview-session";
 import { toast } from "sonner";
 
@@ -287,9 +287,7 @@ export function FullInterviewPanel() {
       }
       if (result.interviewId) {
         startTransition(() => {
-          router.push(
-            buildInterviewHref(result.interviewId, readStoredVoiceKernel()),
-          );
+          router.push(buildInterviewHref(result.interviewId));
         });
       }
     } catch {

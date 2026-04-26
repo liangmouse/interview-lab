@@ -5,7 +5,9 @@ export function normalizeInterviewMode(
   mode: string | string[] | null | undefined,
 ): InterviewMode {
   const value = Array.isArray(mode) ? mode[0] : mode;
-  return value === "focus" ? "focus" : "full";
+  if (value === "focus") return "focus";
+  if (value === "full") return "full";
+  return "full";
 }
 
 export function buildInterviewModeHref(
