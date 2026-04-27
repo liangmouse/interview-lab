@@ -23,3 +23,7 @@ export function getLocalizedAppPath(pathname: string, appPath: string) {
 export function getOAuthRedirectTo(pathname: string, origin: string) {
   return `${origin}${getLocalizedAppPath(pathname, "/auth/callback")}`;
 }
+
+export function getPasswordResetRedirectTo(pathname: string, origin: string) {
+  return `${origin}${getLocalizedAppPath(pathname, "/auth/reset-password")}`;
+}

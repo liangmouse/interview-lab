@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getLocalizedAppPath, getOAuthRedirectTo } from "./auth-redirect";
+import {
+  getLocalizedAppPath,
+  getOAuthRedirectTo,
+  getPasswordResetRedirectTo,
+} from "./auth-redirect";
 
 describe("auth redirect helpers", () => {
   it("uses default locale callback path without prefix", () => {
@@ -24,5 +28,20 @@ describe("auth redirect helpers", () => {
     expect(getLocalizedAppPath("/auth/callback", "/dashboard")).toBe(
       "/dashboard",
     );
+  });
+
+  it("uses default locale reset password path without prefix", () => {
+    expect(
+      getPasswordResetRedirectTo("/forgot-password", "https://app.lmgbc.com"),
+    ).toBe("https://app.lmgbc.com/auth/reset-password");
+  });
+
+  it("preserves non-default locale for reset password path", () => {
+    expect(
+      getPasswordResetRedirectTo(
+        "/en/forgot-password",
+        "https://app.lmgbc.com",
+      ),
+    ).toBe("https://app.lmgbc.com/en/auth/reset-password");
   });
 });
