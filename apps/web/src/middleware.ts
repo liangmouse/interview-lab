@@ -44,7 +44,9 @@ export async function middleware(request: NextRequest) {
   // 这是 localePrefix: 'as-needed' 模式的核心逻辑
   if (!localeInPath) {
     const newPathname = `/${routing.defaultLocale}${pathname === "/" ? "" : pathname}`;
-    const response = NextResponse.rewrite(new URL(newPathname, request.url));
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = newPathname;
+    const response = NextResponse.rewrite(rewriteUrl);
     copyResponseCookies(sessionResponse, response);
     return response;
   }
