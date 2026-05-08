@@ -129,7 +129,6 @@ export function ForgotPasswordForm() {
                     setError(null);
                   }}
                   disabled={isLoading}
-                  required
                 />
               </div>
             </div>

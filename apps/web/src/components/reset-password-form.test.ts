@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   toastSuccess: vi.fn(),
   updateUser: vi.fn(),
+  verifyOtp: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -28,6 +29,7 @@ vi.mock("@/lib/supabase/client", () => ({
       getSession: mocks.getSession,
       signOut: mocks.signOut,
       updateUser: mocks.updateUser,
+      verifyOtp: mocks.verifyOtp,
     },
   }),
 }));
@@ -70,6 +72,7 @@ afterEach(() => {
   mocks.signOut.mockReset();
   mocks.toastSuccess.mockReset();
   mocks.updateUser.mockReset();
+  mocks.verifyOtp.mockReset();
 });
 
 describe("ResetPasswordForm", () => {
@@ -110,6 +113,44 @@ describe("ResetPasswordForm", () => {
       "密码已更新，请使用新密码登录",
     );
     expect(await screen.findByText("密码已更新")).not.toBeNull();
+  });
+
+  it("verifies a recovery token hash and updates the password", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/auth/reset-password?token_hash=recovery-token-hash&type=recovery",
+    );
+    mocks.verifyOtp.mockResolvedValue({ error: null });
+    mocks.getSession.mockResolvedValue({
+      data: { session: { user: {} } },
+      error: null,
+    });
+    mocks.updateUser.mockResolvedValue({ error: null });
+    mocks.signOut.mockResolvedValue({ error: null });
+
+    render(React.createElement(ResetPasswordForm));
+
+    expect(await screen.findByText("设置新密码")).not.toBeNull();
+    expect(mocks.verifyOtp).toHaveBeenCalledWith({
+      token_hash: "recovery-token-hash",
+      type: "recovery",
+    });
+
+    fireEvent.change(screen.getByLabelText("新密码"), {
+      target: { value: "new-password" },
+    });
+    fireEvent.change(screen.getByLabelText("确认新密码"), {
+      target: { value: "new-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "更新密码" }));
+
+    await waitFor(() => {
+      expect(mocks.updateUser).toHaveBeenCalledWith({
+        password: "new-password",
+      });
+    });
+    expect(mocks.signOut).toHaveBeenCalled();
   });
 
   it("shows a mismatch error before updating", async () => {

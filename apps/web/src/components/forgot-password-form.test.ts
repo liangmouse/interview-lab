@@ -95,8 +95,7 @@ describe("ForgotPasswordForm", () => {
   it("does not submit when email is empty", () => {
     render(React.createElement(ForgotPasswordForm));
 
-    const submitButton = screen.getByRole("button", { name: "发送重置邮件" });
-    fireEvent.submit(submitButton.closest("form")!);
+    fireEvent.click(screen.getByRole("button", { name: "发送重置邮件" }));
 
     expect(screen.getByText("请输入邮箱")).not.toBeNull();
     expect(mocks.resetPasswordForEmail).not.toHaveBeenCalled();

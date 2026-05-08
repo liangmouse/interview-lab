@@ -49,6 +49,18 @@ function hasRecoveryHash() {
   );
 }
 
+function getRecoveryTokenHash() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type");
+
+  if (type !== "recovery" || !tokenHash) {
+    return null;
+  }
+
+  return tokenHash;
+}
+
 export function ResetPasswordForm() {
   const supabase = useMemo(() => createClient(), []);
   const [status, setStatus] = useState<RecoveryStatus>("checking");
@@ -69,11 +81,24 @@ export function ResetPasswordForm() {
       }
 
       const code = new URLSearchParams(window.location.search).get("code");
-      const isRecoveryLink = Boolean(code) || hasRecoveryHash();
+      const tokenHash = getRecoveryTokenHash();
+      const isRecoveryLink = Boolean(code || tokenHash) || hasRecoveryHash();
 
       try {
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            throw error;
+          }
+
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+
+        if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: "recovery",
+          });
           if (error) {
             throw error;
           }
